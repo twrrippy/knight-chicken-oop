@@ -1,5 +1,8 @@
 @startuml ClassDiagram
 
+class Restaurant{
+
+}
 Customer --|> User
 Staff --|> User
 class User{
@@ -101,6 +104,7 @@ class Item{
 
 Restaurant --> Menu
 Menu o-- MenuFood
+MenuFood --> Particular
 class Menu{
     - food : list MenuFood
 }
@@ -128,7 +132,10 @@ PercentCoupon --|> Coupon
 EventOrder --* Booking
 
 Coupon --o Restaurant
+class room{
 
+}
+Restaurant o-- room
 class BookingManager{
     - booking_list : list Booking
 }
