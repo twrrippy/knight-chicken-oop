@@ -10,8 +10,8 @@ from controller.admin_controller import router as admin_router
 
 app = FastAPI()
 
-app.include_router(order_router)
-app.include_router(resource_router)
-app.include_router(kitchen_router)
-app.include_router(payment_router)
+# app.include_router(order_router)
+# app.include_router(resource_router)
+# app.include_router(kitchen_router)
+# app.include_router(payment_router)
 app.include_router(admin_router)
