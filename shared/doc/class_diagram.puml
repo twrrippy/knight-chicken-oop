@@ -1,7 +1,9 @@
 @startuml ClassDiagram
 
 class Restaurant{
-
+    - coupon_list : list of Coupon
+    + add_coupon(Coupon)
+    + get_coupon_by_code(code)
 }
 Customer --|> User
 Staff --|> User
@@ -20,7 +22,10 @@ class Guest {
 
 }
 class Member{
-
+    - coupon_code_list : list
+    + add_coupon(code)
+    + validate_coupon(code)
+    + mark_coupon_as_used(code)
 }
 
 Restaurant o-- Staff
@@ -57,7 +62,9 @@ class DineInOrder{
     
 }
 class EventOrder{
-    
+    - id : str
+    - total_price : float
+    - status : str
 }
 class DeliveryOrder{
     
@@ -137,16 +144,32 @@ class room{
 }
 Restaurant o-- room
 class BookingManager{
-    - booking_list : list Booking
+    - booking_list : list of Booking
+    + add_booking(booking)
+    + get_member_form_id(booking_id)
+    + get_event_order_from_id(booking_id)
+    + get_booking_from_id(booking_id)
 }
 class Booking{
-
+    - id : str
+    - member : Member
+    - room_price : float
+    - status : str
+    - event_order : EventOrder
+    - coupon : Coupon
+    - total_price : float
+    + add_event_order(EventOrder)
+    +
 }
 class Coupon{
     <<Abstract>>
+    - id : str
+    - code : str
+    - minimum_price : float
+    + apply_coupon(base_price)
 }
 class PercentCoupon{
-
+    - percent : int
 }
 DeriveryPlatform <-- Restaurant
 class DeriveryPlatform{
