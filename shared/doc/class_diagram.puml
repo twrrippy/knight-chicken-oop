@@ -1,9 +1,16 @@
 @startuml ClassDiagram
 
 class Restaurant{
+    - member : list of Member
+    - queue : list of Order <in comfirm, paided, and cooking state>
     - coupon_list : list of Coupon
+    - transaction_log : list of Transaction
+    - room : list of Room
+    - staff : list of Staff
     + add_coupon(Coupon)
     + get_coupon_by_code(code)
+    - create_transaction()
+    - booking_room(staff_id, member_id, room_id, amount_paid, start_time, hours)
 }
 Customer --|> User
 Staff --|> User
@@ -11,18 +18,25 @@ class User{
     -id : string
     -name : string
     -phoneNumber : string
+    + get_id()
 }
 Restaurant o-- Member
 Member--|>Customer
 Guest--|>Customer
 class Customer {
     <<Abstract>>
+    - id
+    - order
+    + request_bill()
 }
 class Guest {
-
+    + register()
 }
 class Member{
     - coupon_code_list : list
+    - receipt_list : list
+    - tier : str= Silver, Gold
+    + add_recipt(recipt)
     + add_coupon(code)
     + validate_coupon(code)
     + mark_coupon_as_used(code)
@@ -38,22 +52,32 @@ Manager--|>PartyStaff
 Manager--|>KitchenStaff
 class Staff{
     <<Abstract>>
+    - id
+    - username
+    - password
+    + login()
+    + logout()
 }
 class FrontStaff{
+    + create_order()
     
 }
 class PartyStaff{
-    
+    - role : str = "Party Staff"
+    + check_room_availability()
+    + check_in_booking()
+    + check_out_booking()
 }
 class KitchenStaff{
+    + view_queue()
+    + update_food_status()
+    + report_waste()
     
 }
 class Manager{
-
+    + void_bill()
 }
 
-Restaurant o-- DineInOrder
-Restaurant o-- DeliveryOrder
 DineInOrder --|> Order
 EventOrder --|> Order
 DeliveryOrder --|> Order
@@ -70,24 +94,25 @@ class DeliveryOrder{
     
 }
 
+Restaurant o-- Order
 Order *-- Food
 Food --> Particular
 Particular o-- Ingredient
 Ingredient --> Item
 
 class Order{
-    --id?:  string
+    -id:  string
     -type : DineIn, Party, Delivery
     -customer_id : string
     -food : list Food
-    -overall_price : float
+    -total_price : float
     -time : datetime
-    -status : none, confirmed, paided, finish, cancle
+    -status : none, confirmed, paided, cooking, finish, cancle
 }
 class Food{
     -particular : Particular
     -quantity : int
-    -status : none, avaliable, out_of_stock, cooking, finish, cancle
+    -status : none, available, out_of_stock, cooking, finish, cancle
 }
 class Particular{
     -list recipe : Ingredient
@@ -117,7 +142,7 @@ class Menu{
 }
 class MenuFood{
     - particular : Particular
-    - status : avaliable, out_of_stock, deleted
+    - status : available, out_of_stock, deleted
 }
 
 Restaurant --> Stock
@@ -134,13 +159,16 @@ class StockIngredient{
 }
 
 BookingManager o-- Booking
-Booking --> Coupon
 PercentCoupon --|> Coupon
 EventOrder --* Booking
 
 Coupon --o Restaurant
 class room{
-
+    - room_id : str
+    - name : str
+    - status : str = "Available", "Reserved", "In_Use", "Cleaning"
+    - capacity : int
+    - price_per_hour : float
 }
 Restaurant o-- room
 class BookingManager{
@@ -149,17 +177,24 @@ class BookingManager{
     + get_member_form_id(booking_id)
     + get_event_order_from_id(booking_id)
     + get_booking_from_id(booking_id)
+    + auto_check_no_show()
+    + is_slot_available(room_id, start_time, end_time)
 }
 class Booking{
-    - id : str
+    - booking_id : str
     - member : Member
-    - room_price : float
+    - room : Room
+    - start_time : datetime
+    - end_time : datetime
+    - hours : int
     - status : str
     - event_order : EventOrder
-    - coupon : Coupon
+    - discount_price : float
     - total_price : float
+    - deposit_price : float
+    - deposit_status : str
     + add_event_order(EventOrder)
-    +
+    + calculate_payment_details()
 }
 class Coupon{
     <<Abstract>>
@@ -167,17 +202,66 @@ class Coupon{
     - code : str
     - minimum_price : float
     + apply_coupon(base_price)
+    + is_applicable(base_price)
 }
 class PercentCoupon{
     - percent : int
 }
 DeriveryPlatform <-- Restaurant
 class DeriveryPlatform{
-
+    - platform_name : str
+    - commission_rate : float
 }
 PaymentGateway <-- Restaurant
 class PaymentGateway{
+    + get_strategy(name:str)
+    + get_name() : abstract
+    + pay() : abstract
+}
 
+QRCode --|> PaymentGateway
+class QRCode{
+
+}
+
+Cash --|> PaymentGateway
+class Cash{
+    
+}
+
+CreditCard --|> PaymentGateway
+class CreditCard{
+    
+}
+
+Member o-- Receipt
+Receipt --> Transaction
+Receipt --> Booking
+class Receipt{
+    - transaction : Transaction
+    - booking : Booking
+    + generate()
+}
+
+Restaurant o-- Transaction
+class Transaction{
+    - type : DineIn, Event, Delivery
+    - customer_id : str
+    - amount : float
+    - time : datetime
+    - tx_id : str
+}
+
+class Log{
+    - log : list of LogEntry
+    + add_log(entry)
+    + get_all_log()
+}
+
+class SimulationClock{
+    - current_time : datetime
+    + get_time()
+    + set__time(new_time)
 }
 
 @enduml
