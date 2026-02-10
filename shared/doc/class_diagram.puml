@@ -32,15 +32,12 @@ class Customer {
 }
 class Guest {
     + register()
-    + register()
 }
 class Member{
     - coupon_code_list : list
     - receipt_list : list
-    - receipt_list : list
     - tier : str= Silver, Gold
-    + add_recipt(recipt)
-    + add_recipt(recipt)
+    + add_receipt(receipt)
     + add_coupon(code)
     + validate_coupon(code)
     + mark_coupon_as_used(code)
@@ -50,7 +47,6 @@ Restaurant o-- Staff
 FrontStaff--|>Staff
 PartyStaff--|>Staff
 KitchenStaff--|>Staff
-Manager--|>Staff
 Manager--|>FrontStaff
 Manager--|>PartyStaff
 Manager--|>KitchenStaff
@@ -77,21 +73,13 @@ class PartyStaff{
     + check_room_availability()
     + check_in_booking()
     + check_out_booking()
-    + check_room_availability()
-    + check_in_booking()
-    + check_out_booking()
 }
 class KitchenStaff{
     + view_queue()
     + update_food_status()
-    + report_waste()
-    + view_queue()
-    + update_food_status()
-    + report_waste()
-    
+    + report_waste()   
 }
 class Manager{
-    + void_bill()
     + void_bill()
 }
 
@@ -170,17 +158,10 @@ class MenuFood{
 
 Restaurant --> Stock
 class Stock{
-    - reserved : list StockIngredient
-    - real_stock : list StockIngredient
+    - reserved : list of Item
+    - real_stock : list of Item
     + find_ingredient_in_reserved(Ingredient)
     + find_ingredient_in_real_stock(Ingredient)
-}
-
-Stock o-- StockIngredient
-StockIngredient --> Item
-class StockIngredient{
-    - item : Item
-    - quantity : int
 }
 
 BookingManager o-- Booking
@@ -222,7 +203,6 @@ class Booking{
     - deposit_status : str
     + add_event_order(EventOrder)
     + calculate_payment_details()
-    + calculate_payment_details()
 }
 class Coupon{
     <<Abstract>>
@@ -231,15 +211,12 @@ class Coupon{
     - minimum_price : float
     + apply_coupon(base_price)
     + is_applicable(base_price)
-    + is_applicable(base_price)
 }
 class PercentCoupon{
     - percent : int
 }
 DeriveryPlatform <-- Restaurant
 class DeriveryPlatform{
-    - platform_name : str
-    - commission_rate : float
     - platform_name : str
     - commission_rate : float
 }
@@ -271,6 +248,7 @@ Receipt --> Booking
 class Receipt{
     - transaction : Transaction
     - booking : Booking
+    - payment_method : PaymentGateway
     + generate()
     + get_strategy(name:str)
     + get_name() : abstract
@@ -280,23 +258,10 @@ class Receipt{
 Restaurant o-- Transaction
 class Transaction{
     - type : DineIn, Event, Delivery
-    - customer_id : str
+    - customer : Customer
     - amount : float
     - time : datetime
     - tx_id : str
-}
-
-BookingManager o-- BookingLog
-class BookingLog{
-    - id : str
-    - timestamp : datetime
-    - room_id : str
-    - member_id : str
-    - action : str 
-    - status_before : str
-    - status_now : str
-    + add_log(entry)
-    + get_all_log()
 }
 
 Restaurant o-- StockLog
