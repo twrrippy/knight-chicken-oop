@@ -57,19 +57,12 @@ class Staff{
     - password
     + login()
     + logout()
-    - id
-    - username
-    - password
-    + login()
-    + logout()
 }
 class FrontStaff{
-    + create_order()
     + create_order()
     
 }
 class PartyStaff{
-    - role : str = "Party Staff"
     + check_room_availability()
     + check_in_booking()
     + check_out_booking()
@@ -248,7 +241,6 @@ Receipt --> Booking
 class Receipt{
     - transaction : Transaction
     - booking : Booking
-    - payment_method : PaymentGateway
     + generate()
     + get_strategy(name:str)
     + get_name() : abstract
@@ -262,6 +254,7 @@ class Transaction{
     - amount : float
     - time : datetime
     - tx_id : str
+    - payment_method : PaymentGateway
 }
 
 Restaurant o-- StockLog
