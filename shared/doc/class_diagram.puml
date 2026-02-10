@@ -20,11 +20,17 @@ Member--|>Customer
 Guest--|>Customer
 class Customer {
     <<Abstract>>
+    - id
+    - order
+    + request_bill()
 }
 class Guest {
-
+    + register()
 }
 class Member{
+    - name
+    - points
+    - level
     - coupon_code_list : list
     - receipt_list : list
     + add_recipt(recipt)
@@ -43,18 +49,27 @@ Manager--|>PartyStaff
 Manager--|>KitchenStaff
 class Staff{
     <<Abstract>>
+    - id
+    - username
+    - password
+    + login()
+    + logout()
 }
 class FrontStaff{
-    
+    + create_order()
 }
 class PartyStaff{
-    
+    + check_room_availability()
+    + check_in_booking()
+    + check_out_booking()
 }
 class KitchenStaff{
-    
+    + view_queue()
+    + update_food_status()
+    + report_waste()
 }
 class Manager{
-
+    + void_bill()
 }
 
 DineInOrder --|> Order
@@ -176,14 +191,14 @@ class PercentCoupon{
 }
 DeriveryPlatform <-- Restaurant
 class DeriveryPlatform{
-
+    - platform_name : str
+    - commission_rate : float
 }
 PaymentGateway <-- Restaurant
 class PaymentGateway{
     + get_strategy(name:str)
     + get_name() : abstract
     + pay() : abstract
-
 }
 QRCode --|> PaymentGateway
 class QRCode{
