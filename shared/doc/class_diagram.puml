@@ -150,6 +150,7 @@ class MenuFood{
 }
 
 Restaurant --> Stock
+Item --o Stock
 class Stock{
     - reserved : list of Item
     - real_stock : list of Item
@@ -248,6 +249,8 @@ class Receipt{
 }
 
 Restaurant o-- Transaction
+PaymentGateway <-- Transaction
+Customer <-- Transaction
 class Transaction{
     - type : DineIn, Event, Delivery
     - customer : Customer
@@ -269,6 +272,13 @@ class SimulationClock{
     - current_time : datetime
     + get_time()
     + set__time(new_time)
+}
+
+Restaurant o-- Simulation 
+SimulationClock --> Simulation
+class Simulation{
+    - clock
+    - delivery_platform
 }
 
 @enduml
