@@ -25,13 +25,18 @@ Member--|>Customer
 Guest--|>Customer
 class Customer {
     <<Abstract>>
+    - id
+    - order
+    + request_bill()
 }
 class Guest {
-
+    + register()
 }
 class Member{
     - coupon_code_list : list
+    - receipt_list : list
     - tier : str= Silver, Gold
+    + add_recipt(recipt)
     + add_coupon(code)
     + validate_coupon(code)
     + mark_coupon_as_used(code)
@@ -47,18 +52,30 @@ Manager--|>PartyStaff
 Manager--|>KitchenStaff
 class Staff{
     <<Abstract>>
+    - id
+    - username
+    - password
+    + login()
+    + logout()
 }
 class FrontStaff{
+    + create_order()
     
 }
 class PartyStaff{
     - role : str = "Party Staff"
+    + check_room_availability()
+    + check_in_booking()
+    + check_out_booking()
 }
 class KitchenStaff{
+    + view_queue()
+    + update_food_status()
+    + report_waste()
     
 }
 class Manager{
-
+    + void_bill()
 }
 
 DineInOrder --|> Order
@@ -142,7 +159,6 @@ class StockIngredient{
 }
 
 BookingManager o-- Booking
-Booking --> Coupon
 PercentCoupon --|> Coupon
 EventOrder --* Booking
 
@@ -173,12 +189,12 @@ class Booking{
     - hours : int
     - status : str
     - event_order : EventOrder
-    - coupon : Coupon
     - discount_price : float
     - total_price : float
     - deposit_price : float
     - deposit_status : str
     + add_event_order(EventOrder)
+    + calculate_payment_details()
 }
 class Coupon{
     <<Abstract>>
@@ -186,17 +202,45 @@ class Coupon{
     - code : str
     - minimum_price : float
     + apply_coupon(base_price)
+    + is_applicable(base_price)
 }
 class PercentCoupon{
     - percent : int
 }
 DeriveryPlatform <-- Restaurant
 class DeriveryPlatform{
-
+    - platform_name : str
+    - commission_rate : float
 }
 PaymentGateway <-- Restaurant
 class PaymentGateway{
+    + get_strategy(name:str)
+    + get_name() : abstract
+    + pay() : abstract
+}
 
+QRCode --|> PaymentGateway
+class QRCode{
+
+}
+
+Cash --|> PaymentGateway
+class Cash{
+    
+}
+
+CreditCard --|> PaymentGateway
+class CreditCard{
+    
+}
+
+Member o-- Receipt
+Receipt --> Transaction
+Receipt --> Booking
+class Receipt{
+    - transaction : Transaction
+    - booking : Booking
+    + generate()
 }
 
 Restaurant o-- Transaction
