@@ -1,7 +1,12 @@
 @startuml ClassDiagram
 
 class Restaurant{
-
+    - member : list of Member
+    - queue : list of Order <in comfirm, paided, and cooking state>
+    - coupon_list : list of Coupon
+    - transaction_log : list of Transaction
+    + add_coupon(Coupon)
+    + get_coupon_by_code(code)
 }
 Customer --|> User
 Staff --|> User
@@ -20,7 +25,10 @@ class Guest {
 
 }
 class Member{
-
+    - coupon_code_list : list
+    + add_coupon(code)
+    + validate_coupon(code)
+    + mark_coupon_as_used(code)
 }
 
 Restaurant o-- Staff
@@ -47,8 +55,6 @@ class Manager{
 
 }
 
-Restaurant o-- DineInOrder
-Restaurant o-- DeliveryOrder
 DineInOrder --|> Order
 EventOrder --|> Order
 DeliveryOrder --|> Order
@@ -57,30 +63,33 @@ class DineInOrder{
     
 }
 class EventOrder{
-    
+    - id : str
+    - total_price : float
+    - status : str
 }
 class DeliveryOrder{
     
 }
 
+Restaurant o-- Order
 Order *-- Food
 Food --> Particular
 Particular o-- Ingredient
 Ingredient --> Item
 
 class Order{
-    --id?:  string
+    -id:  string
     -type : DineIn, Party, Delivery
     -customer_id : string
     -food : list Food
-    -overall_price : float
+    -total_price : float
     -time : datetime
-    -status : none, confirmed, paided, finish, cancle
+    -status : none, confirmed, paided, cooking, finish, cancle
 }
 class Food{
     -particular : Particular
     -quantity : int
-    -status : none, avaliable, out_of_stock, cooking, finish, cancle
+    -status : none, available, out_of_stock, cooking, finish, cancle
 }
 class Particular{
     -list recipe : Ingredient
@@ -110,7 +119,7 @@ class Menu{
 }
 class MenuFood{
     - particular : Particular
-    - status : avaliable, out_of_stock, deleted
+    - status : available, out_of_stock, deleted
 }
 
 Restaurant --> Stock
@@ -133,20 +142,37 @@ EventOrder --* Booking
 
 Coupon --o Restaurant
 class room{
-
+    - id : str
+    - price : float
 }
 Restaurant o-- room
 class BookingManager{
-    - booking_list : list Booking
+    - booking_list : list of Booking
+    + add_booking(booking)
+    + get_member_form_id(booking_id)
+    + get_event_order_from_id(booking_id)
+    + get_booking_from_id(booking_id)
 }
 class Booking{
-
+    - id : str
+    - member : Member
+    - room_price : float
+    - status : str
+    - event_order : EventOrder
+    - coupon : Coupon
+    - total_price : float
+    + add_event_order(EventOrder)
+    +
 }
 class Coupon{
     <<Abstract>>
+    - id : str
+    - code : str
+    - minimum_price : float
+    + apply_coupon(base_price)
 }
 class PercentCoupon{
-
+    - percent : int
 }
 DeriveryPlatform <-- Restaurant
 class DeriveryPlatform{
@@ -155,6 +181,14 @@ class DeriveryPlatform{
 PaymentGateway <-- Restaurant
 class PaymentGateway{
 
+}
+
+Restaurant o-- Transaction
+class Transaction{
+    - type : DineIn, Event, Delivery
+    - customer_id : str
+    - amount : float
+    - time : datetime
 }
 
 @enduml
