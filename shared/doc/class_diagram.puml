@@ -32,11 +32,14 @@ class Customer {
 }
 class Guest {
     + register()
+    + register()
 }
 class Member{
     - coupon_code_list : list
     - receipt_list : list
+    - receipt_list : list
     - tier : str= Silver, Gold
+    + add_recipt(recipt)
     + add_recipt(recipt)
     + add_coupon(code)
     + validate_coupon(code)
@@ -58,8 +61,14 @@ class Staff{
     - password
     + login()
     + logout()
+    - id
+    - username
+    - password
+    + login()
+    + logout()
 }
 class FrontStaff{
+    + create_order()
     + create_order()
     
 }
@@ -68,14 +77,21 @@ class PartyStaff{
     + check_room_availability()
     + check_in_booking()
     + check_out_booking()
+    + check_room_availability()
+    + check_in_booking()
+    + check_out_booking()
 }
 class KitchenStaff{
+    + view_queue()
+    + update_food_status()
+    + report_waste()
     + view_queue()
     + update_food_status()
     + report_waste()
     
 }
 class Manager{
+    + void_bill()
     + void_bill()
 }
 
@@ -206,6 +222,7 @@ class Booking{
     - deposit_status : str
     + add_event_order(EventOrder)
     + calculate_payment_details()
+    + calculate_payment_details()
 }
 class Coupon{
     <<Abstract>>
@@ -213,6 +230,7 @@ class Coupon{
     - code : str
     - minimum_price : float
     + apply_coupon(base_price)
+    + is_applicable(base_price)
     + is_applicable(base_price)
 }
 class PercentCoupon{
@@ -222,9 +240,38 @@ DeriveryPlatform <-- Restaurant
 class DeriveryPlatform{
     - platform_name : str
     - commission_rate : float
+    - platform_name : str
+    - commission_rate : float
 }
 PaymentGateway <-- Restaurant
 class PaymentGateway{
+    + get_strategy(name:str)
+    + get_name() : abstract
+    + pay() : abstract
+}
+
+QRCode --|> PaymentGateway
+class QRCode{
+
+}
+
+Cash --|> PaymentGateway
+class Cash{
+    
+}
+
+CreditCard --|> PaymentGateway
+class CreditCard{
+    
+}
+
+Member o-- Receipt
+Receipt --> Transaction
+Receipt --> Booking
+class Receipt{
+    - transaction : Transaction
+    - booking : Booking
+    + generate()
     + get_strategy(name:str)
     + get_name() : abstract
     + pay() : abstract
