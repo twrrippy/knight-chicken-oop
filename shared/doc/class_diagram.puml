@@ -5,6 +5,8 @@ class Restaurant{
     - queue : list of Order <in comfirm, paided, and cooking state>
     - coupon_list : list of Coupon
     - transaction_log : list of Transaction
+    - room : list of Room
+    - staff : list of Staff
     + add_coupon(Coupon)
     + get_coupon_by_code(code)
 }
