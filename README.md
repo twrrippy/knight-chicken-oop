@@ -17,7 +17,7 @@ pip install -r requirements.txt
 ## Run Server
 
 ```
-uvicorn app:app --reload --port 8000
+uvicorn main:app --reload --port 8000
 ```
 
 ### Backend
@@ -25,8 +25,8 @@ uvicorn app:app --reload --port 8000
 
 ## Warning!!
 1. Don't edit branch 'main'
-2. Create new branch from dev to start edit
-3. Don't merge to main
+2. Create new branch from 'dev' to start edit
+3. Don't merge to 'main'
 4. Don't push unnecessary file (use .gitignore to ignore file) 
 5. make sure in your branch during edit
 
@@ -44,3 +44,7 @@ git checkout <branch_name>
 API_KEY=
 ```
 (not use yet)
+
+
+links:
+https://drive.google.com/drive/folders/1GZ0UDEFs6RoaoV6-w8vbrHiRuC7z-cq4
