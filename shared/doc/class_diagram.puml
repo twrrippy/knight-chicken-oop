@@ -277,30 +277,6 @@ class Receipt{
     + pay() : abstract
 }
 
-QRCode --|> PaymentGateway
-class QRCode{
-
-}
-
-Cash --|> PaymentGateway
-class Cash{
-    
-}
-
-CreditCard --|> PaymentGateway
-class CreditCard{
-    
-}
-
-Member o-- Receipt
-Receipt --> Transaction
-Receipt --> Booking
-class Receipt{
-    - transaction : Transaction
-    - booking : Booking
-    + generate()
-}
-
 Restaurant o-- Transaction
 class Transaction{
     - type : DineIn, Event, Delivery
