@@ -4,6 +4,7 @@ class Restaurant{
     - member : list of Member
     - queue : list of Order <in comfirm, paided, and cooking state>
     - coupon_list : list of Coupon
+    - stock_log : list of StockLog
     - transaction_log : list of Transaction
     - room : list of Room
     - staff : list of Staff
@@ -25,8 +26,8 @@ Member--|>Customer
 Guest--|>Customer
 class Customer {
     <<Abstract>>
-    - id
-    - order
+    - id : str
+    - order : Order
     + request_bill()
 }
 class Guest {
@@ -36,7 +37,7 @@ class Member{
     - coupon_code_list : list
     - receipt_list : list
     - tier : str= Silver, Gold
-    + add_recipt(recipt)
+    + add_receipt(receipt)
     + add_coupon(code)
     + validate_coupon(code)
     + mark_coupon_as_used(code)
@@ -46,7 +47,6 @@ Restaurant o-- Staff
 FrontStaff--|>Staff
 PartyStaff--|>Staff
 KitchenStaff--|>Staff
-Manager--|>Staff
 Manager--|>FrontStaff
 Manager--|>PartyStaff
 Manager--|>KitchenStaff
@@ -63,7 +63,6 @@ class FrontStaff{
     
 }
 class PartyStaff{
-    - role : str = "Party Staff"
     + check_room_availability()
     + check_in_booking()
     + check_out_booking()
@@ -71,8 +70,7 @@ class PartyStaff{
 class KitchenStaff{
     + view_queue()
     + update_food_status()
-    + report_waste()
-    
+    + report_waste()   
 }
 class Manager{
     + void_bill()
@@ -86,12 +84,11 @@ class DineInOrder{
     
 }
 class EventOrder{
-    - id : str
-    - total_price : float
-    - status : str
+
 }
 class DeliveryOrder{
-    
+    - delivery_status : finding_driver, driver_assigned, driver_at _store, out_for_delivery, delivered
+    + update_status(DeliveryStatus)
 }
 
 Restaurant o-- Order
@@ -108,20 +105,25 @@ class Order{
     -total_price : float
     -time : datetime
     -status : none, confirmed, paided, cooking, finish, cancle
+    + update_status(OrderStatus)
 }
 class Food{
     -particular : Particular
     -quantity : int
     -status : none, available, out_of_stock, cooking, finish, cancle
+    + update_status(FoodStatus)
 }
 class Particular{
-    -list recipe : Ingredient
-    -price : float
+    - list recipe : Ingredient
+    - price : float
+    - cooking_time : datetime
+    + get_all_ingredient()
 }
 Burger --|> Particular
 ChickenSet --|> Particular
 class Burger{
     + custom()
+    + update_price()
 }
 class ChickenSet{
     
@@ -131,7 +133,8 @@ class Ingredient{
     -quantity : int
 }
 class Item{
-    -name : string
+    - name : string
+    - price : float
 }
 
 Restaurant --> Menu
@@ -143,19 +146,15 @@ class Menu{
 class MenuFood{
     - particular : Particular
     - status : available, out_of_stock, deleted
+    + update_status(MenuFoodStatus)
 }
 
 Restaurant --> Stock
 class Stock{
-    - reserved : list StockIngredient
-    - real_stock : list StockIngredient
-}
-
-Stock o-- StockIngredient
-StockIngredient --> Item
-class StockIngredient{
-    - item : Item
-    - quantity : int
+    - reserved : list of Item
+    - real_stock : list of Item
+    + find_ingredient_in_reserved(Ingredient)
+    + find_ingredient_in_real_stock(Ingredient)
 }
 
 BookingManager o-- Booking
@@ -169,10 +168,12 @@ class room{
     - status : str = "Available", "Reserved", "In_Use", "Cleaning"
     - capacity : int
     - price_per_hour : float
+    + update_status(RoomStatus)
 }
 Restaurant o-- room
 class BookingManager{
     - booking_list : list of Booking
+    - booking_log : list of BookingLog
     + add_booking(booking)
     + get_member_form_id(booking_id)
     + get_event_order_from_id(booking_id)
@@ -241,23 +242,29 @@ class Receipt{
     - transaction : Transaction
     - booking : Booking
     + generate()
+    + get_strategy(name:str)
+    + get_name() : abstract
+    + pay() : abstract
 }
 
 Restaurant o-- Transaction
 class Transaction{
     - type : DineIn, Event, Delivery
-    - customer_id : str
+    - customer : Customer
     - amount : float
     - time : datetime
     - tx_id : str
+    - payment_method : PaymentGateway
 }
 
-class Log{
-    - log : list of LogEntry
-    + add_log(entry)
-    + get_all_log()
+Restaurant o-- StockLog
+class StockLog{
+    - id : str
+    - staff_name : str
+    - action : str
+    - item : Item
+    - amount : int
 }
-
 class SimulationClock{
     - current_time : datetime
     + get_time()
