@@ -159,17 +159,16 @@ class Booking{
     - room_price : float
     - status : str
     - event_order : EventOrder
-    - coupon : Coupon
-    - total_price : float
     + add_event_order(EventOrder)
-    +
+    + calculate_payment_details
 }
 class Coupon{
     <<Abstract>>
     - id : str
     - code : str
     - minimum_price : float
-    + apply_coupon(base_price)
+    + apply_coupon(base_price) (abs)
+    + is_applicable(base_price)
 }
 class PercentCoupon{
     - percent : int
@@ -180,7 +179,24 @@ class DeriveryPlatform{
 }
 PaymentGateway <-- Restaurant
 class PaymentGateway{
+    + get_strategy(name:str)
+    + get_name() : abstract
+    + pay() : abstract
 
+}
+QRCode --|> PaymentGateway
+class QRCode{
+
+}
+
+Cash --|> PaymentGateway
+class Cash{
+    
+}
+
+CreditCard --|> PaymentGateway
+class CreditCard{
+    
 }
 
 Restaurant o-- Transaction
