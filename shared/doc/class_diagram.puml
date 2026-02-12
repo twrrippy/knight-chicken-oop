@@ -93,18 +93,19 @@ class DeliveryOrder{
 
 Restaurant o-- Order
 Order *-- Food
+Order --> Customer
 Food --> Particular
 Particular o-- Ingredient
 Ingredient --> Item
 
 class Order{
-    -id:  string
-    -type : DineIn, Party, Delivery
-    -customer_id : string
-    -food : list Food
-    -total_price : float
-    -time : datetime
-    -status : none, confirmed, paided, cooking, finish, cancle
+    - id:  string
+    - type : DineIn, Event, Delivery
+    - customer : Customer
+    - food_list : list Food
+    - total_price : float
+    - status_start : datetime
+    - status : none, reserved, confirmed, paided, cooking, finish, served, cancle
     + update_status(OrderStatus)
 }
 class Food{
@@ -114,7 +115,7 @@ class Food{
     + update_status(FoodStatus)
 }
 class Particular{
-    - list recipe : Ingredient
+    - recipe : list of Ingredient
     - price : float
     - cooking_time : datetime
     + get_all_ingredient()
