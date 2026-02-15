@@ -9,7 +9,7 @@ class Restaurant{
     - room : list of Room
     - staff : list of Staff
     - stock : Stock
-    - menu : Menu
+    - menu : list of MenuFood
     - payment_gateway : PaymentGateway
     - delivery_platform : DeliveryPlatform
     + add_coupon(Coupon)
@@ -141,12 +141,8 @@ class Item{
     - price : float
 }
 
-Restaurant --> Menu
-Menu o-- MenuFood
+Restaurant o-- MenuFood
 MenuFood --> Particular
-class Menu{
-    - food : list MenuFood
-}
 class MenuFood{
     - particular : Particular
     - status : available, out_of_stock, deleted
