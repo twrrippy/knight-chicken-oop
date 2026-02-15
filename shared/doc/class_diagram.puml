@@ -9,6 +9,7 @@ class Restaurant{
     - room : list of Room
     - staff : list of Staff
     - stock : Stock
+    - menu : Menu
     - payment_gateway : PaymentGateway
     - delivery_platform : DeliveryPlatform
     + add_coupon(Coupon)
