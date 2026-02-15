@@ -115,6 +115,7 @@ class Food{
     + update_status(FoodStatus)
 }
 class Particular{
+    - name : str
     - recipe : list of Ingredient
     - price : float
     - cooking_time : datetime
