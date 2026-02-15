@@ -2,7 +2,7 @@
 
 class Restaurant{
     - member : list of Member
-    - queue : list of Order <in comfirm, paided, and cooking state>
+    - order_list : list of Order <in comfirm, paided, and cooking state>
     - coupon_list : list of Coupon
     - stock_log : list of StockLog
     - transaction_log : list of Transaction
@@ -29,7 +29,6 @@ Member--|>Customer
 Guest--|>Customer
 class Customer {
     <<Abstract>>
-    - order : Order
     + request_bill()
 }
 class Guest {
