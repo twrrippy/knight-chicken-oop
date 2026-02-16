@@ -2,12 +2,16 @@
 
 class Restaurant{
     - member : list of Member
-    - queue : list of Order <in comfirm, paided, and cooking state>
+    - order_list : list of Order <in comfirm, paided, and cooking state>
     - coupon_list : list of Coupon
     - stock_log : list of StockLog
     - transaction_log : list of Transaction
     - room : list of Room
     - staff : list of Staff
+    - stock : Stock
+    - menu : list of MenuFood
+    - payment_gateway : PaymentGateway
+    - delivery_platform : DeliveryPlatform
     + add_coupon(Coupon)
     + get_coupon_by_code(code)
     - create_transaction()
@@ -26,8 +30,6 @@ Member--|>Customer
 Guest--|>Customer
 class Customer {
     <<Abstract>>
-    - id : str
-    - order : Order
     + request_bill()
 }
 class Guest {
@@ -52,7 +54,6 @@ Manager--|>PartyStaff
 Manager--|>KitchenStaff
 class Staff{
     <<Abstract>>
-    - id
     - username
     - password
     + login()
@@ -93,18 +94,19 @@ class DeliveryOrder{
 
 Restaurant o-- Order
 Order *-- Food
+Order --> Customer
 Food --> Particular
 Particular o-- Ingredient
 Ingredient --> Item
 
 class Order{
-    -id:  string
-    -type : DineIn, Party, Delivery
-    -customer_id : string
-    -food : list Food
-    -total_price : float
-    -time : datetime
-    -status : none, confirmed, paided, cooking, finish, cancle
+    - id:  string
+    - type : DineIn, Event, Delivery
+    - customer : Customer
+    - food_list : list Food
+    - total_price : float
+    - status_start : datetime
+    - status : none, reserved, confirmed, paided, cooking, finish, served, cancle
     + update_status(OrderStatus)
 }
 class Food{
@@ -114,7 +116,8 @@ class Food{
     + update_status(FoodStatus)
 }
 class Particular{
-    - list recipe : Ingredient
+    - name : str
+    - recipe : list of Ingredient
     - price : float
     - cooking_time : datetime
     + get_all_ingredient()
@@ -122,6 +125,7 @@ class Particular{
 Burger --|> Particular
 ChickenSet --|> Particular
 class Burger{
+    - add_on : list of Ingredient [that can modify]
     + custom()
     + update_price()
 }
@@ -137,12 +141,8 @@ class Item{
     - price : float
 }
 
-Restaurant --> Menu
-Menu o-- MenuFood
+Restaurant o-- MenuFood
 MenuFood --> Particular
-class Menu{
-    - food : list MenuFood
-}
 class MenuFood{
     - particular : Particular
     - status : available, out_of_stock, deleted
@@ -152,7 +152,7 @@ class MenuFood{
 Restaurant --> Stock
 Item --o Stock
 class Stock{
-    - reserved : list of Item
+    - reserved_stock : list of Item
     - real_stock : list of Item
     + find_ingredient_in_reserved(Ingredient)
     + find_ingredient_in_real_stock(Ingredient)
@@ -209,8 +209,8 @@ class Coupon{
 class PercentCoupon{
     - percent : int
 }
-DeriveryPlatform <-- Restaurant
-class DeriveryPlatform{
+DeliveryPlatform <-- Restaurant
+class DeliveryPlatform{
     - platform_name : str
     - commission_rate : float
 }
@@ -261,12 +261,13 @@ class Transaction{
 }
 
 Restaurant o-- StockLog
+StockLog --> Staff
+StockLog --> Ingredient
 class StockLog{
     - id : str
-    - staff_name : str
+    - staff : Staff
     - action : str
-    - item : Item
-    - amount : int
+    - ingredient : Ingredient
 }
 class SimulationClock{
     - current_time : datetime
