@@ -412,6 +412,9 @@ class Receipt:
 @mcp.tool
 @app.get("/partyroom-payment/get_base_price/{booking_id}")
 async def get_base_price(booking_id: str):
+    """
+    ตรวจสอบจำนวนเงินทั้งหมดที่ต้องจ่าย แบบที่ยังไม่ใส่ส่วนลด booking_id รูปแบบ Bxxx
+    """
     booking = BookingManager.get_booking_from_id(booking_id)
     if not booking:
         raise HTTPException(status_code=404, detail="Booking Not Found")
@@ -427,6 +430,12 @@ async def get_base_price(booking_id: str):
 @mcp.tool
 @app.post("/partyroom-payment/pay/{booking_id}")
 async def pay_event(booking_id: str, strategy: str, coupon_code: Optional[str] = Query(default=None)):
+    """
+    จ่ายเงิน พร้อมรองรับ Coupon และสร้าง Transaction Log 
+    รับ booking_id รูปแบบ Bxxx
+    รับรูปแบบการชำระเงิน มี cash creditcard และ qrcode
+    และรับ coupon_code เป็น Optional
+    """
     booking = BookingManager.get_booking_from_id(booking_id)
     if not booking:
         raise HTTPException(status_code=404, detail="Booking Not Found")
