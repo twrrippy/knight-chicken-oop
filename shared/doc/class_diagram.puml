@@ -241,11 +241,9 @@ Receipt --> Transaction
 Receipt --> Booking
 class Receipt{
     - transaction : Transaction
-    - booking : Booking
+    - source : source_obj
     + generate()
     + get_strategy(name:str)
-    + get_name() : abstract
-    + pay() : abstract
 }
 
 Restaurant o-- Transaction
@@ -258,6 +256,8 @@ class Transaction{
     - time : datetime
     - tx_id : str
     - payment_method : PaymentGateway
+    - coupon : Coupon
+    - status : str
 }
 
 Restaurant o-- StockLog
