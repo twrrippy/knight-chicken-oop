@@ -88,12 +88,12 @@ class User:
         self._phone = phone
 
     @property
-    def get_id(self):
+    def id(self):
         return self._id
 
 class Staff(User):
     """Staff Member Class inheriting from User"""
-    def __init__(self, id: str, name: str, role: str):
+    def __init__(self, id: str, name: str):
         super().__init__(id, name)
 
 class PartyStaff(Staff):
@@ -151,7 +151,7 @@ class Member(Customer):
 
 class Room:
     def __init__(self, room_id: str, room_type: RoomType):
-        self._room_id = room_id
+        self.__room_id = room_id
         self._room_type = room_type
         self._status: RoomStatus = RoomStatus.AVAILABLE
         if room_type == RoomType.HALL:
@@ -166,14 +166,15 @@ class Room:
         else:
             raise ValueError("Unknown room type")
         
-        @property
-        def room_type(self): return self._room_type.value
-        @property
-        def status(self): return self._status
-        @status.setter
-        def status(self, new_status: RoomStatus): self._status = new_status
-        @property
-        def room_id(self): return self._room_id
+    @property
+    def room_type(self): return self._room_type.value
+    @property
+    def status(self): return self._status
+    @status.setter
+    def status(self, new_status: RoomStatus): self._status = new_status
+
+    @property
+    def room_id(self): return self.__room_id
         
 
 class Booking:
@@ -328,20 +329,21 @@ class Restaurant:
             raise HTTPException(status_code=404, detail="Room not found")
 
         end_time = start_time + timedelta(hours=hours)
-        if not BookingManager.is_slot_available(room_id, start_time, end_time):
+        if not BookingManager.is_slot_available(room, start_time, end_time):
             raise HTTPException(status_code=400, detail="Time slot already occupied")
 
         booking = Booking(f"BK-{int(SimulationClock.get_time().timestamp())}", member, room, start_time, hours)
 
-        booking.status(BookingStatus.PENDING)
-        booking.deposit_status(DepositStatus.PAID)
-        booking.room.status(RoomStatus.RESERVED)
-
-        BookingManager.add_booking(booking)
-
         payment_strategy = PaymentStrategy.get_strategy(strategy)
-        success, receipt_or_msg = payment_strategy.pay(booking.total_base_price)
-        transaction = Transaction(booking.id,booking.total_base_price,strategy.lower(), "PENDING", receipt_or_msg, )
+        success, receipt_or_msg = payment_strategy.pay(booking.required_deposit)
+        transaction = Transaction(
+        target_id=booking.id,
+        amount=booking.required_deposit,
+        strategy=strategy.lower(),
+        status="PENDING",
+        payment_id=receipt_or_msg,
+        staff_id=staff_id
+    )
 
         if success:
             transaction.mark_success()
@@ -350,12 +352,17 @@ class Restaurant:
             transaction.mark_failed()
             Restaurant.add_log(transaction)
             raise HTTPException(status_code=400, detail=f"Payment Failed: {receipt_or_msg}")
+        
+        BookingManager.add_booking(booking)
+        booking.status = BookingStatus.IN_USE
+        booking.deposit_status = DepositStatus.PAID
+        booking.room.status = RoomStatus.RESERVED
 
         return {
             "message": "Booking successfully confirmed in one step",
             "booking_id": booking.id,
             "transaction_id": transaction.id,
-            "total_price": booking.total_base_price,
+            "total_price": booking.required_deposit,
             "amount_paid": amount_paid,
             "status": "Reserved"
         }
@@ -374,9 +381,9 @@ class BookingManager:
         for b in cls._booking_list:
             deadline = b.start_time + timedelta(minutes=30)
             if b.room.status == RoomStatus.RESERVED and now > deadline:
-                b.status(BookingStatus.CANCELLED_NOSHOW)
-                b.deposit_status(DepositStatus.SEIZED)
-                b.room.status(RoomStatus.AVAILABLE)
+                b.status = BookingStatus.CANCELLED_NOSHOW
+                b.deposit_status = DepositStatus.SEIZED
+                b.room.status = RoomStatus.AVAILABLE
                 
 
     @classmethod
@@ -387,10 +394,10 @@ class BookingManager:
       return None
     
     @classmethod
-    def is_slot_available(cls, room_id: str, start: datetime, end: datetime):
+    def is_slot_available(cls, room: Room, start: datetime, end: datetime):
         """ตรวจสอบช่วงเวลาทับซ้อนเพื่อให้จองล่วงหน้าได้ """
         for b in cls._booking_list:
-            if b.room.room_id == room_id and b.status not in [BookingStatus.CANCELLED_NOSHOW, BookingStatus.COMPLETED]:
+            if b.room.room_id == room.room_id and b.status not in [BookingStatus.CANCELLED_NOSHOW, BookingStatus.COMPLETED]:
                 if start < b.end_time and end > b.start_time:
                     return False
         return True
@@ -412,6 +419,7 @@ async def book_and_confirm(
     room_id: str, 
     hours: int, 
     amount_paid: float,
+    strategy: str = Query(..., description="Payment strategy to use (e.g. QRCode, CreditCard)"),
     start_time: datetime = Query(..., example="2026-02-09 10:00:00")
 ):
     """request_booking: There are 5 rooms for booking.\n
@@ -425,7 +433,7 @@ async def book_and_confirm(
     Gold members get 20% discount on room price\n
     """
     restaurant = Restaurant()
-    return restaurant.booking_room(staff_id, member_id, room_id, hours, amount_paid, start_time)
+    return restaurant.booking_room(staff_id, member_id, room_id, hours, amount_paid, strategy, start_time)
 
 @app.post("/party-hub/request-booking", tags=["Booking Process"])
 async def request_booking(staff_id: str, member_id: str, room_id: str, hours: int, start_time: datetime= Query(description="format: YYYY-MM-DD HH:MM:SS")):
