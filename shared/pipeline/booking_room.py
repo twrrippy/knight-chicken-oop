@@ -151,20 +151,21 @@ class Member(Customer):
 
 class Room:
     def __init__(self, room_id: str, room_type: RoomType):
-        self.__room_id = room_id
+        self._room_id = room_id
         self._room_type = room_type
         self._status: RoomStatus = RoomStatus.AVAILABLE
         if room_type == RoomType.HALL:
-            self.capacity = 100
-            self.price_per_hour = 5000.0
+            self._capacity = 100
+            self._price_per_hour = 5000.0
         elif room_type == RoomType.VIP:
-            self.capacity = 20
-            self.price_per_hour = 2000.0
+            self._capacity = 20
+            self._price_per_hour = 2000.0
         elif room_type == RoomType.STANDARD:
-            self.capacity = 10
-            self.price_per_hour = 500.0
+            self._capacity = 10
+            self._price_per_hour = 500.0
         else:
             raise ValueError("Unknown room type")
+        
         
     @property
     def room_type(self): return self._room_type.value
@@ -172,9 +173,10 @@ class Room:
     def status(self): return self._status
     @status.setter
     def status(self, new_status: RoomStatus): self._status = new_status
-
     @property
-    def room_id(self): return self.__room_id
+    def room_id(self): return self._room_id
+    @property
+    def price_per_hour(self): return self._price_per_hour
         
 
 class Booking:
@@ -219,6 +221,18 @@ class Booking:
     def status(self, val: BookingStatus): self._status = val
     @property
     def room(self): return self._room
+    @property
+    def total_base_price(self) -> float:
+        order_price = self._event_order.total_price if self._event_order else 0.0
+        return self._base_room_fee + order_price
+    @property
+    def room_price(self): return self._base_room_fee
+    @property
+    def id(self): return self._booking_id
+    @property
+    def member(self): return self._member
+    @property
+    def event_order(self): return self._event_order
 
     def calculate_payment_details(self, coupon: Optional[Coupon] = None) -> Tuple[float, float]:
         base_price = self.total_base_price
@@ -258,25 +272,6 @@ class Booking:
             "total_base_price": self.total_base_price,
             "deposit_deducted": self.required_deposit
         }
-
-    @property
-    def total_base_price(self) -> float:
-        order_price = self._event_order.total_price if self._event_order else 0.0
-        return self._base_room_fee + order_price
-    
-    @property
-    def room_price(self): return self._base_room_fee
-    @property
-    def id(self): return self._booking_id
-    @property
-    def member(self): return self._member
-    @property
-    def status(self) -> BookingStatus: return self._status
-    @status.setter
-    def status(self, val: BookingStatus): self._status = val
-    @property
-    def event_order(self): return self._event_order
-
 
 class Restaurant:
     transaction_list: List[Transaction] = []
@@ -340,7 +335,7 @@ class Restaurant:
         target_id=booking.id,
         amount=booking.required_deposit,
         strategy=strategy.lower(),
-        status="PENDING",
+        status=BookingStatus.PENDING.value,
         payment_id=receipt_or_msg,
         staff_id=staff_id
     )
@@ -595,7 +590,7 @@ async def advance_time(minutes: int):
 
 Restaurant.members = [
     Member("M001", "Bob (Gold)", "Gold"),
-    Member("M002", "Jack (Bronze)", "Bronze"),
+    Member("M002", "Jack (Silver)", "Silver"),
     Member("M003", "Anna (Silver)", "Silver"),
 ]
 
