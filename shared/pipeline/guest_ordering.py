@@ -18,6 +18,17 @@ class User(ABC):
     @property
     def name(self):
         return self.__name
+    @property
+    def phone_number(self):
+        return self.__phone_number
+    
+    def __eq__(self, other):
+        if not (type(other) is type(self)):
+            return False
+        return self.__name == other.name and self.__id == other.id and self.__phone_number == other.phone_number
+    
+    def check(self, other):
+        return self.__eq__(other)
     
 class Staff(User):
     pass
@@ -133,7 +144,7 @@ class Food():
             if deleting_ingredient == ingredient:
                 break
             else:
-                stock.reverse(ingredient.item, ingredient.quantity * self.__quantity)
+                stock.reverse(deleting_ingredient.item, deleting_ingredient.quantity * self.__quantity)
     
     @property
     def to_dict(self):
@@ -170,9 +181,6 @@ class Order():
     @property
     def id(self):
         return self.__id
-    @property
-    def customer(self):
-        return self.__customer
     
     @property
     def update_price(self):
@@ -184,6 +192,9 @@ class Order():
     
     def update_status(self, order_status: str):
         self.__status = order_status
+
+    def check_customer(self, customer: Customer):
+        return self.__customer.check(customer)
     
     def add_food(self, food: Food):
         self.__food_list.append(food)
@@ -338,19 +349,22 @@ class Restaurant():
     
     def search_order_from_id(self, order_id: str, customer: Customer) -> Order:
         for find in self.__order_list:
-            if find.id == order_id and find.customer == customer:
-                return find
+            if find.id == order_id:
+                if find.check_customer(customer):
+                    return find
+                else:
+                    raise ValueError("Wrong Customer")
         raise ValueError("Order not found")
 
     def reserve(self, order: Order, stock: Stock) -> Order:
         return order.reserve(stock)
 
 
-# def ordering(order_id: str):
+# def ordering(order_id: str,customer: Customer):
 #     if not restaurant.check_queue:
 #         print("oo")
 #         return
-#     order = restaurant.search_order_from_id(order_id)
+#     order = restaurant.search_order_from_id(order_id,customer)
 #     reserved_order = restaurant.reserve(order, stock)
 #     order.update_price
 #     print(reserved_order.to_dict)
@@ -385,6 +399,7 @@ burger2_add_on = []
 burger2 = Burger("Hamburger", burger2_recipe, burger2_add_on, 60, timedelta(minutes=15))
 
 party_chicken_recipe = []
+party_chicken_recipe.append(Ingredient(bread, 1))
 party_chicken_recipe.append(Ingredient(chicken, 30))
 party_chicken= ChickenSet("Party Set", party_chicken_recipe, 1000, timedelta(minutes=30))
 
@@ -405,9 +420,10 @@ order3.add_food(Food(fried_chicken, 2))
 order3.add_food(Food(party_chicken, 1))
 restaurant.add_order(order3)
 
-# ordering("101")
-# ordering("102")
-# ordering("103")
+# also_guest1 = Guest("123", "Anna", "0100000000")
+# ordering("101", also_guest1)
+# ordering("102", also_guest1)
+# ordering("103", also_guest1)
 
 app = FastAPI()
 # @app.get("/menu")
