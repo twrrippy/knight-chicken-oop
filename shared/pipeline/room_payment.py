@@ -86,23 +86,17 @@ class Coupon(ABC):
         self.__status: CouponStatus = CouponStatus.AVAILABLE
 
     @property
-    def minimum_price(self):
-        return self.__minimum_price
-
+    def minimum_price(self): return self.__minimum_price
     @property
-    def status(self):
-        return self.__status
-
+    def status(self): return self.__status
     @property
-    def code(self):
-        return self.__code
+    def code(self): return self.__code
 
     def is_applicable(self, base_price: float) -> bool:
         return base_price >= self.__minimum_price
 
     @abstractmethod
-    def apply_coupon(self, base_price: float) -> float:
-        pass
+    def apply_coupon(self, base_price: float) -> float: pass
 
     def mark_as_used(self):
         self.__status = CouponStatus.NOT_AVAILABLE
@@ -119,7 +113,7 @@ class PercentCoupon(Coupon):
             return base_price * (self.__percent / 100)
         raise ValueError(f"Does Not Meet Minimum Price (Min: {self.minimum_price})")
 
-# [NEW] Interface for any object that can be paid
+# [Interface for Payable Objects]
 class Payable(ABC):
     @property
     @abstractmethod
@@ -182,23 +176,17 @@ class User:
         self.__id = id
         self.__name = name
         self.__phone = phone
-
     @property
-    def id(self):
-        return self.__id
-    
+    def id(self): return self.__id
     @property
-    def name(self):
-        return self.__name
+    def name(self): return self.__name
 
 class Staff(User):
     def __init__(self, id: str, name: str, role: StaffRole):
         super().__init__(id, name)
         self.__role = role
-    
     @property
-    def role(self):
-        return self.__role
+    def role(self): return self.__role
 
 class PartyStaff(Staff):
     def __init__(self, id: str, name: str):
@@ -219,7 +207,7 @@ class Receipt:
     coupon_code = self.__transaction.coupon.code if self.__transaction.coupon else "None"
 
     return {
-      "receipt_no": self.__transaction.id,
+      "receipt_no": f"Rec-{uuid.uuid4().hex[:8].upper()}",
       "date": self.__transaction.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
       "merchant": "Knight Chicken Fast Food Co.",
       "order_type": self.__transaction.order_type.value,
@@ -231,6 +219,7 @@ class Receipt:
       "discount_amount": discounted_amount,
       "final_amount_due": self.__transaction.amount,
       "payment_method": self.__transaction.strategy,
+      "txn_ref": self.__transaction.id,
       "status": "PAID"
     }
 
@@ -252,23 +241,17 @@ class Member(Customer):
             if coupon.code == code:
                 return coupon
         return None
-    
     @property
-    def tier(self):
-        return self.__tier
+    def tier(self): return self.__tier
 
 class Food:
     def __init__(self, name: str, price: float):
         self.__name = name
         self.__price = price
-    
     @property
     def name(self): return self.__name
     @property
     def price(self): return self.__price
-
-    def __str__(self):
-        return f"Name : {self.name}, Price : {self.price}"
 
 class EventOrder:
     def __init__(self, id) -> None:
@@ -422,15 +405,12 @@ class Booking(Payable):
             "deposit_deducted": self.__required_deposit
         }
     
-    
     @property
     def order_type(self): return OrderType.EVENT
     @property
     def coupon_used(self): return self.__coupon_used
     @property
     def total_price(self): return self.__total_price
-    
-    
     @property
     def hours(self): return self.__hours
     @property
@@ -448,48 +428,74 @@ class Booking(Payable):
     @property
     def event_order(self): return self.__event_order
 
-# --- Strategies ---
+# --- [UPDATED] Payment Strategies with Instance Init ---
 class PaymentStrategy(ABC):
-    @staticmethod
+    def __init__(self, id: str, name: str):
+        self.__id = id
+        self.__name = name
+
+    @property
+    def id(self): return self.__id
+    @property
+    def name(self): return self.__name
+
     @abstractmethod
-    def get_name() -> str:
-      pass
-    @abstractmethod
-    def pay(self, amount: float, **kwargs) -> Tuple[bool, str]:
+    def pay(self, amount: float, **kwargs) -> Tuple[bool, str, str]:
+        """
+        Return: (is_success, transaction_id, note)
+        """
         pass
 
 class QRCode(PaymentStrategy):
-    @staticmethod
-    def get_name() -> str: return "QRCode"
+    def __init__(self, id: str, name: str):
+        super().__init__(id, name)
     
-    def pay(self, amount: float, **kwargs) -> Tuple[bool, str]:
+    def pay(self, amount: float, **kwargs) -> Tuple[bool, str, str]:
+      txn_id = f"Txn-{uuid.uuid4().hex[:8].upper()}"
+      
+      ac_number = kwargs.get("account_number")
+      if not ac_number:
+           return False, txn_id, "Account Number is not provided"
+      
       success = random.random() < 0.90
-      if success : return True, f"REC-{uuid.uuid4().hex[:8].upper()}"
-      return False, "Payment Declined"
+      if success: 
+          return True, txn_id, "Payment Done"
+      else:
+          return False, txn_id, "Payment Failed: Connection Timeout"
 
 class CreditCard(PaymentStrategy):
-    @staticmethod
-    def get_name() -> str: return "CreditCard"
-    
-    def pay(self, amount: float, **kwargs) -> Tuple[bool, str]:
+    def __init__(self, id: str, name: str):
+        super().__init__(id, name)
+        
+    def pay(self, amount: float, **kwargs) -> Tuple[bool, str, str]:
+      txn_id = f"Txn-{uuid.uuid4().hex[:8].upper()}"
+      
       card_number = kwargs.get("card_number")
       cvv = kwargs.get("cvv")
       if not card_number or not cvv:
-           return False, "Card Number or CVV is not Provide"
+           return False, txn_id, "Card Number or CVV is not provided"
       
       success = random.random() < 0.80
-      if success : return True, f"REC-{uuid.uuid4().hex[:8].upper()}"
-      return False, "Payment Declined"
+      if success: 
+          return True, txn_id, "Payment Done"
+      else:
+          return False, txn_id, "Payment Failed: Card Declined"
 
 class Cash(PaymentStrategy):
-    @staticmethod
-    def get_name() -> str: return "Cash"
-    
-    def pay(self, amount: float, **kwargs) -> Tuple[bool, str]:
+    def __init__(self, id: str, name: str):
+        super().__init__(id, name)
+        
+    def pay(self, amount: float, **kwargs) -> Tuple[bool, str, str]:
+      txn_id = f"Txn-{uuid.uuid4().hex[:8].upper()}"
+      
       cash_received = kwargs.get("cash_received", 0.0)
-      if "cash_received" in kwargs and cash_received < amount:
-           return False, "Insufficient Cash"
-      return True, f"REC-{uuid.uuid4().hex[:8].upper()}"
+      if not cash_received:
+           return False, txn_id, "Cash is not provided"
+           
+      if cash_received < amount:
+           return False, txn_id, "Insufficient Cash"
+           
+      return True, txn_id, "Payment Done"
 
 # --- Central System ---
 class Kitchen:
@@ -501,9 +507,6 @@ class Kitchen:
         self.__order_queue.append(order)
         print(f"[KITCHEN] Order {order.id} added to queue.")
 
-    def get_queue(self):
-        return self.__order_queue
-
 class Restaurant:
     def __init__(self):
         self.__transaction_list: List[Transaction] = [] 
@@ -514,12 +517,8 @@ class Restaurant:
         self.__staff_list: List[PartyStaff] = []
         self.__booking_list: List[Booking] = []
         
-        # [NEW] Initialize Strategy Instances here
-        self.__payment_strategies: Dict[str, PaymentStrategy] = {
-            "qrcode": QRCode(),
-            "creditcard": CreditCard(),
-            "cash": Cash()
-        }
+        # [UPDATED] Payment Strategy List (using List instead of Dict)
+        self.__payment_strategies: List[PaymentStrategy] = []
 
     @property
     def kitchen(self): return self.__kitchen
@@ -534,12 +533,16 @@ class Restaurant:
         self.__transaction_list.append(transaction)
         print(f"[SYSTEM LOG] {transaction.timestamp} | {transaction.id} | {transaction.status} | {transaction.amount} THB | Staff: {transaction.staff_id}")
 
-    # [NEW] Get Instance from here
+    # [UPDATED] Add Strategy Method
+    def add_payment_strategy(self, strategy: PaymentStrategy):
+        self.__payment_strategies.append(strategy)
+
+    # [UPDATED] Get Strategy by looping list
     def get_payment_strategy(self, strategy_name: str) -> PaymentStrategy:
-        strategy = self.__payment_strategies.get(strategy_name.lower())
-        if not strategy:
-            raise HTTPException(status_code=400, detail=f"Unknown Strategy: {strategy_name}")
-        return strategy
+        for strategy in self.__payment_strategies:
+            if strategy.name.lower() == strategy_name.lower():
+                return strategy
+        raise HTTPException(status_code=400, detail=f"Unknown Strategy: {strategy_name}")
 
     def get_staff_by_id(self, staff_id: str):
         for staff in self.__staff_list:
@@ -649,25 +652,24 @@ async def pay_booking(booking_id: str, staff_id: str, strategy: str, payment_det
         booking.calculate_payment_details()
 
     try:
+        # Get Instance from Restaurant
         payment_strategy = restaurant_system.get_payment_strategy(strategy)
     except HTTPException as e:
         raise e
 
-    total_price = booking.total_price
-
-    success, receipt_or_msg = payment_strategy.pay(total_price, **payment_details)
+    # Unpack 3 values
+    success, txn_id, note = payment_strategy.pay(booking.total_price, **payment_details)
 
     transaction = Transaction(
         source=booking,
         strategy=strategy.lower(),
         status="PENDING",
-        payment_id=receipt_or_msg,
+        payment_id=txn_id,
         staff_id=staff_id
     )
 
     if success:
         booking.status = BookingStatus.PAID
-        
         if booking.event_order:
              restaurant_system.kitchen.add_order(booking.event_order)
         
@@ -676,7 +678,7 @@ async def pay_booking(booking_id: str, staff_id: str, strategy: str, payment_det
         member = booking.member
         if booking.coupon_used:
           if booking.coupon_used.status != CouponStatus.AVAILABLE:
-              booking.calculate_payment_details() # Re-calc to remove invalid coupon
+              booking.calculate_payment_details()
               raise HTTPException(status_code=409, detail="Coupon already used")
           booking.coupon_used.mark_as_used()
 
@@ -690,37 +692,46 @@ async def pay_booking(booking_id: str, staff_id: str, strategy: str, payment_det
     else:
         transaction.mark_failed()
         restaurant_system.add_transaction(transaction)
-        raise HTTPException(status_code=402, detail=f"Payment Failed: {receipt_or_msg}")
+        raise HTTPException(status_code=402, detail=f"Payment Failed: {note}")
 
 # --- MOCK DATA GENERATION ---
 
 print("Initializing Mock Data...")
 
-# 1. Setup Staff
+# 1. Setup Payment Strategies (Explicit Instantiation)
+qr_system = QRCode("PS001", "QRCode")
+cc_system = CreditCard("PS002", "CreditCard")
+cash_system = Cash("PS003", "Cash")
+
+restaurant_system.add_payment_strategy(qr_system)
+restaurant_system.add_payment_strategy(cc_system)
+restaurant_system.add_payment_strategy(cash_system)
+
+# 2. Setup Staff
 staff1 = PartyStaff("ST001", "Alice Manager")
 staff2 = PartyStaff("ST002", "Bob Service")
 restaurant_system.staff_list.extend([staff1, staff2])
 
-# 2. Setup Foods
+# 3. Setup Foods
 f1 = Food("Chicken Bucket Large", 599.0)
 f2 = Food("Spicy Wings Set", 299.0)
 f3 = Food("French Fries Tower", 159.0)
 f4 = Food("Coke Pitcher", 90.0)
 f5 = Food("Luxury Party Platter", 1200.0)
 
-# 3. Setup Rooms
+# 4. Setup Rooms
 r1 = Room("R001", RoomType.VIP)      # 2000/hr
 r2 = Room("R002", RoomType.STANDARD) # 500/hr
 r3 = Room("R003", RoomType.HALL)     # 5000/hr
 restaurant_system.rooms.extend([r1, r2, r3])
 
-# 4. Setup Coupons
+# 5. Setup Coupons
 c1 = PercentCoupon("CP001", "DISCOUNT10", 1000.0, 10.0) 
 c2 = PercentCoupon("CP002", "BIGPARTY50", 5000.0, 50.0)
 restaurant_system.add_coupon(c1)
 restaurant_system.add_coupon(c2)
 
-# 5. Setup Members
+# 6. Setup Members
 m1 = Member("M001", "John Doe", MemberTier.GOLD)
 m1.add_coupon(c1) 
 
@@ -730,7 +741,7 @@ m2.add_coupon(c2)
 restaurant_system.add_member(m1)
 restaurant_system.add_member(m2)
 
-# 6. Setup Event Orders & Bookings
+# 7. Setup Event Orders & Bookings
 order1 = EventOrder("ORD-101")
 order1.add_food(f1) 
 order1.add_food(f4) 
@@ -751,319 +762,3 @@ print("Mock Data Generated Successfully!")
 
 if __name__ == "__main__":
     mcp.run()
-
-## class diagram ###
-"""
-classDiagram
-%% --- Interfaces & Abstracts ---
-class Payable {
-    <<interface>>
-    +id: str
-    +total_price: float
-    +order_type: OrderType
-    +coupon_used: Coupon
-    +get_bill_info() Dict
-}
-
-class PaymentStrategy {
-    <<abstract>>
-    +get_name() str$
-    +pay(amount, **kwargs) Tuple[bool, str]*
-}
-
-class Coupon {
-    <<abstract>>
-    -id: str
-    -code: str
-    -minimum_price: float
-    -status: CouponStatus
-    +is_applicable(base_price) bool
-    +apply_coupon(base_price) float*
-    +mark_as_used()
-}
-
-%% --- Core Classes ---
-class Booking {
-    -booking_id: str
-    -start_time: datetime
-    -end_time: datetime
-    -hours: int
-    -status: BookingStatus
-    -deposit_status: str
-    -room_price: float
-    -required_deposit: float
-    -total_price: float
-    +calculate_payment_details(coupon) Dict
-    +add_event_order(order)
-    +get_bill_info() Dict
-}
-
-class Transaction {
-    -id: str
-    -target_id: str
-    -amount: float
-    -strategy: str
-    -status: Status
-    -payment_id: str
-    -timestamp: datetime
-    -staff_id: str
-    +mark_success()
-    +mark_failed()
-}
-
-class Receipt {
-    +generate() Dict
-}
-
-class EventOrder {
-    -id: str
-    -total_price: float
-    -status: EventOrderStatus
-    +add_food(food)
-}
-
-class Room {
-    -room_id: str
-    -room_type: RoomType
-    -status: RoomStatus
-    -capacity: int
-    -price_per_hour: float
-    +mark_room_in_use()
-}
-
-class Food {
-    -name: str
-    -price: float
-}
-
-%% --- Users ---
-class User {
-    -id: str
-    -name: str
-    -phone: str
-}
-
-class Staff {
-    -role: StaffRole
-}
-
-class PartyStaff {
-}
-
-class Customer {
-}
-
-class Member {
-    -tier: MemberTier
-    +add_receipt(receipt)
-    +add_coupon(coupon)
-    +get_coupon_by_code(code) Coupon
-}
-
-%% --- Strategies Implementation ---
-class QRCode {
-    +pay(amount, **kwargs)
-}
-class CreditCard {
-    +pay(amount, **kwargs)
-}
-class Cash {
-    +pay(amount, **kwargs)
-}
-
-%% --- Coupons Implementation ---
-class PercentCoupon {
-    -percent: float
-    +apply_coupon(base_price) float
-}
-
-%% --- System / Central ---
-class Restaurant {
-    -payment_strategies: Dict
-    +add_transaction(txn)
-    +get_payment_strategy(name)
-    +get_staff_by_id(id)
-    +add_booking(booking)
-    +get_booking_from_id(id)
-    +kitchen: Kitchen
-}
-
-class Kitchen {
-    -order_queue: List[EventOrder]
-    +add_order(order)
-}
-
-%% --- Relationships ---
-%% Inheritance
-Payable <|-- Booking
-PaymentStrategy <|-- QRCode
-PaymentStrategy <|-- CreditCard
-PaymentStrategy <|-- Cash
-Coupon <|-- PercentCoupon
-
-User <|-- Staff
-Staff <|-- PartyStaff
-User <|-- Customer
-Customer <|-- Member
-
-%% Composition / Aggregation
-Restaurant "1" *-- "*" Transaction : stores
-Restaurant "1" *-- "*" Booking : stores
-Restaurant "1" *-- "*" Member : stores
-Restaurant "1" *-- "*" Room : stores
-Restaurant "1" *-- "*" PartyStaff : stores
-Restaurant "1" *-- "1" Kitchen : has
-Restaurant "1" o-- "*" PaymentStrategy : manages instances
-
-Booking "1" o-- "1" Member : made by
-Booking "1" o-- "1" Room : books
-Booking "1" o-- "0..1" EventOrder : has
-Booking "1" o-- "0..1" Coupon : uses
-
-EventOrder "1" *-- "*" Food : contains
-
-Transaction "1" --> "1" Payable : source (Booking)
-Transaction "1" --> "0..1" Coupon : uses
-
-Receipt "1" --> "1" Transaction : ref
-Receipt "1" --> "1" Payable : source
-
-Member "1" *-- "*" Coupon : holds
-Member "1" *-- "*" Receipt : history
-
-Kitchen o-- "*" EventOrder : queues
-"""
-
-## sequence Diagram ##
-"""
-sequenceDiagram
-    autonumber
-    participant Staff as PartyStaff
-    participant API as SystemAPI
-    participant Rest as Restaurant (System)
-    participant Bk as Booking
-    participant Mem as Member
-
-    Note over Staff, Mem: API: /calculate_booking
-
-    Staff->>API: calculate_booking(booking_id, staff_id, coupon_code)
-    activate API
-
-    %% 1. Retrieve Data from Central System
-    API->>Rest: get_booking_from_id(booking_id)
-    activate Rest
-    Rest-->>API: return BookingObj
-    deactivate Rest
-
-    API->>Rest: get_staff_by_id(staff_id)
-    activate Rest
-    Rest-->>API: return StaffObj
-    deactivate Rest
-
-    %% 2. Coupon Handling
-    opt Coupon Code Provided
-        API->>Bk: member (Access Member)
-        API->>Mem: get_coupon_by_code(code)
-        activate Mem
-        Mem-->>API: return CouponObj
-        deactivate Mem
-    end
-
-    %% 3. Calculate Logic
-    API->>Bk: calculate_payment_details(CouponObj)
-    activate Bk
-    Note right of Bk: Internal Logic:<br/>(Room + Order) - Deposit - Discount
-    Bk-->>API: return PaymentDetails JSON
-    deactivate Bk
-
-    API-->>Staff: Return JSON
-    deactivate API
-
-    ###################################
-    
-    sequenceDiagram
-    autonumber
-    participant Staff as PartyStaff
-    participant API as SystemAPI
-    participant Rest as Restaurant (System)
-    participant Kit as Kitchen
-    participant Bk as Booking
-    participant Strat as PaymentStrategy
-    participant Txn as Transaction
-    participant Rec as Receipt
-    participant Mem as Member
-    participant Rm as Room
-    participant Cpn as Coupon
-
-    Note over Staff, Cpn: API: /confrim_pay
-
-    Staff->>API: pay_booking(booking_id, strategy, details)
-    activate API
-
-    %% 1. Retrievals
-    API->>Rest: get_booking_from_id(booking_id)
-    API->>Rest: get_staff_by_id(staff_id)
-
-    %% 2. Strategy Execution
-    API->>Rest: get_payment_strategy(strategy_name)
-    activate Rest
-    Rest-->>API: return StrategyInstance (Singleton)
-    deactivate Rest
-
-    API->>Strat: pay(total_price, **details)
-    activate Strat
-    Strat-->>API: return (Success, Msg)
-    deactivate Strat
-
-    %% 3. Transaction Creation (Using Booking as Source)
-    API->>Txn: new Transaction(source=Booking, ...)
-    activate Txn
-    Txn-->>API: return TxnObj
-    deactivate Txn
-
-    alt Payment Success
-        %% 4.1 Update Core Statuses
-        API->>Bk: status = PAID
-        
-        %% 4.2 Send to Kitchen (via Restaurant)
-        API->>Rest: kitchen
-        API->>Kit: add_order(booking.event_order)
-        activate Kit
-        Kit-->>API: Queue Updated
-        deactivate Kit
-
-        API->>Bk: room
-        API->>Rm: mark_room_in_use()
-        
-        %% 4.3 Handle Coupon
-        opt Coupon Used
-            API->>Cpn: mark_as_used()
-        end
-
-        %% 4.4 Finalize Transaction
-        API->>Txn: mark_success()
-        API->>Rest: add_transaction(TxnObj)
-
-        %% 4.5 Generate Receipt
-        API->>Rec: new Receipt(TxnObj, BookingObj)
-        activate Rec
-        Rec-->>API: return ReceiptObj
-        deactivate Rec
-        
-        API->>Mem: add_receipt(ReceiptObj)
-
-        API->>Rec: generate()
-        activate Rec
-        Rec-->>API: return Receipt JSON
-        deactivate Rec
-
-        API-->>Staff: Return Success JSON
-        
-    else Payment Failed
-        API->>Txn: mark_failed()
-        API->>Rest: add_transaction(TxnObj)
-        API-->>Staff: Raise HTTP 402 (Payment Failed)
-    end
-    
-    deactivate API
-"""
