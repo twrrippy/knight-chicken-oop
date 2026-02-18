@@ -8,7 +8,7 @@ from enum import Enum
 # from fastmcp import FastMCP
 from abc import ABC, abstractmethod
 
-from shared.pipeline.room_payment import Coupon, CouponStatus, EventOrder, PaymentStrategy, Receipt, RoomStatus, RoomType, Status
+from shared.pipeline.room_payment import Coupon, CouponStatus, EventOrder, PaymentStrategy, Receipt, RoomType, Status
 from shared.pipeline.delivery_order import OrderType
 
 app = FastAPI()
@@ -24,9 +24,16 @@ class DepositStatus(Enum):
 
 class BookingStatus(Enum):
     PENDING = "Pending"
+    RESERVED = "Reserved"
     IN_USE = "In Use"
     CANCELLED_NOSHOW = "Cancelled_NoShow"
     COMPLETED = "Completed"
+
+class RoomStatus(Enum):
+    AVAILABLE = "Available"
+    IN_USE = "In-Use"
+    CLEANING = "Cleaning"
+
 
 class SimulationClock:
     """Control Over System Time for Testing Purposes"""
