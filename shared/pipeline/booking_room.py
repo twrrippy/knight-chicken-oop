@@ -11,6 +11,7 @@ from abc import ABC, abstractmethod
 from shared.pipeline.room_payment import Coupon, CouponStatus, EventOrder, PaymentStrategy, Receipt, RoomType, Status
 from shared.pipeline.delivery_order import OrderType
 
+
 app = FastAPI()
 # mcp = FastMCP()
 # ==========================================
