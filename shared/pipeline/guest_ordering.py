@@ -235,9 +235,6 @@ class MenuFood():
     def update_status(self, menu_food_status: str):
         self.__status = menu_food_status
 
-    def to_dict(self):
-        return self.__dict__
-
 class Stock():
     def __init__(self):
         self.__reserved_stock = []
@@ -274,8 +271,6 @@ class Stock():
             self.__real_stock.append(item)
 
     def reserve(self, item: Item, quantity: int):
-        if self.check_real_stock(item) < quantity or quantity <= 0:
-            return False
         count = quantity
         for item_index in range(len(self.__real_stock) - 1, -1, -1):
             if self.__real_stock[item_index] == item:
@@ -284,18 +279,21 @@ class Stock():
                 count-=1
             if count == 0:
                 return True
+        else:
+            stock.reverse(item, quantity - count)
+            return False
             
     def reverse(self, item: Item, quantity: int):
-        if self.check_reserved_stock(item) < quantity or quantity <= 0:
+        if self.check_reserved_stock(item) < quantity:
             raise ValueError("reverse thing you should not")
         count = quantity
         for item_index in range(len(self.__reserved_stock) - 1, -1, -1):
+            if count == 0:
+                return True
             if self.__reserved_stock[item_index] == item:
                 self.__real_stock.append(self.__reserved_stock[item_index])
                 del self.__reserved_stock[item_index]
-                count-=1
-            if count == 0:
-                return True
+                count -= 1
 
         
 
@@ -429,24 +427,25 @@ app = FastAPI()
 # @app.get("/menu")
 # def get_menu():
     
-# @app.post("/start/order")
-# def start_order(customer: Union[Customer, None]):
-#     order = Order(str(uuid.uuid4()), "Dine In", customer)
-#     restaurant.add_order(order)
-#     return restaurant.count_order
+@app.post("/order/dinein/guest/start")
+async def start_order(guest: Guest.GuestDTO):
+    current_customer = Guest(guest.id, guest.name, guest.phone_number)
+    order = Order(str(uuid.uuid4()), "Dine In", current_customer)
+    restaurant.add_order(order)
+    return order.id
 
-# @app.post("/add/food", response_model=Union[Order.OrderDTO, dict])
-# def add_order(food: Order.FoodDTO):
-#     new_food = Food(food.particular, food.quantity)
-#     try:
-#         order = restaurant.search_order_from_id(food.order_id)
-#     except ValueError as e:
-#         raise HTTPException(status_code=400, detail=str(e))
-#     order.add_food(new_food)
-#     return order.to_dict
+@app.post("order/food/add", response_model=Union[Order.OrderDTO, dict])
+async def add_order(food: Order.FoodDTO): #รับแยก order id กับ food ไปเขียน dto ดีๆซะ
+    new_food = Food(food.particular, food.quantity)
+    try:
+        order = restaurant.search_order_from_id(food.order_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    order.add_food(new_food)
+    return order.to_dict
 
 @app.put("/ordering/guest", response_model=Union[Order.OrderDTO, dict])
-def ordering(order_id: str, guest: Guest.GuestDTO):
+async def ordering(order_id: str, guest: Guest.GuestDTO):
     if not restaurant.check_queue:
         raise HTTPException(status_code=418, detail="Queue Overload")
     try:
@@ -459,7 +458,7 @@ def ordering(order_id: str, guest: Guest.GuestDTO):
     return reserved_order.to_dict
 
 @app.get("/stock/{item_name}")
-def get_stock(item_name: str):
+async def get_stock(item_name: str):
     item_in_real_stock = stock.check_real_by_name(item_name)
     item_in_reserved_stock = stock.check_reserved_by_name(item_name)
     return {
