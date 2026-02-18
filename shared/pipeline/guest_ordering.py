@@ -70,6 +70,9 @@ class Ingredient():
     @property
     def quantity(self):
         return self.__quantity
+    
+    def modify(self, quantity: int):
+        self.__quantity = quantity
 
 class Particular(ABC):
     def __init__(self,name: str, recipe: list, price: float, cooking_time: datetime):
@@ -103,12 +106,16 @@ class ChickenSet(Particular):
         return self._recipe
     
 class Burger(Particular):
-    def __init__(self,name: str, recipe: list, add_on: list, price: float, cooking_time: datetime):
+    def __init__(self,name: str, recipe: list, price: float, cooking_time: datetime, add_on: Union[list, None] = None):
+        add_on_price = self.__calculate_add_on_price(add_on)
+        super().__init__(name, recipe, price + add_on_price , cooking_time)
+        self.__add_on = add_on
+
+    def __calculate_add_on_price(self, add_on: list):
         add_on_price = 0
         for ingredient in add_on:
             add_on_price += ingredient.quantity * ingredient.item.price
-        super().__init__(name, recipe, price + add_on_price , cooking_time)
-        self.__add_on = add_on
+        return add_on_price
         
     def all_ingredient(self):
         return self._recipe + self.__add_on
@@ -118,6 +125,10 @@ class Food():
         self.__particular = particular
         self.__quantity = quantity
         self.__status = None
+
+    class FoodDTO(BaseModel):
+        particular: str
+        quantity: int
     
     @property
     def price(self):
@@ -170,10 +181,6 @@ class Order():
         customer: str
         food_list: list
         total_price: float
-    class FoodDTO(BaseModel):
-        order_id: str
-        particular: dict
-        quantity: int
 
     @property
     def status(self):
@@ -202,7 +209,8 @@ class Order():
 
     def reserve(self, stock):
         for food in self.__food_list:
-            food.reserve(stock)
+            if food.status == "Add to Order":
+                food.reserve(stock)
         self.update_status("Reserved")
         return self
     
@@ -226,14 +234,6 @@ class Order():
 class DineInOrder(Order):
     def __init__(self, id: str, customer: Customer):
         super().__init__(id, "DineIn", customer)
-
-class MenuFood():
-    def __init__(self, particular: Particular):
-        self.__particular = particular
-        self.__status = "Available"
-    
-    def update_status(self, menu_food_status: str):
-        self.__status = menu_food_status
 
 class Stock():
     def __init__(self):
@@ -295,10 +295,8 @@ class Stock():
                 del self.__reserved_stock[item_index]
                 count -= 1
 
-        
-
 class StockLog():
-    def __init__(self, id: str, action :str, ingredient: Ingredient, staff: Union[Staff, None]):
+    def __init__(self, id: str, action :str, ingredient: Ingredient, staff: Union[Staff, None] = None):
         self.__id = id
         self.__action = action
         self.__ingredient = Ingredient
@@ -306,6 +304,32 @@ class StockLog():
             self.__staff = "System"
         else:
             self.__staff = staff
+
+class MenuFood():
+    def __init__(self, particular: Particular):
+        self.__particular = particular
+        self.__status = "Out of Stock"
+
+    @property
+    def get_particular_name(self):
+        return self.__particular.name
+    @property
+    def particular(self):
+        return self.__particular
+    
+    def update_status(self, menu_food_status: str):
+        self.__status = menu_food_status
+
+    def to_dict(self, stock: Stock):
+        self.__status = "Available"
+        for ingredient in self.__particular.all_ingredient():
+            if stock.check_real_stock(ingredient.item) < ingredient.quantity:
+                self.__status = "Out of Stock"
+                break
+        return {
+            "particular": self.__particular.to_dict,
+            "status": self.__status
+        }
 
 class Restaurant():
     def __init__(self, stock: Stock):
@@ -324,6 +348,11 @@ class Restaurant():
     def add_order(self, order: Order):
         self.__order_list.append(order)
 
+    #อาจจะย้ายไปอยู่ manager
+    def add_menu(self, particular: Particular):
+        new_menufood = MenuFood(particular)
+        self.__menu.append(new_menufood)
+
     def add_stock_log(self, new_log: StockLog):
         self.__stock_log.append(new_log)
 
@@ -341,14 +370,24 @@ class Restaurant():
                 return False
         return True
     
-    @property
-    def get_menu(self):
-        return self.__menu
+    def get_menu(self, stock: Stock):
+        menu = []
+        for each_menu in self.__menu:
+            menu.append(each_menu.to_dict(stock))
+        return {"menu": menu}
     
-    def search_order_from_id(self, order_id: str, customer: Customer) -> Order:
+    def search_menu_from_name(self, particular_name: str, add_on: Union[list,None] = None):
+        for menu_food in self.__menu:
+            if menu_food.get_particular_name == particular_name:
+                if isinstance(menu_food, Burger):
+                    menu_food.update_add_on(add_on)
+                return menu_food.particular
+        raise ValueError("Particular NOT FOUND")
+    
+    def search_order_from_id(self, order_id: str, customer: Union[Customer, None]) -> Order:
         for find in self.__order_list:
             if find.id == order_id:
-                if find.check_customer(customer):
+                if find.check_customer(customer) or customer == None:
                     return find
                 else:
                     raise ValueError("Wrong Customer")
@@ -382,24 +421,27 @@ stock.add_stock(cheese, 10)
 chicken_recipe = []
 chicken_recipe.append(Ingredient(chicken, 1))
 fried_chicken= ChickenSet("Fried Chicken", chicken_recipe, 20, timedelta(minutes=10))
+restaurant.add_menu(fried_chicken)
 
 burger_recipe = []
 burger_recipe.append(Ingredient(bread, 1))
 burger_recipe.append(Ingredient(chicken, 1))
 burger_add_on = []
 burger_add_on.append(Ingredient(cheese, 1))
-burger = Burger("Hamburger", burger_recipe, burger_add_on, 60, timedelta(minutes=15))
+burger = Burger("Hamburger", burger_recipe, 60, timedelta(minutes=15), burger_add_on)
+restaurant.add_menu(burger)
 
 burger2_recipe = []
 burger2_recipe.append(Ingredient(bread, 1))
 burger2_recipe.append(Ingredient(chicken, 1))
 burger2_add_on = []
-burger2 = Burger("Hamburger", burger2_recipe, burger2_add_on, 60, timedelta(minutes=15))
+burger2 = Burger("Hamburger", burger2_recipe, 60, timedelta(minutes=15), burger2_add_on)
 
 party_chicken_recipe = []
 party_chicken_recipe.append(Ingredient(bread, 1))
 party_chicken_recipe.append(Ingredient(chicken, 30))
 party_chicken= ChickenSet("Party Set", party_chicken_recipe, 1000, timedelta(minutes=30))
+restaurant.add_menu(party_chicken)
 
 # Case 101
 order1 = DineInOrder("101", guest1)
@@ -424,8 +466,10 @@ restaurant.add_order(order3)
 # ordering("103", also_guest1)
 
 app = FastAPI()
-# @app.get("/menu")
-# def get_menu():
+
+@app.get("/menu")
+async def get_menu():
+    return restaurant.get_menu(stock)
     
 @app.post("/order/dinein/guest/start")
 async def start_order(guest: Guest.GuestDTO):
@@ -434,11 +478,13 @@ async def start_order(guest: Guest.GuestDTO):
     restaurant.add_order(order)
     return order.id
 
-@app.post("order/food/add", response_model=Union[Order.OrderDTO, dict])
-async def add_order(food: Order.FoodDTO): #รับแยก order id กับ food ไปเขียน dto ดีๆซะ
-    new_food = Food(food.particular, food.quantity)
+@app.put("/order/food/add", response_model=Union[Order.OrderDTO, dict])
+async def add_order(order_id: str, food: Food.FoodDTO):
+    particular_name = food.particular
     try:
-        order = restaurant.search_order_from_id(food.order_id)
+        particular = restaurant.search_menu_from_name(particular_name)
+        new_food = Food(particular, food.quantity)
+        order = restaurant.search_order_from_id(order_id, None)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     order.add_food(new_food)
