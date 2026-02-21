@@ -11,9 +11,6 @@ import random
 app = FastAPI()
 mcp = FastMCP("PartyRoomPayment System")
 
-# ==========================================
-# 1. ENUMS
-# ==========================================
 class OrderType(Enum):
     GENERAL = "General"   
     DELIVERY = "Delivery" 
@@ -54,9 +51,11 @@ class StaffRole(Enum):
     PartyStaff = "Party Staff"
     KitchenStaff = "Kitchen Staff"
 
-# ==========================================
-# 2. UTILITIES & INTERFACES
-# ==========================================
+class TransactionStatus(Enum):
+    PENDING = "PENDING"
+    FAILED = "FAILED"
+    SUCCESS = "SUCCESS"
+
 class SimulationClock:
     __current_time = datetime.now()
 
@@ -68,9 +67,6 @@ class SimulationClock:
     def get_time(cls):
         return cls.__current_time
 
-# ==========================================
-# 3. CORE CLASSES (User, Coupon, Transaction)
-# ==========================================
 class Coupon(ABC):
     def __init__(self, id, code, minimum_price) -> None:
         self.__id = id
@@ -106,24 +102,36 @@ class PercentCoupon(Coupon):
             return base_price * (self.__percent / 100)
         raise ValueError(f"Does Not Meet Minimum Price")
 
+class FixedAmountCoupon(Coupon):
+    def __init__(self, id: str, code: str, minimum_price: float, amount: float) -> None:
+        super().__init__(id, code, minimum_price)
+        if not (amount < minimum_price):
+            raise ValueError("Minimum Price must be > Amount")
+        self.__amount = amount
+
+    def apply_coupon(self, base_price: float) -> float:
+        if self.is_applicable(base_price):
+            return base_price - self.__amount
+        raise ValueError(f"Does Not Meet Minimum Price")
+
 class Transaction:
-    def __init__(self, source: Order, strategy: str, status: str, payment_id: str, staff_id: str = "SYSTEM"):
+    def __init__(self, order: Order, strategy: PaymentStrategy, status: TransactionStatus, payment_id: str):
       self.__id = f"TXN-{uuid.uuid4().hex[:12].upper()}"
-      self.__source = source            
-      self.__target_id = source.id      
-      self.__amount = source.total_payable_amount
-      self.__order_type = source.order_type 
-      self.__coupon = source.coupon_used    
+      self.__order = order                 
+      self.__amount = order.total_payable_amount
+      self.__order_type = order.order_type 
+      self.__coupon = order.coupon_used    
       
       self.__strategy = strategy
       self.__status = status
       self.__payment_id = payment_id
       self.__timestamp = SimulationClock.get_time()
-      self.__staff_id = staff_id
 
-    def mark_success(self): self.__status = "SUCCESS"
-    def mark_failed(self): self.__status = "FAILED"
+    def mark_success(self): self.__status = TransactionStatus.SUCCESS
+    def mark_failed(self): self.__status = TransactionStatus.FAILED
     
+    @property
+    def order(self): return self.__order
     @property
     def id(self): return self.__id
     @property
@@ -170,14 +178,15 @@ class Receipt:
       "receipt_no": self.__transaction.id,
       "date": self.__transaction.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
       "merchant": "Knight Chicken Fast Food Co.",
-      "order_type": self.__transaction.order_type,
+      "order_type": self.__transaction.order_type.name,
       "customer": bill_info["customer_name"],
       "items": bill_info["items"],
+      "booking": bill_info["booking"] if isinstance(self.__source, EventOrder) else "None",
       "subtotal": bill_info["subtotal"],
       "discount": bill_info["discount"],
       "paid_deposit": bill_info.get("paid_deposit", 0.0),
       "final_amount_due": self.__transaction.amount,
-      "payment_method": self.__transaction.strategy,
+      "payment_method": self.__transaction.strategy.name,
       "status": self.__transaction.status
     }
 
@@ -236,22 +245,8 @@ class Room:
     @property
     def capacity(self): return self.__capacity
 
-# ==========================================
-# 4. ORDER ITEM SYSTEM
-# ==========================================
-class OrderItem(ABC):
-    @property
-    @abstractmethod
-    def name(self) -> str: pass
-    
-    @property
-    @abstractmethod
-    def price(self) -> float: pass 
 
-    @abstractmethod
-    def get_details(self) -> Dict[str, Any]: pass
-
-class FoodOrderItem(OrderItem):
+class FoodOrderItem:
     def __init__(self, food: Food, quantity: int = 1):
         self.__food = food
         self.__quantity = quantity
@@ -264,8 +259,7 @@ class FoodOrderItem(OrderItem):
     def get_details(self) -> Dict[str, Any]:
         return {"name": self.name, "quantity": self.__quantity, "price": self.price}
 
-# [CLEANED] Booking is now a pure OrderItem (No circular logic)
-class Booking(OrderItem):
+class Booking:
     def __init__(self, booking_id, member: Member, room: Room, start_time: datetime, hours: int):
         self.__id = booking_id
         self.__member = member
@@ -289,14 +283,12 @@ class Booking(OrderItem):
     def mark_checked_in(self):
         self.__status = BookingStatus.CHECKED_IN
 
-    # --- Implement OrderItem ---
     @property
     def name(self) -> str: 
         return f"Room Balance: {self.__room.id} ({self.__hours} hrs)"
     
     @property
     def price(self) -> float: 
-        # Price exposed to Order is ONLY the remaining balance
         return self.__net_full_price - self.__paid_deposit
 
     def get_details(self) -> Dict[str, Any]:
@@ -324,66 +316,59 @@ class Booking(OrderItem):
     @property
     def hours(self): return self.__hours
 
-# ==========================================
-# 5. ORDER SYSTEM
-# ==========================================
 class Order(ABC):
-    def __init__(self, order_id: str, customer: Member):
+    def __init__(self, order_id: str, customer: Customer):
         self._id = order_id
-        self._customer = customer
-        self._items: List[OrderItem] = []
+        self._customer: Customer = customer
+        self._items: List[FoodOrderItem] = []
         self._status = OrderStatus.PENDING
         self._coupon_used: Optional[Coupon] = None
         
         self._subtotal = 0.0
         self._discount = 0.0
         self._final_price = 0.0
-        self._deposit_deducted = 0.0
 
-    def add_item(self, item: OrderItem):
+    def add_item(self, item: FoodOrderItem):
         self._items.append(item)
 
     @property
     @abstractmethod
     def order_type(self) -> OrderType: pass
 
-    def calculate_totals(self, coupon: Optional[Coupon] = None):
-        # 1. Sum up all items (Booking Balance + Food)
-        self._subtotal = sum(item.price for item in self._items)
-        
-        # 2. Track Deposit (For info only, already deducted in Booking.price)
-        self._deposit_deducted = 0.0
-        for item in self._items:
-            if isinstance(item, Booking):
-                self._deposit_deducted += item.paid_deposit
+    def pre_calculate_totals(self, coupon: Optional[Coupon] = None):
+        subtotal = sum(item.price for item in self._items)
 
-        # 3. Apply Coupon
-        self._discount = 0.0
+        discount = 0.0
         if coupon:
              if coupon.status != CouponStatus.AVAILABLE:
                 raise ValueError("Coupon Not Available")
-             self._discount = coupon.apply_coupon(self._subtotal)
-             self._coupon_used = coupon
-        else:
-             self._coupon_used = None
+             discount = coupon.apply_coupon(subtotal)
 
-        self._final_price = self._subtotal - self._discount
-        if self._final_price < 0: self._final_price = 0.0
+        final_price = subtotal - discount
+        if final_price < 0: final_price = 0.0
         
-        # 4. Construct Return JSON
         return {
             "Member": {
-                "Name": self._customer.name,
-                "Tier": self._customer.tier.value
+                "Customer ID": self._customer.id,
+                "Name": self._customer.name
             },
             "Order Id": self._id,
             "Item": [item.get_details() for item in self._items],
-            "Total Price Before Discount": self._subtotal,
+            "Total Price Before Discount": subtotal,
             "Coupon Code": coupon.code if coupon else "None",
-            "Discounted": self._discount,
-            "Deposit Already Paid": self._deposit_deducted,
-            "Total Payable": self._final_price
+            "Discounted": discount,
+            "Total Payable": final_price
         }
+
+    def calculate_totals(self, coupon: Optional[Coupon] = None):
+        info = self.pre_calculate_totals(coupon)
+        self._subtotal = info.get("Total Price Before Discount")
+        self._discount = info.get("Discounted")
+        self._final_price = info.get("Total Payable")
+        if info.get("Coupon Code") != "None":
+            self._coupon_used = coupon
+    
+        return info
 
     @property
     def id(self): return self._id
@@ -405,33 +390,62 @@ class Order(ABC):
             "customer_name": self._customer.name,
             "items": [item.get_details() for item in self._items],
             "subtotal": self._subtotal,
-            "discount": self._discount,
-            "paid_deposit": self._deposit_deducted
+            "discount": self._discount
         }
 
-# --- Specific Orders ---
 class GeneralOrder(Order):
     @property
     def order_type(self): return OrderType.GENERAL # pyright: ignore[reportIncompatibleMethodOverride]
 
 class EventOrder(Order):
     """ Booking + Food """
+    def __init__(self, order_id: str, customer: Member, booking: Booking):
+        super().__init__(order_id, customer)
+        self.__booking: Booking = booking
+
     @property
     def order_type(self): return OrderType.EVENT # pyright: ignore[reportIncompatibleMethodOverride]
     
     @property
-    def linked_booking(self) -> Optional[Booking]:
-        for item in self.items:
-            if isinstance(item, Booking):
-                return item
-        return None
-    
-    def add_booking_item(self, booking: Booking):
-        if booking.status != BookingStatus.DEPOSIT_PAID:
-            raise ValueError("Booking deposit must be paid first")
-        if self.linked_booking:
-             raise ValueError("Order already has a booking")
-        self.add_item(booking)
+    def booking(self) -> Booking: return self.__booking
+
+    def pre_calculate_totals(self, coupon: Optional[Coupon] = None): # type: ignore
+        subtotal = sum(item.price for item in self._items) + self.booking.full_price
+        paid_deposit = self.booking.paid_deposit
+
+        discount = 0.0
+        if coupon:
+             if coupon.status != CouponStatus.AVAILABLE:
+                raise ValueError("Coupon Not Available")
+             discount = coupon.apply_coupon(subtotal)
+
+        final_price = subtotal - discount - paid_deposit
+        if final_price < 0: final_price = 0.0
+        
+        return {
+            "Member": {
+                "Customer ID": self._customer.id,
+                "Name": self._customer.name
+            },
+            "Order Id": self._id,
+            "Item": [item.get_details() for item in self._items],
+            "Booking": self.booking.get_details(),
+            "Total Price Before Discount": subtotal,
+            "Coupon Code": coupon.code if coupon else "None",
+            "Discounted": discount,
+            "Deposit Already Paid" : paid_deposit,
+            "Total Payable": final_price
+        }
+
+    def get_bill_info(self) -> Dict[str, Any]:
+        return {
+            "customer_name": self._customer.name,
+            "items": [item.get_details() for item in self._items],
+            "booking": self.booking.get_details(),
+            "subtotal": self._subtotal,
+            "discount": self._discount,
+            "paid_deposit": self.booking.paid_deposit
+        }
 
 class DeliveryOrder(Order):
     """ Order สำหรับเดลิเวอรี่ (เพิ่มใหม่) """
@@ -446,15 +460,11 @@ class DeliveryOrder(Order):
     @property
     def delivery_address(self): return self.__delivery_address
 
-    def calculate_totals(self, coupon: Optional[Coupon] = None):
-        base_result = super().calculate_totals(coupon)
-        
-        # บวกค่าส่งเข้าไปใน final price
-        self._final_price += self.__rider_fee
-        
-        # Update result dict
+    def pre_calculate_totals(self, coupon: Coupon | None = None): # type: ignore
+        base_result = super().pre_calculate_totals(coupon)
         base_result["Rider Fee"] = self.__rider_fee
-        base_result["Total Payable"] = self._final_price
+        base_result["Total Payable"] += self.__rider_fee
+
         return base_result
     
     def get_bill_info(self) -> Dict[str, Any]:
@@ -462,10 +472,7 @@ class DeliveryOrder(Order):
         info['items'].append({"name": "Delivery Fee", "quantity": 1, "price": self.__rider_fee})
         info['subtotal'] += self.__rider_fee 
         return info
-
-# ==========================================
-# 6. PAYMENT STRATEGIES
-# ==========================================
+    
 class PaymentStrategy(ABC):
     def __init__(self, id: str, name: str):
         self.__id = id
@@ -510,9 +517,6 @@ class Cash(PaymentStrategy):
         if float(received) < amount: return False, txn_id, f"Insufficient Cash"
         return True, txn_id, "Payment Done"
 
-# ==========================================
-# 7. CENTRAL SYSTEM
-# ==========================================
 class Kitchen:
     def __init__(self):
         self.__order_queue: List[Order] = []
@@ -536,32 +540,27 @@ class Restaurant:
         self.__orders: List[Order] = []      
         self.__payment_strategies: List[PaymentStrategy] = []
 
-    # Getters
     @property
     def kitchen(self): return self.__kitchen
 
-    # --- Booking Mgmt ---
     def add_booking(self, booking: Booking): self.__bookings.append(booking)
     def get_booking(self, booking_id: str) -> Optional[Booking]:
         for b in self.__bookings:
             if b.id == booking_id: return b
         return None
 
-    # --- Order Mgmt ---
     def add_order(self, order: Order): self.__orders.append(order)
     def get_order(self, order_id: str) -> Optional[Order]:
         for o in self.__orders:
             if o.id == order_id: return o
         return None
 
-    # --- Strategy Mgmt ---
     def add_payment_strategy(self, strategy: PaymentStrategy): self.__payment_strategies.append(strategy)
     def get_payment_strategy(self, strategy_name: str) -> PaymentStrategy:
         for s in self.__payment_strategies:
             if s.name.lower() == strategy_name.lower(): return s
         raise HTTPException(status_code=400, detail="Unknown Strategy")
 
-    # --- Others ---
     def add_transaction(self, t: Transaction): 
         self.__transaction_list.append(t)
         print(f"[LOG] Txn: {t.id} | Status: {t.status} | Amt: {t.amount}")
@@ -587,26 +586,25 @@ class Restaurant:
 
 restaurant_system = Restaurant()
 
-# ==========================================
-# 8. API ENDPOINTS
-# ==========================================
+## API
 
 @mcp.tool
 @app.post("/payment/calculate_order/{order_id}")
 async def calculate_order(order_id: str, staff_id: str, coupon_code: Optional[str] = Query(default=None)):
     """
-    คำนวณยอดเงินที่ต้องชำระสำหรับ Order (Pre-calculation)
+    คำนวณยอดเงินที่ต้องชำระสำหรับ Order (Pre-calculation / Preview)
     
     หน้าที่:
     - ดึงข้อมูล Order ตาม ID (Format: ORD-xxx-xxx)
-    - ตรวจสอบสิทธิ์พนักงาน (staff_id)
-    - (Optional) ทดลองคำนวณส่วนลดถ้าใส่ coupon_code มา
+    - ตรวจสอบสิทธิ์พนักงาน (staff_id) ว่าสามารถเข้าถึงประเภท Order นั้นๆ ได้หรือไม่
+    - (Optional) ทดลองคำนวณส่วนลดถ้าใส่ coupon_code มา เพื่อดูยอดก่อนจ่ายจริง
     
     การทำงาน:
-    ระบบจะคืนค่า JSON ที่ระบุรายละเอียด Order ทั้งหมด, 
-    ส่วนลดที่ได้ (ถ้ามี), และยอดสุทธิ (Total Price) เพื่อให้พนักงานแจ้งลูกค้าก่อนกดจ่ายจริง
-    หากยังไม่ได้ใช้คูปอง สามารถเรียกฟังก์ชั่นเดิมเพื่อใส่ หรือไม่ใส่คูปองใหม่ได้
+    - ระบบจะคืนค่า JSON สรุปรายละเอียดออเดอร์ทั้งหมด (รายการอาหาร, รายละเอียดการจองห้อง, ค่าส่ง ฯลฯ)
+    - แสดงยอดรวมก่อนลด, ส่วนลดจากคูปอง, เงินมัดจำที่หักออก (ถ้ามี), และยอดสุทธิ (Total Payable) เพื่อให้พนักงานแจ้งลูกค้า
+    - ฟังก์ชันนี้เป็นแบบ Stateless จะยังไม่บันทึกการใช้คูปองหรือเปลี่ยนแปลงสถานะใดๆ จนกว่าจะเรียก /confirm_pay
     """
+
     order = restaurant_system.get_order(order_id)
     if not order: raise HTTPException(404, "Order Not Found")
     if order.status == OrderStatus.PAID: raise HTTPException(409, "Already Paid")
@@ -623,35 +621,39 @@ async def calculate_order(order_id: str, staff_id: str, coupon_code: Optional[st
         if not coupon: raise HTTPException(404, "Coupon Not Found")
 
     try:
-        return order.calculate_totals(coupon)
+        return order.pre_calculate_totals(coupon)
     except ValueError as e:
          raise HTTPException(400, str(e))
 
 @mcp.tool
 @app.post("/payment/confirm_pay/{order_id}")
-async def confirm_pay(order_id: str, staff_id: str, strategy: str, payment_details: Dict[str, Any] = {}):
+async def confirm_pay(order_id: str, staff_id: str, strategy: str, coupon_code: Optional[str] = Query(default=None), payment_details: Dict[str, Any] = {}):
     """
-    ยืนยันการชำระเงินและออกใบเสร็จ (Execute Payment)
+    ยืนยันการชำระเงิน คำนวณยอดสุดท้าย และออกใบเสร็จ (Execute Payment)
 
     หน้าที่:
-    - ตัดเงินจริงตาม Strategy ที่เลือก (qrcode, creditcard, cash)
-    - เปลี่ยนสถานะต่างๆ ในระบบเมื่อจ่ายสำเร็จ
+    - ยืนยันยอดชำระสุทธิและตัดเงินจริงตาม Payment Strategy ที่เลือก
+    - อัปเดตสถานะของออบเจ็กต์ต่างๆ ที่เกี่ยวข้องในระบบเมื่อชำระเงินสำเร็จ
     
     Arguments:
-    - booking_id: รหัสการจอง
+    - order_id: รหัสออเดอร์ (Format: ORD-xxx-xxx)
     - staff_id: รหัสพนักงานผู้ทำรายการ
-    - strategy: วิธีการชำระเงิน ('qrcode', 'creditcard', 'cash')
-    - payment_details: ข้อมูลเพิ่มเติม เช่น {'account_number': xxx } หรือ {'card_number': '...', 'cvv': '...'} หรือ {'cash_received': xxx}
+    - strategy: วิธีการชำระเงิน (เช่น 'qrcode', 'creditcard', 'cash')
+    - coupon_code: (Optional) โค้ดคูปองที่ต้องการใช้งาน
+    - payment_details: ข้อมูลเพิ่มเติมตามประเภทการจ่ายเงิน เช่น 
+        - qrcode: {'account_number': 'xxx' } 
+        - creditcard: {'card_number': '...', 'cvv': '...'} 
+        - cash: {'cash_received': xxx}
 
-    ผลลัพธ์เมื่อสำเร็จ:
-    1. Status -> PAID
-    2. Order -> ส่งเข้า Kitchen Queue
-    3. Coupon -> Mark as Used (ถ้ามี)
-    4. Transaction -> บันทึกลงระบบ Restaurant
-    5. Receipt -> สร้างและเก็บ
+    ผลลัพธ์เมื่อทำรายการสำเร็จ:
+    1. Order -> เปลี่ยนสถานะเป็น PAID
+    2. Transaction -> บันทึกประวัติและเปลี่ยนสถานะเป็น SUCCESS
+    3. Booking & Room -> หากเป็น EventOrder จะเปลี่ยนสถานะจองเป็น CHECKED_IN และห้องเป็น IN_USE
+    4. Kitchen -> ส่งรายการอาหารเข้าคิวห้องครัว
+    5. Coupon -> ถูกมาร์คว่าใช้งานแล้ว (NOT_AVAILABLE)
+    6. Receipt -> สร้างใบเสร็จ เก็บลงประวัติลูกค้า และคืนค่า JSON ให้ Frontend
     """
 
-    # 1. Validation
     order = restaurant_system.get_order(order_id)
     if not order: raise HTTPException(404, "Order Not Found")
     if order.status == OrderStatus.PAID: raise HTTPException(409, "Already Paid")
@@ -659,46 +661,48 @@ async def confirm_pay(order_id: str, staff_id: str, strategy: str, payment_detai
     staff = restaurant_system.get_staff(staff_id)
     if not staff: raise HTTPException(400, "Invalid Staff")
 
-    if order.coupon_used and order.coupon_used.status != CouponStatus.AVAILABLE:
+    coupon = None
+    if coupon_code:
+        coupon = restaurant_system.get_coupon(coupon_code)
+        if not coupon: raise HTTPException(404, "Coupon Not Found")
+
+    if coupon and coupon.status != CouponStatus.AVAILABLE:
         raise HTTPException(400, "Coupon is Already Used")
     
-    # 2. Ensure price is calculated
-    if order.total_payable_amount == 0.0:
-        order.calculate_totals(coupon=None)
+    order.calculate_totals(coupon)
+    if not isinstance(order.total_payable_amount, float): raise  HTTPException(409, "Can't Calculate Final Price")
+    if order.total_payable_amount < 0: raise  HTTPException(409, "Final Price is Below 0")
 
-    # 3. Process Payment
     try:
         pay_strategy = restaurant_system.get_payment_strategy(strategy)
     except HTTPException as e: raise e
 
     success, txn_id, note = pay_strategy.pay(order.total_payable_amount, **payment_details)
+    
+    if order.total_payable_amount == 0: success = True
 
-    transaction = Transaction(source=order, strategy=strategy, status="PENDING", payment_id=txn_id, staff_id=staff_id)
+    transaction = Transaction(order=order, strategy=pay_strategy, status=TransactionStatus.PENDING, payment_id=txn_id)
 
     if success:
-        # Success Update
         order.status = OrderStatus.PAID
         transaction.mark_success()
         
-        # 1. Update Booking & Room
-        if isinstance(order, EventOrder) and order.linked_booking:
-            order.linked_booking.mark_checked_in()
-            order.linked_booking.room.mark_room_in_use()
+        if isinstance(order, EventOrder) and order.booking:
+            order.booking.mark_checked_in()
+            order.booking.room.mark_room_in_use()
 
-        # 2. Send to Kitchen
         restaurant_system.kitchen.add_order(order)
 
-        # 3. Mark Coupon
-        if order.coupon_used: order.coupon_used.mark_as_used()
+        if coupon: coupon.mark_as_used()
         
-        # 4. Save
         restaurant_system.add_transaction(transaction)
         receipt = Receipt(transaction, order)
-        order.customer.add_receipt(receipt)
+
+        if isinstance(order.customer, Member):
+            order.customer.add_receipt(receipt)
         
         return receipt.generate()
     else:
-        # Failure Update
         transaction.mark_failed()
         restaurant_system.add_transaction(transaction)
         raise HTTPException(402, f"Payment Failed: {note}")
@@ -706,17 +710,18 @@ async def confirm_pay(order_id: str, staff_id: str, strategy: str, payment_detai
 # ==========================================
 #             MOCK DATA SETUP
 # ==========================================
-print("Initializing Extended Mock Data...")
+print("Initializing Comprehensive Mock Data...")
 
 # ------------------------------------------
 # 1. SETUP SYSTEM & STRATEGIES
 # ------------------------------------------
-# Clear lists if running repeatedly (optional)
-# restaurant_system = Restaurant() 
+qr_code_system = QRCode("S1", "QRCode (PromptPay)")
+credit_card_system = CreditCard("S2", "CreditCard (Visa/Master)")
+cash_system = Cash("S3", "Cash")
 
-restaurant_system.add_payment_strategy(QRCode("S1", "QRCode (PromptPay)"))
-restaurant_system.add_payment_strategy(CreditCard("S2", "CreditCard (Visa/Master)"))
-restaurant_system.add_payment_strategy(Cash("S3", "Cash"))
+restaurant_system.add_payment_strategy(qr_code_system)
+restaurant_system.add_payment_strategy(credit_card_system)
+restaurant_system.add_payment_strategy(cash_system)
 
 # ------------------------------------------
 # 2. STAFF & MEMBERS (Covering all Tiers)
@@ -732,8 +737,8 @@ restaurant_system.add_staff(waiter)
 
 # Members
 m_gold = Member("M-001", "เสี่ยตง (Gold)", MemberTier.GOLD)      # ส่วนลดห้อง 20%
-m_silver = Member("M-002", "คุณหญิง (Silver)", MemberTier.SILVER) # (สมมติในอนาคตมีส่วนลด)
-m_bronze = Member("M-003", "นายเอ (Bronze)", MemberTier.BRONZE)   # ลูกค้าทั่วไป
+m_silver = Member("M-002", "คุณหญิง (Silver)", MemberTier.SILVER)
+m_bronze = Member("M-003", "นายเอ (Bronze)", MemberTier.BRONZE)
 m_new = Member("M-004", "น้องบี (New)", MemberTier.BRONZE)
 
 restaurant_system.add_member(m_gold)
@@ -758,15 +763,18 @@ food_map = {f.name: f for f in menu}
 # ------------------------------------------
 # 4. COUPONS
 # ------------------------------------------
-c1 = PercentCoupon("CPN-10", "WELCOME10", 0, 10.0)      # ลด 10% ไม่มีขั้นต่ำ
-c2 = PercentCoupon("CPN-20", "VIP20", 1000, 20.0)       # ลด 20% ขั้นต่ำ 1000
-c3 = PercentCoupon("CPN-50", "BIGLOT50", 5000, 50.0)    # ลด 50% ขั้นต่ำ 5000 (สำหรับจัดเลี้ยง)
+c1 = PercentCoupon("CPN-10", "WELCOME10", 0, 10.0)           # ลด 10% ไม่มีขั้นต่ำ
+c2 = PercentCoupon("CPN-20", "VIP20", 1000, 20.0)            # ลด 20% ขั้นต่ำ 1000
+c3 = PercentCoupon("CPN-50", "BIGLOT50", 5000, 50.0)         # ลด 50% ขั้นต่ำ 5000 (สำหรับจัดเลี้ยง)
+c4 = FixedAmountCoupon("CPN-F100", "MINUS100", 500, 100.0)   # ลด 100 บาท ขั้นต่ำ 500
 
 restaurant_system.add_coupon(c1)
 restaurant_system.add_coupon(c2)
 restaurant_system.add_coupon(c3)
+restaurant_system.add_coupon(c4)
 
 m_gold.add_coupon(c1)
+m_gold.add_coupon(c4)  # ให้ Gold ลองใช้คูปองลดเงินสดด้วย
 m_silver.add_coupon(c2)
 m_bronze.add_coupon(c3)
 m_new.add_coupon(c2)
@@ -779,15 +787,19 @@ r_vip = Room("R-VIP-01", RoomType.VIP)      # 2000/hr
 r_std = Room("R-STD-01", RoomType.STANDARD) # 500/hr
 r_hall = Room("R-HALL-01", RoomType.HALL)   # 5000/hr
 
-# --- Scenario A: Booking ที่จ่ายมัดจำแล้ว (พร้อมเข้าใช้) ---
-b_vip = Booking("BK-VIP", m_gold, r_vip, datetime.now(), 5) # 5 ชม.
+# Booking A: VIP (Gold Member) - จ่ายมัดจำแล้ว พร้อมเข้าใช้
 # Gold Member ได้ลดค่าห้อง 20% -> (2000*5)*0.8 = 8000
-b_vip.mark_paid_deposit() # จ่ายมัดจำ 4000
+b_vip = Booking("BK-VIP", m_gold, r_vip, datetime.now(), 5) # 5 ชม.
+b_vip.mark_paid_deposit() # จ่ายมัดจำแล้ว 4000
 restaurant_system.add_booking(b_vip)
 
-# --- Scenario B: Booking จอง Hall ใหญ่ (ยังไม่จ่ายมัดจำ) ---
-# อันนี้จะยังเอาไปทำ Order ไม่ได้ จนกว่าจะจ่ายมัดจำ
-b_hall = Booking("BK-HALL", m_silver, r_hall, datetime.now() + timedelta(days=1), 4)
+# Booking B: Standard (Silver Member) - จ่ายมัดจำแล้ว
+b_std = Booking("BK-STD", m_silver, r_std, datetime.now(), 2) # 2 ชม. (1000 บาท)
+b_std.mark_paid_deposit() # จ่ายมัดจำแล้ว 500
+restaurant_system.add_booking(b_std)
+
+# Booking C: จอง Hall ใหญ่ (ยังไม่จ่ายมัดจำ) - เอาไปทำ Order ยังไม่ได้
+b_hall = Booking("BK-HALL", m_bronze, r_hall, datetime.now() + timedelta(days=1), 4)
 restaurant_system.add_booking(b_hall)
 
 # ------------------------------------------
@@ -795,52 +807,45 @@ restaurant_system.add_booking(b_hall)
 # ------------------------------------------
 
 # === CASE 1: General Order (ทานข้าวปกติ ไม่จองห้อง) ===
-# ลูกค้า: m_bronze
-# สั่ง: สเต็ก และ โค้ก
 gen_order = GeneralOrder("ORD-GEN-001", m_bronze)
 gen_order.add_item(FoodOrderItem(food_map["Wagyu Steak"], 1))
 gen_order.add_item(FoodOrderItem(food_map["Coke Refill"], 2))
 restaurant_system.add_order(gen_order)
 
 
-# === CASE 2: Event Order (จัดเลี้ยงในห้อง VIP) ===
-# ลูกค้า: m_gold (จาก b_vip ด้านบน)
-# สั่ง: ห้อง VIP + ชุด Party Set
-evt_order = EventOrder("ORD-EVT-001", m_gold)
-
-# Link Booking (ระบบจะดึงยอดที่เหลือหลังหักมัดจำมาคำนวณ)
-evt_order.add_booking_item(b_vip) 
-
-# สั่งอาหารเข้าห้อง
-evt_order.add_item(FoodOrderItem(food_map["Party Set L (Chicken + Pizza)"], 2))
-evt_order.add_item(FoodOrderItem(food_map["Ice Cream Tower"], 1))
-restaurant_system.add_order(evt_order)
+# === CASE 2: Event Order (จัดเลี้ยงในห้อง VIP + สั่งอาหารเพียบ) ===
+evt_order_1 = EventOrder("ORD-EVT-001", m_gold, b_vip)
+evt_order_1.add_item(FoodOrderItem(food_map["Party Set L (Chicken + Pizza)"], 3))
+evt_order_1.add_item(FoodOrderItem(food_map["Ice Cream Tower"], 2))
+restaurant_system.add_order(evt_order_1)
 
 
-# === CASE 3: Delivery Order (สั่งกลับบ้าน) ===
-# ลูกค้า: m_new
-# สั่ง: เฟรนช์ฟรายส์ + สปาเก็ตตี้
-# ค่าส่ง: 50 บาท
+# === CASE 3: Event Order (ห้อง Standard เอาไว้เทส FixedAmountCoupon) ===
+evt_order_2 = EventOrder("ORD-EVT-002", m_silver, b_std)
+evt_order_2.add_item(FoodOrderItem(food_map["French Fries"], 2))
+restaurant_system.add_order(evt_order_2)
+
+
+# === CASE 4: Delivery Order (สั่งกลับบ้าน มีการบวกค่า Rider Fee) ===
 del_order = DeliveryOrder("ORD-DEL-001", m_new, "123 Condo A, Bangkok", rider_fee=50.0)
 del_order.add_item(FoodOrderItem(food_map["French Fries"], 1))
-del_order.add_item(FoodOrderItem(food_map["Spaghetti Carbonara"], 1))
+del_order.add_item(FoodOrderItem(food_map["Spaghetti Carbonara"], 2))
 restaurant_system.add_order(del_order)
 
 
-# === CASE 4: Order ที่จ่ายเงินแล้ว (Paid History) ===
-# จำลองว่า Order นี้ทำรายการเสร็จสิ้นแล้ว เพื่อดูประวัติ
+# === CASE 5: Order ที่จ่ายเงินแล้ว (Paid History) ===
 paid_order = GeneralOrder("ORD-PAID-999", m_silver)
 paid_order.add_item(FoodOrderItem(food_map["Coke Refill"], 1))
-paid_order.calculate_totals() # คำนวณราคาก่อน
+paid_order.calculate_totals() # คำนวณราคาก่อนเซ็ตสถานะ
 paid_order.status = OrderStatus.PAID
 
-# สร้าง Transaction ย้อนหลังเก็บไว้
-txn = Transaction(paid_order, "QRCode", "SUCCESS", "TXN-MOCK-OLD", "ST-WAITER")
+# สร้าง Transaction ย้อนหลังเก็บไว้ เพื่อแสดงประวัติ
+txn = Transaction(paid_order, qr_code_system, TransactionStatus.SUCCESS, "TXN-MOCK-OLD")
 txn.mark_success()
 restaurant_system.add_transaction(txn)
 restaurant_system.add_order(paid_order)
 
-print("System Ready! Data Loaded:")
+print("System Ready! Data Loaded.")
 
 if __name__ == "__main__":
     mcp.run()
