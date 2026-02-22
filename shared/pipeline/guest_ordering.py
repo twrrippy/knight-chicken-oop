@@ -5,6 +5,7 @@ from fastapi import FastAPI, HTTPException
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from pydantic import BaseModel
+from enum import Enum
 
 class User(ABC):
     def __init__(self, id: str, name: str, phone_number: str):
@@ -124,11 +125,20 @@ class Food():
     def __init__(self, particular: Particular, quantity: int):
         self.__particular = particular
         self.__quantity = quantity
-        self.__status = None
+        self.__status = Food.FoodStatus.NONE
 
     class FoodDTO(BaseModel):
         particular: str
         quantity: int
+
+    class FoodStatus(Enum):
+        NONE = "None"
+        ADDED = "Added to Order"
+        AVAILABLE = "Available"
+        OUT_OF_STOCK = "Out of Stock"
+        COOKING = "Cooking"
+        FINISHED = "Finished"
+        CANCLE = "Cancle"
     
     @property
     def price(self):
@@ -137,7 +147,7 @@ class Food():
     def status(self):
         return self.__status
     
-    def update_status(self, food_status: str):
+    def update_status(self, food_status: FoodStatus):
         self.__status = food_status
 
     def reserve(self, stock):
@@ -145,10 +155,10 @@ class Food():
         for ingredient in all_ingredient_in_particular:
             if not stock.reserve(ingredient.item, ingredient.quantity * self.__quantity):
                 self.reverse(stock, all_ingredient_in_particular, ingredient)
-                self.update_status("Out of Stock")
+                self.update_status(Food.FoodStatus.OUT_OF_STOCK)
                 break
         else:
-            self.update_status("Available")
+            self.update_status(Food.FoodStatus.AVAILABLE)
         return self
     def reverse(self, stock, all_ingredient_in_particular, ingredient):       
         for deleting_ingredient in all_ingredient_in_particular:
@@ -173,11 +183,27 @@ class Order():
         self.__food_list = []
         self.__total_price = 0
         self.__status_start = datetime.now()
-        self.__status = None
+        self.__status = self.OrderStatus.NONE
+
+    class OrderType(Enum):
+        DINE_IN = "DineIn"
+        EVENT = "Event"
+        DELIVERY = "Delivery"
+    class OrderStatus(Enum):
+        NONE = "None"
+        RESERVED = "Reserved"
+        CONFIRMED = "Confirmed"
+        PAIDED = "Paided"
+        COOKING = "Cooking"
+        FINISHED = "Finished"
+        SERVED = "Served"
+        CANCLED = "Cancled"
+
 
     class OrderDTO(BaseModel):
         order_id: str
         order_type: str
+        order_status: str
         customer: str
         food_list: list
         total_price: float
@@ -193,32 +219,44 @@ class Order():
     def update_price(self):
         count_price = 0
         for food in self.__food_list:
-            if food.status != "Out of Stock" and food.status != "Cancle":
+            if food.status != Food.FoodStatus.OUT_OF_STOCK and food.status != Food.FoodStatus.CANCLE:
                 count_price += food.price
         self.__total_price = count_price
     
-    def update_status(self, order_status: str):
+    def update_status(self, order_status: OrderStatus):
         self.__status = order_status
+        self.__status_start = datetime.now()
 
     def check_customer(self, customer: Customer):
         return self.__customer.check(customer)
     
     def add_food(self, food: Food):
         self.__food_list.append(food)
-        food.update_status("Add to Order")
+        food.update_status(Food.FoodStatus.ADDED)
 
     def reserve(self, stock):
         for food in self.__food_list:
-            if food.status == "Add to Order":
+            if food.status == Food.FoodStatus.ADDED:
                 food.reserve(stock)
-        self.update_status("Reserved")
+        self.update_status(Order.OrderStatus.RESERVED)
         return self
+    
+    def confirm(self):
+        if self.__status != Order.OrderStatus.RESERVED:
+            raise ValueError("Ordering Food First. (If already ordering please contact manager)")
+        for food_index in range(len(self.__food_list) -1, -1, -1):
+            if self.__food_list[food_index].status == Food.FoodStatus.OUT_OF_STOCK:
+                del self.__food_list[food_index]
+        self.update_status(Order.OrderStatus.CONFIRMED)
+        return self
+                
     
     @property
     def to_dict(self) -> dict:
         return {
             "order_id": self.__id,
             "order_type": self.__type,
+            "order_status": self.__status,
             "customer": self.__customer.name,
             "food_list": self.food_dict_list,
             "total_price": self.__total_price
@@ -233,7 +271,7 @@ class Order():
     
 class DineInOrder(Order):
     def __init__(self, id: str, customer: Customer):
-        super().__init__(id, "DineIn", customer)
+        super().__init__(id, Order.OrderType.DINE_IN, customer)
 
 class Stock():
     def __init__(self):
@@ -308,7 +346,12 @@ class StockLog():
 class MenuFood():
     def __init__(self, particular: Particular):
         self.__particular = particular
-        self.__status = "Out of Stock"
+        self.__status = MenuFood.MenuFoodStatus.OUT_OF_STOCK
+    
+    class MenuFoodStatus(Enum):
+        AVAILABLE = "Available"
+        OUT_OF_STOCK = "Out of Stock"
+        DELETED = "Deleted"
 
     @property
     def get_particular_name(self):
@@ -317,14 +360,14 @@ class MenuFood():
     def particular(self):
         return self.__particular
     
-    def update_status(self, menu_food_status: str):
+    def update_status(self, menu_food_status: MenuFoodStatus):
         self.__status = menu_food_status
 
     def to_dict(self, stock: Stock):
-        self.__status = "Available"
+        self.__status = MenuFood.MenuFoodStatus.AVAILABLE
         for ingredient in self.__particular.all_ingredient():
             if stock.check_real_stock(ingredient.item) < ingredient.quantity:
-                self.__status = "Out of Stock"
+                self.__status = MenuFood.MenuFoodStatus.OUT_OF_STOCK
                 break
         return {
             "particular": self.__particular.to_dict,
@@ -364,11 +407,18 @@ class Restaurant():
     def check_queue(self):
         count_queue = 0
         for order in self.__order_list:
-            if order.status == "Paided" or order.status == "Cooking":
+            if order.status == Order.OrderStatus.PAIDED or order.status == Order.OrderStatus.COOKING:
                 count_queue += 1
-            if count_queue >= 50:
-                return False
-        return True
+        return count_queue
+    
+    def get_queue(self, queue_order: int):
+        count_queue = 0
+        for order in self.__order_list:
+            if order.status == Order.OrderStatus.PAIDED or order.status == Order.OrderStatus.COOKING:
+                count_queue += 1
+            if count_queue == queue_order:
+                return order
+        return False
     
     def get_menu(self, stock: Stock):
         menu = []
@@ -395,6 +445,13 @@ class Restaurant():
 
     def reserve(self, order: Order, stock: Stock) -> Order:
         return order.reserve(stock)
+    
+    def confirm(self, order: Order):
+        try:
+            confirmed_order = order.confirm()
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        return confirmed_order
 
 
 # def ordering(order_id: str,customer: Customer):
@@ -492,7 +549,7 @@ async def add_order(order_id: str, food: Food.FoodDTO):
 
 @app.put("/ordering/guest", response_model=Union[Order.OrderDTO, dict])
 async def ordering(order_id: str, guest: Guest.GuestDTO):
-    if not restaurant.check_queue:
+    if restaurant.check_queue >= 50:
         raise HTTPException(status_code=418, detail="Queue Overload")
     try:
         current_customer = Guest(guest.id, guest.name, guest.phone_number)
@@ -500,8 +557,21 @@ async def ordering(order_id: str, guest: Guest.GuestDTO):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     reserved_order = restaurant.reserve(order, stock)
-    order.update_price
+    reserved_order.update_price
     return reserved_order.to_dict
+
+@app.put("/ordering/guest/confirm", response_model=Union[Order.OrderDTO, dict])
+async def confirm_order(order_id: str, guest: Guest.GuestDTO):
+    try:
+        current_customer = Guest(guest.id, guest.name, guest.phone_number)
+        order = restaurant.search_order_from_id(order_id, current_customer)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    try:
+        confirmed_order = restaurant.confirm(order)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return confirmed_order.to_dict
 
 @app.get("/stock/{item_name}")
 async def get_stock(item_name: str):
@@ -511,6 +581,19 @@ async def get_stock(item_name: str):
         "Real Stock": item_in_real_stock,
         "Reserved Stock": item_in_reserved_stock
     }
+
+@app.get("/restaurant/queue")
+async def check_queue():
+    return { "Queue": restaurant.check_queue}
+
+@app.get("/restaurant/queue/get/{queue_order}")
+async def get_queue(queue_order: int):
+    if queue_order > 50 and queue_order < 1:
+        raise HTTPException(status_code=400, detail="Queue not Found")
+    order = restaurant.get_queue()
+    if order == False:
+        raise HTTPException(status_code=400, detail="Queue not Found")
+    return order.to_dict
 
 if __name__ == "__main__":
     uvicorn.run("main:app",host="127.0.0.1",port=8000,reload=True)
