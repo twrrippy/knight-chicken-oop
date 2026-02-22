@@ -10,7 +10,7 @@ class Restaurant{
     - staff : list of Staff
     - stock : Stock
     - menu : list of MenuFood
-    - payment_strategy : PaymentStrategy
+    - payment_gateway : PaymentStrategy
     - delivery_platform : DeliveryPlatform
     - booking_list : list of Booking
     + add_coupon(Coupon)
@@ -34,18 +34,19 @@ class User{
 Restaurant o-- Member
 Member--|>Customer
 Guest--|>Customer
-abstract class Customer {
-    - receipt_list : list[Receipt]
-    + add_receipt(Receipt)
+class Customer {
+    <<Abstract>>
+    + request_bill()
 }
 class Guest {
-    + register_to_member()
+    + register()
 }
 class Member{
     - coupon_list : list[Coupon]
-    - tier : MemberTier 
+    - receipt_list : list[Recipt]
+    - tier : MemberTier
+    + add_receipt(receipt)
     + add_coupon(Coupon)
-    + get_coupon_by_code(code: str)
 }
 
 Restaurant o-- Staff
@@ -55,9 +56,8 @@ KitchenStaff--|>Staff
 Manager--|>FrontStaff
 Manager--|>PartyStaff
 Manager--|>KitchenStaff
-abstract class Staff{
+class Staff{
     <<Abstract>>
-    - role : StaffRole
     - username
     - password
     + login()
@@ -89,17 +89,19 @@ class DineInOrder{
     
 }
 class EventOrder{
-    + linked_booking : Booking
-    + add_booking_item(booking: Booking)
+    - booking : Booking
+    + booking() : Booking
+    + pre_calculate_totals(coupon: Coupon)
+    + get_bill_info()
 }
 class DeliveryOrder{
     - delivery_status : finding_driver, driver_assigned, driver_at _store, out_for_delivery, delivered
     + update_status(DeliveryStatus)
+    + pre_calculate_totals(coupon: Coupon)
 }
 
 Restaurant o-- Order
-Order *-- OrderItem
-Food --|> OrderItem
+Order *-- Food
 Order --> Customer
 Food --> Particular
 Particular o-- Ingredient
@@ -109,22 +111,23 @@ abstract class Order{
     - id:  string
     - type : DineIn, Event, Delivery
     - customer : Customer
-    - items_list : List[OrderItem]
-    - coupon_used : Coupon
-    - discount : float
-    - total_price : float
+    - food_list : list Food
+    - sub_total_price : float
     - status_start : datetime
-    - status : OrderStatus , none, reserved, confirmed, paided, cooking, finish, served, cancle
+    - discount : float
+    - final_price : float
+    - status : none, reserved, confirmed, paided, cooking, finish, served, cancle
     + update_status(OrderStatus)
-    + add_item(OrderItem)
-    + get_bill_info() : Dict
+    + pre_calculate_totals(coupon: Coupon)
     + calculate_totals(coupon: Coupon)
+    + get_bill_info()
 }
 class Food{
     - particular : Particular
     - quantity : int
-    - status : none, available, out_of_stock, cooking, finish, cancle
+    - status : FoodStatus
     + update_status(FoodStatus)
+    + get_details() : Dict<str, Any>
 }
 class Particular{
     - name : str
@@ -169,6 +172,7 @@ class Stock{
     + find_ingredient_in_real_stock(Ingredient)
 }
 
+FixedAmountCoupon --|> Coupon
 PercentCoupon --|> Coupon
 EventOrder --* Booking
 
@@ -176,7 +180,6 @@ Coupon --o Restaurant
 class Room{
     - room_id : str
     - name : str
-    - room_type : RoomType
     - status : RoomStatus
     - capacity : int
     - price_per_hour : float
@@ -185,20 +188,18 @@ class Room{
 Restaurant o-- Room
 Restaurant o-- Booking
 Booking *-- TimeSlot
-Booking --|> OrderItem
 class Booking{
     - booking_id : str
     - member : Member
     - room : Room
     - time_slot : TimeSlot
-    - status : BookingStatus str = "Pending", "Reserved", "In-Use", "Completed", "Cancelled_NoShow"
-    - discount_price : float
+    - status : BookingStatus
     - total_price : float
     - deposit_price : float
     - deposit_status : str = "Unpaid", "Paid", "Seized"
     + add_event_order(EventOrder)
     + add_time_slot(room, start_time, hours)
-    + get_member()
+    + get_details() : Dict<str, Any>
 }
 class TimeSlot{
     - start_time : datetime
@@ -210,13 +211,19 @@ abstract class Coupon{
     - code : str
     - minimum_price : float
     - status : CouponStatus
+    + {abstract} apply_coupon(base_price: float) : float
+    + is_applicable(base_price: float) : bool
     + mark_as_used()
-    + apply_coupon(base_price)
-    + is_applicable(base_price)
 }
 class PercentCoupon{
-    - percent : float
+    - percent : int
+    + apply_coupon(base_price: float)
 }
+class FixedAmountCoupon{
+    - amount : float
+    + apply_coupon(base_price: float)
+}
+
 DeliveryPlatform <-- Restaurant
 class DeliveryPlatform{
     - platform_name : str
@@ -226,7 +233,9 @@ PaymentStrategy <-- Restaurant
 abstract class PaymentStrategy{
     - id : str
     - name : str
-    + pay(amount, kwargs)
+    + get_strategy(name:str)
+    + get_name() : abstract
+    + {abstract} pay(amount: float, kwargs) : Tuple<bool, str, str>
 }
 
 QRCode --|> PaymentStrategy
@@ -250,20 +259,21 @@ Receipt --> Booking
 class Receipt{
     - transaction : Transaction
     - source : Order
-    + generate() : Dict
+    + generate()
 }
 
 Restaurant o-- Transaction
 PaymentStrategy <-- Transaction
 Customer <-- Transaction
 class Transaction{
-    - type : DineIn, Event, Delivery
+    - id : str
+    - order : Order
+    - type : OrderType
     - customer : Customer
-    - source : Order
     - amount : float
     - time : datetime
-    - tx_id : str
-    - payment_strategy : PaymentStrategy
+    - payment_method : PaymentStrategy
+    - coupon : Coupon
     - status : str
     + mark_success()
     + mark_failed()
@@ -291,52 +301,52 @@ class Simulation{
     - delivery_platform
 }
 
-' สิ่งที่สามารถเอาไปใส่ใน order เพื่อให้จ่ายเงินได้
-abstract class OrderItem {
-    + {abstract} name : str
-    + {abstract} price : float
-    + {abstract} get_details() : Dict
-}
-
-enum OrderType {
-    GENERAL
-    DELIVERY
-    EVENT
-}
-enum OrderStatus {
-    PENDING
-    PAID
-    CANCELED
-}
-enum BookingStatus {
-    PENDING
-    DEPOSIT_PAID
-    CHECKED_IN
-    COMPLETED
-}
-enum RoomType {
-    VIP
-    STANDARD
-    HALL
-}
-enum MemberTier {
-    BRONZE
-    SILVER
-    GOLD
-}
-enum CouponStatus {
-    AVAILABLE
-    NOT_AVAILABLE
-}
-enum RoomStatus {
-    AVAILABLE
-    RESERVED
-    IN_USE
-    CLEANING
-}
-enum StaffRole {
-    PartyStaff
-    KitchenStaff
+package "Enums" {
+    enum OrderType {
+        GENERAL
+        DELIVERY
+        EVENT
+    }
+    enum OrderStatus {
+        PENDING
+        PAID
+        CANCELED
+    }
+    enum BookingStatus {
+        PENDING
+        DEPOSIT_PAID
+        CHECKED_IN
+        COMPLETED
+    }
+    enum RoomStatus {
+        AVAILABLE
+        RESERVED
+        IN_USE
+        CLEANING
+    }
+    enum RoomType {
+        VIP
+        STANDARD
+        HALL
+    }
+    enum MemberTier {
+        BRONZE
+        SILVER
+        GOLD
+    }
+    enum CouponStatus {
+        AVAILABLE
+        NOT_AVAILABLE
+    }
+    enum StaffRole {
+        PartyStaff
+        KitchenStaff
+    }
+    enum TransactionStatus {
+        PENDING
+        FAILED
+        SUCCESS
+    }
 }
 
 @enduml
