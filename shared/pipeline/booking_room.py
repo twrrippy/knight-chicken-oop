@@ -1,7 +1,7 @@
 # uvicorn booking_room:app --reload
 
 import uuid
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, status
 from datetime import datetime, timedelta
 from typing import List, Optional, Tuple
 from enum import Enum
@@ -10,6 +10,7 @@ from abc import ABC, abstractmethod
 
 from shared.pipeline.room_payment import Coupon, CouponStatus, EventOrder, PaymentStrategy, Receipt, RoomType, Status
 from shared.pipeline.delivery_order import OrderType
+from shared.utils.response import success_response_status, error_response_status
 
 
 app = FastAPI()
@@ -108,6 +109,15 @@ class PartyStaff(Staff):
     """Party Staff Role"""
     def __init__(self, id: str, name: str):
         super().__init__(id, name)
+
+    def check_room_avaliability():
+        pass
+
+    def check_in_booking():
+        pass
+
+    def check_out_booking():
+        pass
 
 class KitchenStaff(Staff):
     """Kitchen Staff Role"""
@@ -359,7 +369,6 @@ class Restaurant:
         BookingManager.add_booking(booking)
         booking.status = BookingStatus.IN_USE
         booking.deposit_status = DepositStatus.PAID
-        booking.room.status = RoomStatus.RESERVED
 
         return {
             "message": "Booking successfully confirmed in one step",
@@ -435,40 +444,49 @@ async def book_and_confirm(
     deposit = room_price * 50%\n
     Gold members get 20% discount on room price\n
     """
-    restaurant = Restaurant()
-    return restaurant.booking_room(staff_id, member_id, room_id, hours, amount_paid, strategy, start_time)
+    try:
+        restaurant = Restaurant()
+        payload = restaurant.booking_room(staff_id, member_id, room_id, hours, amount_paid, strategy, start_time)
+        return success_response_status(status= status.HTTP_200_OK,payload= payload)
+    except Exception as e:
+        return error_response_status(status= status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(e))
 
-@app.post("/party-hub/request-booking", tags=["Booking Process"])
-async def request_booking(staff_id: str, member_id: str, room_id: str, hours: int, start_time: datetime= Query(description="format: YYYY-MM-DD HH:MM:SS")):
-    """request_booking: There are 5 rooms for booking.\n
-    R01: VIP, Price: 2000 THB/hour\n
-    R02: Hall, Price: 5000 THB/hour\n
-    R03: Standard, Price: 500 THB/hour\n
-    R04: VIP, Price: 2000 THB/hour\n
-    R05: Standard, Price: 500 THB/hour\n
-    """
-    staff = Restaurant.get_staff(staff_id)
-    if not staff:
-        raise HTTPException(status_code=403, detail="Only PartyStaff can handle bookings")
-    
-    member = Restaurant.get_member(member_id)
-    room = Restaurant.get_room(room_id)
-    
-    if not member or not room:
-        raise HTTPException(status_code=404, detail="Member or Room not found")
-    end_time = start_time + timedelta(hours=hours)
-    if not BookingManager.is_slot_available(room_id, start_time, end_time):
-        raise HTTPException(status_code=400, detail="Time slot already occupied")
+# @app.post("/party-hub/request-booking", tags=["Booking Process"])
+# async def request_booking(staff_id: str, member_id: str, room_id: str, hours: int, start_time: datetime= Query(description="format: YYYY-MM-DD HH:MM:SS")):
+#     """request_booking: There are 5 rooms for booking.\n
+#     R01: VIP, Price: 2000 THB/hour\n
+#     R02: Hall, Price: 5000 THB/hour\n
+#     R03: Standard, Price: 500 THB/hour\n
+#     R04: VIP, Price: 2000 THB/hour\n
+#     R05: Standard, Price: 500 THB/hour\n
+#     """
+#     try:
+#         staff = Restaurant.get_staff(staff_id)
+#         if not staff:
+#             raise HTTPException(status_code=403, detail="Only PartyStaff can handle bookings")
+        
+#         member = Restaurant.get_member(member_id)
+#         room = Restaurant.get_room(room_id)
+        
+#         if not member or not room:
+#             raise HTTPException(status_code=404, detail="Member or Room not found")
+#         end_time = start_time + timedelta(hours=hours)
+#         if not BookingManager.is_slot_available(room_id, start_time, end_time):
+#             raise HTTPException(status_code=400, detail="Time slot already occupied")
 
-    new_booking = Booking(f"BK-{int(datetime.now().timestamp())}", member, room, start_time, hours)
-    BookingManager.add_booking(new_booking)
-    return {
-        "booking_id": new_booking.id,
-        "member_tier": member.tier,
-        "total_room_fee": new_booking.total_price,
-        "deposit_required": new_booking.required_deposit,
-        "status": new_booking.status
-    }
+#         new_booking = Booking(f"BK-{int(datetime.now().timestamp())}", member, room, start_time, hours)
+#         BookingManager.add_booking(new_booking)
+#         payload ={
+#             "booking_id": new_booking.id,
+#             "member_tier": member.tier,
+#             "total_room_fee": new_booking.total_price,
+#             "deposit_required": new_booking.required_deposit,
+#             "status": new_booking.status
+#         }
+#         return success_response_status(status= status.HTTP_200_OK, payload=payload)
+#     except Exception as e:
+#         return error_response_status(status= status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(e))
+
 
 # @app.post("/party-hub/pay-deposit/{booking_id}", tags=["Booking Process"])
 # async def pay_deposit(booking_id: str, amount: float, staff_id: str):
