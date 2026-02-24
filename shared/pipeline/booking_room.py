@@ -71,7 +71,7 @@ class Receipt:
     @property
     def amount(self): return self._amount
     @property
-    def strategy(self): return self._strategy
+    def strategy(self): return self._method
     @property
     def coupon_code(self): return self._coupon
     @property
