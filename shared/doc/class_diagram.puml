@@ -3,6 +3,7 @@
 class Restaurant{
     - member : list of Member
     - order_list : list of Order <in comfirm, paided, and cooking state>
+    - stock : list of Item
     - coupon_list : list of Coupon
     - stock_log : list of StockLog
     - transaction_log : list of Transaction
@@ -21,6 +22,8 @@ class Restaurant{
     + auto_check_no_show()
     + get_bookings_by_status(status): List[Booking]
     + get_booking_by_id(booking_id)
+    + give_coupon(Customer, Coupon)
+    + find_item_in_reserved(Item)
 }
 Customer --|> User
 Staff --|> User
@@ -51,54 +54,19 @@ class Member{
 }
 
 Restaurant o-- Staff
-FrontStaff--|>Staff
-PartyStaff--|>Staff
-KitchenStaff--|>Staff
-Manager--|>FrontStaff
-Manager--|>PartyStaff
-Manager--|>KitchenStaff
 class Staff{
-    <<Abstract>>
     - username
     - password
     + login()
     + logout()
-}
-class FrontStaff{
     + create_order()
-    
-}
-class PartyStaff{
     + check_room_availability(room, start, hours)
     + check_in_booking(booking_id)
     + check_out_booking(booking_id)
-}
-class KitchenStaff{
     + view_queue()
     + update_food_status()
-    + report_waste()   
-}
-class Manager{
-    + void_bill()
-}
-
-DineInOrder --|> Order
-EventOrder --|> Order
-DeliveryOrder --|> Order
-
-class DineInOrder{
-    
-}
-class EventOrder{
-    - booking : Booking
-    + booking() : Booking
-    + pre_calculate_totals(coupon: Coupon)
-    + get_bill_info()
-}
-class DeliveryOrder{
-    - delivery_status : finding_driver, driver_assigned, driver_at _store, out_for_delivery, delivered
-    + update_status(DeliveryStatus)
-    + pre_calculate_totals(coupon: Coupon)
+    + report_waste() 
+    + void_bill()  
 }
 
 Restaurant o-- Order
@@ -117,11 +85,17 @@ abstract class Order{
     - status_start : datetime
     - discount : float
     - final_price : float
+    - booking : Booking
+    - delivery : Delivery
     - status : none, reserved, confirmed, paided, cooking, finish, served, cancle
     + update_status(OrderStatus)
     + pre_calculate_totals(coupon: Coupon)
     + calculate_totals(coupon: Coupon)
     + get_bill_info()
+    + booking() : Booking
+    + pre_calculate_totals(coupon: Coupon)
+    + get_bill_info()
+    + pre_calculate_totals(coupon: Coupon)
 }
 class Food{
     - particular : Particular
@@ -130,22 +104,17 @@ class Food{
     + update_status(FoodStatus)
     + get_details() : Dict<str, Any>
 }
-class Particular{
+class FoodItem{
     - name : str
     - recipe : list of Ingredient
+    - add_on : list of Ingredient [that can modify]
     - price : float
     - cooking_time : datetime
+    - menu_status : available, out_of_stock, deleted
+    + update_status(MenuFoodStatus)
     + get_all_ingredient()
-}
-Burger --|> Particular
-ChickenSet --|> Particular
-class Burger{
-    - add_on : list of Ingredient [that can modify]
-    + custom()
+    + add_on()
     + update_price()
-}
-class ChickenSet{
-    
 }
 class Ingredient{
     - item : Item
@@ -156,13 +125,6 @@ class Item{
     - price : float
 }
 
-Restaurant o-- MenuFood
-MenuFood --> Particular
-class MenuFood{
-    - particular : Particular
-    - status : available, out_of_stock, deleted
-    + update_status(MenuFoodStatus)
-}
 
 Restaurant --> Stock
 Item --o Stock
@@ -189,6 +151,8 @@ class Room{
 }
 Restaurant o-- Room
 Restaurant o-- Booking
+Booking --> Member
+Booking --> Room
 Booking *-- TimeSlot
 class Booking{
     - booking_id : str
@@ -225,13 +189,15 @@ class FixedAmountCoupon{
     + apply_coupon(base_price: float)
 }
 
-DeliveryPlatform <-- Restaurant
-class DeliveryPlatform{
+Delivery <-- Order
+class Delivery{
     - platform_name : str
     - commission_rate : float
+    - delivery_status : finding_driver, driver_assigned, driver_at _store, out_for_delivery, delivered
+    + update_status(DeliveryStatus)
 }
-PaymentStrategy <-- Restaurant
-abstract class PaymentStrategy{
+PaymentMethod <-- Restaurant
+abstract class PaymentMethod{
     - id : str
     - name : str
     + get_strategy(name:str)
@@ -239,68 +205,40 @@ abstract class PaymentStrategy{
     + {abstract} pay(amount: float, kwargs) : Tuple<bool, str, str>
 }
 
-QRCode --|> PaymentStrategy
+QRCode --|> PaymentMethod
 class QRCode{
 
 }
 
-Cash --|> PaymentStrategy
+Cash --|> PaymentMethod
 class Cash{
     
 }
 
-CreditCard --|> PaymentStrategy
+CreditCard --|> PaymentMethod
 class CreditCard{
     
 }
 
+Restaurant o-- Receipt
 Member o-- Receipt
-Receipt --> Transaction
-Receipt --> Booking
+PaymentMethod <-- Receipt
+Customer <-- Receipt
 class Receipt{
-    - transaction : Transaction
-    - source : Order
-    + generate()
-}
-
-Restaurant o-- Transaction
-PaymentStrategy <-- Transaction
-Customer <-- Transaction
-class Transaction{
     - id : str
     - order : Order
     - type : OrderType
     - customer : Customer
     - amount : float
     - time : datetime
-    - payment_method : PaymentStrategy
+    - payment_method : PaymentMethod
     - coupon : Coupon
     - status : str
     + mark_success()
     + mark_failed()
 }
 
-Restaurant o-- StockLog
-StockLog --> Staff
-StockLog --> Ingredient
-class StockLog{
-    - id : str
-    - staff : Staff
-    - action : str
-    - ingredient : Ingredient
-}
-class SimulationClock{
-    - current_time : datetime
-    + get_time()
-    + set__time(new_time)
-}
 
-Restaurant o-- Simulation 
-SimulationClock --> Simulation
-class Simulation{
-    - clock
-    - delivery_platform
-}
 
 package "Enums" {
     enum OrderType {
