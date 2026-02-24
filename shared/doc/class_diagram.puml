@@ -70,6 +70,7 @@ class Staff{
 
 Restaurant o-- Order
 Order *-- Food
+Order --> Booking
 Order --> Customer
 Food --> Particular
 Particular o-- Ingredient
