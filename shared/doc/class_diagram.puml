@@ -10,7 +10,7 @@ class Restaurant{
     - staff : list of Staff
     - stock : Stock
     - menu : list of MenuFood
-    - payment_gateway : PaymentMethod
+    - payment_method : PaymentMethod
     - booking_list : list of Booking
     + add_coupon(Coupon)
     + get_coupon_by_code(code)
@@ -191,9 +191,9 @@ PaymentMethod <-- Restaurant
 abstract class PaymentMethod{
     - id : str
     - name : str
-    + get_strategy(name:str)
+    + get_method(name:str)
     + get_name() : abstract
-    + {abstract} pay(amount: float, kwargs) : Tuple<bool, str, str>
+    + {abstract} pay(amount: float, kwargs) : Tuple<bool, str>
 }
 
 QRCode --|> PaymentMethod
@@ -250,7 +250,6 @@ package "Enums" {
     }
     enum RoomStatus {
         AVAILABLE
-        RESERVED
         IN_USE
         CLEANING
     }
