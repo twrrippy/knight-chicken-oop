@@ -18,7 +18,7 @@ class Restaurant{
     - create_transaction()
     + booking_room(staff_id, member_id, room_id, amount_paid, start_time, hours)
     + add_booking()
-    + is_slot_available()
+    + is_slot_available(room, start, hours)
     + auto_check_no_show()
     + get_bookings_by_status(status): List[Booking]
     + get_booking_by_id(booking_id)
@@ -70,9 +70,9 @@ class FrontStaff{
     
 }
 class PartyStaff{
-    + check_room_availability()
-    + check_in_booking()
-    + check_out_booking()
+    + check_room_availability(room, slot)
+    + check_in_booking(booking_id)
+    + check_out_booking(booking_id)
 }
 class KitchenStaff{
     + view_queue()
