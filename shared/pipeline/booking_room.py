@@ -1,15 +1,17 @@
-# uvicorn booking_room:app --reload
+# uvicorn shared.pipeline.booking_room:app --reload
 
 import uuid
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Body, FastAPI, HTTPException, Query, status
 from datetime import datetime, timedelta
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from enum import Enum
 # from fastmcp import FastMCP
 from abc import ABC, abstractmethod
 
-from shared.pipeline.room_payment import Coupon, CouponStatus, EventOrder, PaymentStrategy, Receipt, RoomType, Status
-from shared.pipeline.delivery_order import OrderType
+from shared.pipeline.Event_order_Payment import Coupon, CouponStatus, EventOrder, PaymentStrategy, Receipt, RoomType
+from shared.pipeline.Event_order_Payment import Cash, CreditCard, OrderType, QRCode
+from shared.utils.response import success_response_status, error_response_status
+from shared.pipeline.cooking import Status
 
 
 app = FastAPI()
@@ -18,17 +20,12 @@ app = FastAPI()
 # Architectural Classes
 # ==========================================
 
-class DepositStatus(Enum):
-    UNPAID = "Unpaid"
-    PAID = "Paid"
-    SEIZED = "Seized"
-
 class BookingStatus(Enum):
     PENDING = "Pending"
-    RESERVED = "Reserved"
-    IN_USE = "In Use"
-    CANCELLED_NOSHOW = "Cancelled_NoShow"
-    COMPLETED = "Completed"
+    DEPOSIT_PAID = "Deposit Paid" 
+    CHECKED_IN = "Checked In"
+    COMPLETED = "Completed"  
+    CANCELLED = "Canceled"
 
 class RoomStatus(Enum):
     AVAILABLE = "Available"
@@ -44,7 +41,7 @@ class SimulationClock:
     def set_time(cls, new_time: datetime):
         cls._current_time = new_time
         # Trigger time-dependent checks
-        BookingManager.auto_check_no_show()
+        Restaurant.auto_check_no_show()
 
     @classmethod
     def get_time(cls):
@@ -98,6 +95,10 @@ class User:
     @property
     def id(self):
         return self._id
+    
+    @property
+    def name(self):
+        return self._name
 
 class Staff(User):
     """Staff Member Class inheriting from User"""
@@ -108,6 +109,17 @@ class PartyStaff(Staff):
     """Party Staff Role"""
     def __init__(self, id: str, name: str):
         super().__init__(id, name)
+
+    def check_room_avaliability(self, room: str, start: datetime, hours: int):
+        return restaurant_system.is_slot_avaliable(room, start, hours)
+
+    def check_in_booking():
+        pass
+
+    def check_out_booking():
+        pass
+
+
 
 class KitchenStaff(Staff):
     """Kitchen Staff Role"""
@@ -134,25 +146,6 @@ class Member(Customer):
     @property
     def tier(self):
         return self._tier
-
-    def add_receipt(self, receipt: Receipt):
-        self._receipt_list.append(receipt)
-
-    def add_coupon(self, code: str):
-        self._coupon_list.append([code, CouponStatus.AVALIBLE])
-
-    def validate_coupon(self, code: str) -> bool:
-        for item in self._coupon_list:
-            if item[0] == code and item[1] == CouponStatus.AVALIBLE:
-                return True
-        return False
-    
-    def mark_coupon_used(self, code: str) -> bool:
-        for item in self._coupon_list:
-            if item[0] == code and item[1] == CouponStatus.AVALIBLE:
-                item[1] = CouponStatus.USED
-                return True
-        return False
     
     @property
     def name(self): return self._name
@@ -192,21 +185,22 @@ class Booking:
         self._booking_id = booking_id
         self._member = member
         self._room = room
-        self._start_time = start_time
-        self._end_time = start_time + timedelta(hours=hours)
-        self._hours = hours
+        self._time_slot = TimeSlot(start_time, hours)
         self._status: BookingStatus = BookingStatus.PENDING
         self._event_order: Optional[EventOrder] = None
         self._base_room_fee = room.price_per_hour * hours
-        self._deposit_status : DepositStatus = DepositStatus.UNPAID
-        self._required_deposit = self._base_room_fee * 0.5
-
-    @property
-    def required_deposit(self):
         discount = 0.0
         if self.member.tier == "Gold":
             discount = self._base_room_fee * 0.2
-        return (self._base_room_fee - discount) * 0.5
+
+        self.required_deposit = (self._base_room_fee - discount) * 0.5
+
+    @property
+    def required_deposit(self):
+        return self._required_deposit
+    @required_deposit.setter
+    def required_deposit(self, amount):
+        self._required_deposit = amount
     
     @property
     def deposit_status(self): return self._deposit_status
@@ -214,15 +208,13 @@ class Booking:
     def deposit_status(self, val: str): 
         self._deposit_status = val
     @property
-    def hours(self): return self._hours
+    def hours(self): return self._time_slot.hours
     @property
-    def end_time(self): return self._end_time
+    def end_time(self): return self._time_slot.end_time
     @property
-    def start_time(self): return self._start_time
+    def start_time(self): return self._time_slot.start_time
     @property
     def base_room_fee(self): return self._base_room_fee
-    @property
-    def total_price(self): return self._base_room_fee + (self._event_order.total_price if self._event_order else 0.0)
     @property
     def status(self): return self._status
     @status.setter
@@ -230,95 +222,44 @@ class Booking:
     @property
     def room(self): return self._room
     @property
-    def total_base_price(self) -> float:
-        order_price = self._event_order.total_price if self._event_order else 0.0
-        return self._base_room_fee + order_price
-    @property
     def room_price(self): return self._base_room_fee
     @property
     def id(self): return self._booking_id
     @property
     def member(self): return self._member
     @property
-    def event_order(self): return self._event_order
-
-    def calculate_payment_details(self, coupon: Optional[Coupon] = None) -> Tuple[float, float]:
-        base_price = self.total_base_price
-        discount = 0.0
-        
-        if coupon:
-            if not self.member.validate_coupon(coupon.code):
-                raise ValueError("Member does not have this coupon or used")
-            if not coupon.is_applicable(base_price):
-                raise ValueError("Does Not Meet Minimum Price")
-          
-            discount = coupon.apply_coupon(base_price)
-        
-        price_after_discount = base_price - discount
-        final_price = price_after_discount - self.required_deposit
-
-        if final_price < 0:
-            final_price = 0.0
-        
-        return (discount, final_price)
-            
-    def add_event_order(self, event_order: EventOrder):
-        if self._event_order is not None:
-            raise ValueError("Already Have Event Order")
-        self._event_order = event_order
-    
-    def get_bill_info(self):
-        items = [
-            {"name": "Room Charge", "price": self._base_room_fee}
-        ]
-        if self._event_order:
-             items.append({"name": "Event Food", "price": self._event_order.total_price})
-
-        return {
-            "customer_name": self._member.name,
-            "items": items,
-            "total_base_price": self.total_base_price,
-            "deposit_deducted": self.required_deposit
-        }
+    def time_slot(self): return self._time_slot
 
 class Restaurant:
-    transaction_list: List[Transaction] = []
-    coupon_list: List[Coupon] = []
-    members: List[Member] = []
-    rooms: List[Room] = []
-    staff_list: List[Staff] = []
+    def __init__(self):
+        self._transaction_list: List[Transaction] = []
+        self._coupon_list: List[Coupon] = []
+        self._members: List[Member] = []
+        self._rooms: List[Room] = []
+        self._staff_list: List[Staff] = []
+        self._booking_list: List[Booking] = []
+        self._payment_strategies: List[PaymentStrategy] = []
 
-    @classmethod
-    def add_log(cls, transaction: Transaction):
-      cls.transaction_list.append(transaction)
+    def add_log(self, transaction: Transaction):
+      self._transaction_list.append(transaction)
       print(f"[SYSTEM LOG] {transaction.timestamp} | {transaction.id} | {transaction.status} | {transaction.amount} THB | Staff: {transaction.staff_id}")
+    def add_member(self, member: Member): self._members.append(member)
+    def add_coupon(self, coupon: Coupon): self._coupon_list.append(coupon)
+    def add_booking(self, booking: Booking): self._booking_list.append(booking)
+    def get_member(self, m_id: str): return next((m for m in self._members if m.id == m_id), None)
+    def get_room(self, r_id: str): return next((r for r in self._rooms if r.room_id == r_id), None)
+    def get_staff(self, s_id: str): return next((s for s in self._staff_list if s.id == s_id), None)
+    def add_room(self, room: Room): self._rooms.append(room)
+    def add_member(self, member: Member): self._members.append(member)
+    def add_payment_strategy(self, strategy: PaymentStrategy): self._payment_strategies.append(strategy)
+    def add_staff(self, staff): self._staff_list.append(staff)
 
-    @classmethod
-    def add_member(cls, member: Member): cls.members.append(member)
-
-    @classmethod
-    def add_coupon(cls, coupon: Coupon): cls.coupon_list.append(coupon)
-
-    @classmethod
-    def get_member(cls, m_id: str): return next((m for m in cls.members if m.id == m_id), None)
-
-    @classmethod
-    def get_room(cls, r_id: str): return next((r for r in cls.rooms if r.room_id == r_id), None)
+    def get_payment_strategy(self, strategy_name: str) -> PaymentStrategy:
+        for s in self._payment_strategies:
+            if s.name.lower() == strategy_name.lower(): return s
+        raise HTTPException(status_code=400, detail="Unknown Strategy")
     
-    @classmethod
-    def get_staff(cls, s_id: str) -> Optional[Staff]: return next((s for s in cls.staff_list if s.id == s_id), None)
-    
-    @classmethod
-    def add_member(cls, member: Member): cls.members.append(member)
-
-    @classmethod
-    def get_coupon_by_code(cls, code: str) -> Optional[Coupon]:
-        for coupon in cls.coupon_list:
-            if code == coupon.code:
-                return coupon
-        return None
-
-    def booking_room(self, staff_id: str, member_id: str, room_id: str, hours: int, amount_paid: float, strategy: str, start_time: datetime):
+    def booking_room(self, staff_id: str, member_id: str, room_id: str, hours: int, amount_paid: float, strategy: str, start_time: datetime, payment_details: Dict[str, Any] = {}):
         staff = self.get_staff(staff_id)
         if not isinstance(staff, PartyStaff):
             raise HTTPException(status_code=403, detail="Only Party Staff can handle bookings")
@@ -331,35 +272,35 @@ class Restaurant:
         if not room or not isinstance(room, Room):
             raise HTTPException(status_code=404, detail="Room not found")
 
-        end_time = start_time + timedelta(hours=hours)
-        if not BookingManager.is_slot_available(room, start_time, end_time):
+        if not staff.check_room_avaliability(room, start_time, hours):
             raise HTTPException(status_code=400, detail="Time slot already occupied")
 
         booking = Booking(f"BK-{int(SimulationClock.get_time().timestamp())}", member, room, start_time, hours)
 
-        payment_strategy = PaymentStrategy.get_strategy(strategy)
-        success, receipt_or_msg = payment_strategy.pay(booking.required_deposit)
+        if amount_paid != booking.required_deposit:
+            raise HTTPException(status_code=404, detail=f"Insufficient Amount: need {booking.required_deposit} THB")
+        pay_strat = self.get_payment_strategy(strategy)
+        success, txn_id, receipt_or_msg = pay_strat.pay(booking.required_deposit, **payment_details)
         transaction = Transaction(
-        target_id=booking.id,
-        amount=booking.required_deposit,
-        strategy=strategy.lower(),
-        status=BookingStatus.PENDING.value,
-        payment_id=receipt_or_msg,
-        staff_id=staff_id
-    )
+            target_id=booking.id,
+            amount=booking.required_deposit,
+            strategy=strategy.lower(),
+            status=BookingStatus.PENDING,
+            payment_id=txn_id,
+            staff_id=staff_id
+            )
 
         if success:
             transaction.mark_success()
-            Restaurant.add_log(transaction)
+            self.add_log(transaction)
+            booking.status = BookingStatus.DEPOSIT_PAID
         else:
             transaction.mark_failed()
-            Restaurant.add_log(transaction)
+            self.add_log(transaction)
             raise HTTPException(status_code=400, detail=f"Payment Failed: {receipt_or_msg}")
         
-        BookingManager.add_booking(booking)
-        booking.status = BookingStatus.IN_USE
-        booking.deposit_status = DepositStatus.PAID
-        booking.room.status = RoomStatus.RESERVED
+        self.add_booking(booking)
+        
 
         return {
             "message": "Booking successfully confirmed in one step",
@@ -370,60 +311,53 @@ class Restaurant:
             "status": "Reserved"
         }
 
-class BookingManager:
-    _booking_list: List[Booking] = []
-
-    @classmethod
-    def add_booking(cls, booking: Booking):
-        cls._booking_list.append(booking)
+    def is_slot_avaliable(self, room, start, hours): # เปลี่ยนชื่อ room_id เป็น room ให้สื่อความหมาย
+        end = start + timedelta(hours=hours)
+        for b in self._booking_list:
+            if b.room.room_id == room.room_id: 
+                if b.status not in [BookingStatus.CANCELLED, BookingStatus.COMPLETED]:
+                    if start < b.time_slot.end_time and end > b.time_slot.start_time:
+                        return False
+        return True
 
     @classmethod
     def auto_check_no_show(cls):
-        """if a booking is not checked in within 30 minutes of start time, cancel it and seize deposit"""
         now = SimulationClock.get_time()
         for b in cls._booking_list:
-            deadline = b.start_time + timedelta(minutes=30)
-            if b.room.status == RoomStatus.RESERVED and now > deadline:
-                b.status = BookingStatus.CANCELLED_NOSHOW
-                b.deposit_status = DepositStatus.SEIZED
+            deadline = b.time_slot.start_time + timedelta(minutes=30)
+            if b.status == BookingStatus.DEPOSIT_PAID and now > deadline:
+                b.status = BookingStatus.CANCELLED
                 b.room.status = RoomStatus.AVAILABLE
-                
 
-    @classmethod
-    def get_booking_from_id(cls, booking_id: str) -> Optional[Booking]:
-      for booking in cls._booking_list:
-        if booking.id == booking_id:
-          return booking
-      return None
-    
-    @classmethod
-    def is_slot_available(cls, room: Room, start: datetime, end: datetime):
-        """ตรวจสอบช่วงเวลาทับซ้อนเพื่อให้จองล่วงหน้าได้ """
-        for b in cls._booking_list:
-            if b.room.room_id == room.room_id and b.status not in [BookingStatus.CANCELLED_NOSHOW, BookingStatus.COMPLETED]:
-                if start < b.end_time and end > b.start_time:
-                    return False
-        return True
-    
-class PaymentGateway:
-    """Simulated Payment Gateway Integration"""
-    @staticmethod
-    def process_payment(required_amount: float, amount_paid: float, member: Member):
-        # Simulate payment processing logic
-        return amount_paid >= required_amount
+class TimeSlot:
+    def __init__(self, start_time, hours):
+        self._start_time = start_time
+        self._end_time = start_time + timedelta(hours=hours)
+        self._hours = hours
+
+    @property
+    def start_time(self): return self._start_time
+    @property
+    def end_time(self): return self._end_time
+    @property
+    def hours(self): return self._hours
 
 # ==========================================
 # FastAPI Endpoints
 # ==========================================
-@app.post("/party-hub/book-and-confirm", tags=["Booking Process"])
-async def book_and_confirm(
+@app.post("/party-hub/booking-room", tags=["Booking Process"])
+async def book_room(
     staff_id: str, 
     member_id: str, 
     room_id: str, 
     hours: int, 
     amount_paid: float,
     strategy: str = Query(..., description="Payment strategy to use (e.g. QRCode, CreditCard)"),
-    start_time: datetime = Query(..., example="2026-02-09 10:00:00")
+    start_time: datetime = Query(..., example="2026-02-09 10:00:00"),
+    payment_details: Dict[str, Any] = Body(
+        ..., 
+        example={"account_number": "000-0-00000-0"}
+    )
 ):
     """request_booking: There are 5 rooms for booking.\n
     R01: VIP, Price: 2000 THB/hour\n
@@ -434,133 +368,24 @@ async def book_and_confirm(
     room_price = price_per_hour * hours\n
     deposit = room_price * 50%\n
     Gold members get 20% discount on room price\n
+    - payment_details: ข้อมูลเพิ่มเติมตามประเภทการจ่ายเงิน เช่น 
+        - qrcode: {'account_number': 'xxx' } 
+        - creditcard: {'card_number': '...', 'cvv': '...'} 
+        - cash: {'cash_received': xxx}\n
     """
-    restaurant = Restaurant()
-    return restaurant.booking_room(staff_id, member_id, room_id, hours, amount_paid, strategy, start_time)
+    try:
+        payload = restaurant_system.booking_room(staff_id, member_id, room_id, hours, amount_paid, strategy, start_time=start_time, payment_details=payment_details)
+        return success_response_status(status= status.HTTP_200_OK,payload= payload)
+    except Exception as e:
+        raise error_response_status(status= status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(e))
 
-@app.post("/party-hub/request-booking", tags=["Booking Process"])
-async def request_booking(staff_id: str, member_id: str, room_id: str, hours: int, start_time: datetime= Query(description="format: YYYY-MM-DD HH:MM:SS")):
-    """request_booking: There are 5 rooms for booking.\n
-    R01: VIP, Price: 2000 THB/hour\n
-    R02: Hall, Price: 5000 THB/hour\n
-    R03: Standard, Price: 500 THB/hour\n
-    R04: VIP, Price: 2000 THB/hour\n
-    R05: Standard, Price: 500 THB/hour\n
-    """
-    staff = Restaurant.get_staff(staff_id)
-    if not staff:
-        raise HTTPException(status_code=403, detail="Only PartyStaff can handle bookings")
-    
-    member = Restaurant.get_member(member_id)
-    room = Restaurant.get_room(room_id)
-    
-    if not member or not room:
-        raise HTTPException(status_code=404, detail="Member or Room not found")
-    end_time = start_time + timedelta(hours=hours)
-    if not BookingManager.is_slot_available(room_id, start_time, end_time):
-        raise HTTPException(status_code=400, detail="Time slot already occupied")
-
-    new_booking = Booking(f"BK-{int(datetime.now().timestamp())}", member, room, start_time, hours)
-    BookingManager.add_booking(new_booking)
-    return {
-        "booking_id": new_booking.id,
-        "member_tier": member.tier,
-        "total_room_fee": new_booking.total_price,
-        "deposit_required": new_booking.required_deposit,
-        "status": new_booking.status
-    }
-
-# @app.post("/party-hub/pay-deposit/{booking_id}", tags=["Booking Process"])
-# async def pay_deposit(booking_id: str, amount: float, staff_id: str):
-#     """Pay deposit for the booking to confirm reservation\n
-#     - make sure to pay at least the required deposit amount\n
-#     - Warning: Please pay the deposit equal to the required amount only!\n
-#     """
-#     staff = Restaurant.get_staff(staff_id)
-#     if not staff:
-#         raise HTTPException(status_code=403, detail="Only PartyStaff can handle bookings")
-    
-#     booking = BookingManager.get_booking_from_id(booking_id)
-#     if not booking or booking.status != "Pending_Payment":
-#         raise HTTPException(status_code=400, detail="Invalid booking or already processed")
-
-#     if amount != booking.required_deposit:
-#         raise HTTPException(status_code=400, detail="Insufficient deposit amount")
-#     if not PaymentGateway.process_payment(amount, booking.member):
-#         raise HTTPException(status_code=502, detail="Payment processing failed")
-    
-#     tx_id = f"TXN-{int(SimulationClock.get_time().timestamp())}"
-#     new_tx = Transaction(tx_id, booking_id, amount, staff_id)
-#     Restaurant.transactions.append(new_tx)
-
-#     booking.status = "Reserved"
-#     booking.deposit_status = "Paid"
-#     booking.room.status(RoomStatus.RESERVED)
-#     return {"message": "Payment Successful", 
-#             "status": booking.status,
-#             "booking_details": {
-#                 "member": booking.member.name,
-#                 "room": booking.room.name,
-#                 "start_time": booking.start_time,
-#                 "hours": booking.hours,
-#                 "Warning": f"Please check in within 30 minutes after {booking.start_time} to avoid no-show cancellation.",
-#             },
-#             "transaction_id": tx_id
-#         }
-
-# @app.post("/party-hub/check-in/{booking_id}", tags=["Booking Process"])
-# async def check_in(booking_id: str, staff_id: str):
-#     """check in to start using the booked room"""
-#     staff = Restaurant.get_staff(staff_id)
-#     if not staff:
-#         raise HTTPException(status_code=403, detail="Only PartyStaff can handle bookings")
-    
-#     booking = next((b for b in BookingManager.bookings if b.booking_id == booking_id), None)
-#     if not booking or booking.status == "Cancelled_NoShow":
-#         raise HTTPException(status_code=400, detail="Booking is not active or seized")
-    
-#     booking.status = "In-Use"
-#     booking.room.update_status("In-Use", booking.member.id)
-#     return {"status": "Success", "room_status": booking.room.status}
-
-# @app.post("/party-hub/check-out/{booking_id}", tags=["Booking Process"])
-# async def check_out(booking_id: str, staff_id: str):
-#     """check out to complete the booking and free the room"""
-#     staff = Restaurant.get_staff(staff_id)
-#     if not staff:
-#         raise HTTPException(status_code=403, detail="Only PartyStaff can handle bookings")
-    
-#     booking = BookingManager.get_booking(booking_id)
-#     if not booking or booking.status != "In-Use":
-#         raise HTTPException(status_code=400, detail="Booking is not in use")
-    
-#     now = SimulationClock.get_time()
-#     overtime_fee = 0.0
-#     if now > booking.end_time: # calculate overtime fee
-#         overtime_hours = (now - booking.end_time).total_seconds() / 3600
-#         overtime_fee = overtime_hours * booking.room.price_per_hour * 1.5
-
-#     booking.status = "Completed"
-#     booking.room.update_status("Cleaning", staff_id)
-#     return {"overtime_fee": round(overtime_fee, 2), "room_status": booking.room.status}
-
-# @app.get("/admin/get-all-bookings", tags=["Admin & Testing"])
-# async def get_all_bookings():
-#     """get all bookings for auditing purposes"""
-#     return [
-#         {
-#             "id": b.id,
-#             "member": b.member.name,
-#             "room": b.room.name,
-#             "status": b.status,
-#             "deposit": b.deposit_status
-#         } for b in BookingManager._bookings_list
-#     ]
-
+# ==================================================
+# API Admin
+# ==================================================
 @app.get("/admin/get-logs", tags=["Admin & Testing"])
 async def get_logs():
     """retrieve all audit logs from the centralized logging system"""
-    return {"logs": Restaurant.transaction_list}
+    return {"logs": Restaurant._transaction_list}
 
 @app.get("/admin/get-all-members", tags=["Admin & Testing"])
 async def get_all_members():
@@ -570,7 +395,7 @@ async def get_all_members():
             "member_id": m.id,
             "name": m.name,
             "tier": m.tier
-        } for m in Restaurant.members
+        } for m in Restaurant._members
     ]
 
 @app.get("/admin/get-all-rooms", tags=["Admin & Testing"])
@@ -582,7 +407,17 @@ async def get_all_rooms():
             "name": r.room_type,
             "status": r.status,
             "price_per_hour": r.price_per_hour,
-        } for r in Restaurant.rooms
+        } for r in Restaurant._rooms
+    ]
+
+@app.get("/admin/get-all-staff", tags=["Admin & Testing"])
+async def get_all_staff():
+    """get all staff"""
+    return [
+        {
+            "staff_id": s.id,
+            "name": s.name,
+        } for s in Restaurant._staff_list
     ]
 
 @app.post("/simulate/advance-time", tags=["Simulation"])
@@ -595,22 +430,24 @@ async def advance_time(minutes: int):
 # # ==========================================
 # # Mock Data Setup
 # # ==========================================
+restaurant_system = Restaurant()
 
-Restaurant.members = [
-    Member("M001", "Bob (Gold)", "Gold"),
-    Member("M002", "Jack (Silver)", "Silver"),
-    Member("M003", "Anna (Silver)", "Silver"),
-]
+restaurant_system.add_member(Member("M001", "Bob (Gold)", "Gold"))
+restaurant_system.add_member(Member("M002", "Jack (Silver)", "Silver"))
 
-Restaurant.rooms = [
-    Room("R01", RoomType.VIP),
-    Room("R02", RoomType.HALL),
-    Room("R03", RoomType.STANDARD),
-    Room("R04", RoomType.VIP),
-    Room("R05", RoomType.STANDARD)
-]
+restaurant_system.add_room(Room("R01", RoomType.VIP))
+restaurant_system.add_room(Room("R02", RoomType.HALL))
+restaurant_system.add_room(Room("R03", RoomType.STANDARD))
+restaurant_system.add_room(Room("R04", RoomType.VIP))
+restaurant_system.add_room(Room("R05", RoomType.STANDARD))
 
-Restaurant.staff_list = [
-    PartyStaff("S01", "Alice"),
-    PartyStaff("S02", "Bob"),
-]
+restaurant_system.add_staff(PartyStaff("S01", "Alice"))
+restaurant_system.add_staff(PartyStaff("S02", "Bob"))
+
+qr_code_system = QRCode("S1", "QRCode")
+credit_card_system = CreditCard("S2", "CreditCard")
+cash_system = Cash("S3", "Cash")
+
+restaurant_system.add_payment_strategy(qr_code_system)
+restaurant_system.add_payment_strategy(credit_card_system)
+restaurant_system.add_payment_strategy(cash_system)
