@@ -1,4 +1,5 @@
 @startuml ClassDiagram
+skinparam Linetype ortho
 
 class Restaurant{
     - member : list of Member
@@ -8,8 +9,7 @@ class Restaurant{
     - receipt_log : list of Receipt
     - room : list of Room
     - staff : list of Staff
-    - stock : Stock
-    - menu : list of MenuFood
+    - menu : list of MenuItem
     - payment_gateway : PaymentMethod
     - booking_list : list of Booking
     + add_coupon(Coupon)
@@ -69,19 +69,24 @@ class Staff{
 }
 
 Restaurant o-- Order
-Order *-- Food
+Restaurant o-- MenuItem
+Order *-- OrderItem
 Order --> Booking
 Order --> Customer
-Food --> FoodItem
-FoodItem o-- Ingredient
+OrderItem --> MenuItem
 Ingredient --> Item
 Item --o Restaurant
+SingleMenuItem --|> MenuItem
+SingleMenuItem o-- Ingredient
+SetMenuItem --|> MenuItem
+SingleMenuItem <-- Food
+Food --o SetMenuItem
 
-abstract class Order{
+class Order{
     - id:  string
     - type : DineIn, Event, Delivery
     - customer : Customer
-    - food_list : list Food
+    - order_list : list of OrderItem
     - sub_total_price : float
     - status_start : datetime
     - discount : float
@@ -98,24 +103,36 @@ abstract class Order{
     + get_bill_info()
     + pre_calculate_totals(coupon: Coupon)
 }
-class Food{
-    - food_item : FoodItem
+class OrderItem{
+    - menu_item : MenuItem
     - quantity : int
-    - status : FoodStatus
-    + update_status(FoodStatus)
+    - status : OrderItemStatus
+    + update_status(OrderItemStatus)
     + get_details() : Dict<str, Any>
 }
-class FoodItem{
+
+abstract class MenuItem{
     - name : str
-    - recipe : list of Ingredient
-    - add_on : list of Ingredient [that can modify]
     - price : float
     - cooking_time : datetime
-    - menu_status : available, out_of_stock, deleted
-    + update_status(MenuFoodStatus)
+    - menu_item_status : available, out_of_stock, deleted
+    + update_status(MenuItemStatus)
     + get_all_ingredient()
-    + add_on()
     + update_price()
+}
+class SingleMenuItem{
+    - recipe : list of Ingredient
+    - customization : list of Ingredient [that can modify]
+    - cooking_time : datetime
+    + custom(Item, quantity: int)
+}
+class SetMenuItem{
+    - items : list of Food
+    + get_all_ingredient()
+}
+class Food{
+    - item : SingleMenuItem
+    - quantity : int
 }
 class Ingredient{
     - item : Item
@@ -215,6 +232,7 @@ Restaurant o-- Receipt
 Member o-- Receipt
 PaymentMethod <-- Receipt
 Customer <-- Receipt
+Order <-- Receipt
 class Receipt{
     - id : str
     - order : Order
