@@ -15,9 +15,8 @@ class Restaurant{
     - booking_list : list of Booking
     + add_coupon(Coupon)
     + get_coupon_by_code(code)
-    - create_transaction()
     + booking_room(staff_id, member_id, room_id, amount_paid, start_time, hours)
-    + add_booking()
+    + add_booking(booking: Booking)
     + is_slot_available(room, start, hours)
     + auto_check_no_show()
     + get_bookings_by_status(status): List[Booking]
@@ -30,6 +29,7 @@ class User{
     - name : string
     - phoneNumber : string
     + get_id()
+    + get_name()
 }
 Restaurant o-- Member
 Member--|>Customer
@@ -47,6 +47,7 @@ class Member{
     - tier : MemberTier
     + add_receipt(receipt)
     + add_coupon(Coupon)
+    + get_tier()
 }
 
 Restaurant o-- Staff
@@ -68,7 +69,7 @@ class FrontStaff{
     
 }
 class PartyStaff{
-    + check_room_availability(room, slot)
+    + check_room_availability(room, start, hours)
     + check_in_booking(booking_id)
     + check_out_booking(booking_id)
 }
@@ -177,6 +178,7 @@ PercentCoupon --|> Coupon
 EventOrder --* Booking
 
 Coupon --o Restaurant
+
 class Room{
     - room_id : str
     - name : str
@@ -193,10 +195,9 @@ class Booking{
     - member : Member
     - room : Room
     - time_slot : TimeSlot
-    - status : BookingStatus
+    - status : BookingStatus.PENDING
     - total_price : float
     - deposit_price : float
-    - deposit_status : str = "Unpaid", "Paid", "Seized"
     + add_event_order(EventOrder)
     + add_time_slot(room, start_time, hours)
     + get_details() : Dict<str, Any>
@@ -317,6 +318,7 @@ package "Enums" {
         DEPOSIT_PAID
         CHECKED_IN
         COMPLETED
+        CANCELLED
     }
     enum RoomStatus {
         AVAILABLE

@@ -20,17 +20,12 @@ app = FastAPI()
 # Architectural Classes
 # ==========================================
 
-class DepositStatus(Enum):
-    UNPAID = "Unpaid"
-    PAID = "Paid"
-    SEIZED = "Seized"
-
 class BookingStatus(Enum):
     PENDING = "Pending"
-    RESERVED = "Reserved"
-    IN_USE = "In Use"
-    CANCELLED_NOSHOW = "Cancelled_NoShow"
-    COMPLETED = "Completed"
+    DEPOSIT_PAID = "Deposit Paid" 
+    CHECKED_IN = "Checked In"
+    COMPLETED = "Completed"  
+    CANCELLED = "Canceled"
 
 class RoomStatus(Enum):
     AVAILABLE = "Available"
@@ -194,7 +189,6 @@ class Booking:
         self._status: BookingStatus = BookingStatus.PENDING
         self._event_order: Optional[EventOrder] = None
         self._base_room_fee = room.price_per_hour * hours
-        self._deposit_status : DepositStatus = DepositStatus.UNPAID
         discount = 0.0
         if self.member.tier == "Gold":
             discount = self._base_room_fee * 0.2
@@ -283,18 +277,15 @@ class Restaurant:
 
         booking = Booking(f"BK-{int(SimulationClock.get_time().timestamp())}", member, room, start_time, hours)
 
-        if payment_details is None:
-            payment_details = {"account_number": "000-0-00000-0"}
-
-        if amount_paid < booking.required_deposit:
-            raise HTTPException(status_code=404, detail="Insufficient Amount")
+        if amount_paid != booking.required_deposit:
+            raise HTTPException(status_code=404, detail=f"Insufficient Amount: need {booking.required_deposit} THB")
         pay_strat = self.get_payment_strategy(strategy)
         success, txn_id, receipt_or_msg = pay_strat.pay(booking.required_deposit, **payment_details)
         transaction = Transaction(
             target_id=booking.id,
             amount=booking.required_deposit,
             strategy=strategy.lower(),
-            status=BookingStatus.PENDING.value,
+            status=BookingStatus.PENDING,
             payment_id=txn_id,
             staff_id=staff_id
             )
@@ -302,8 +293,7 @@ class Restaurant:
         if success:
             transaction.mark_success()
             self.add_log(transaction)
-            booking.status = BookingStatus.RESERVED
-            booking.deposit_status = DepositStatus.PAID
+            booking.status = BookingStatus.DEPOSIT_PAID
         else:
             transaction.mark_failed()
             self.add_log(transaction)
@@ -325,7 +315,7 @@ class Restaurant:
         end = start + timedelta(hours=hours)
         for b in self._booking_list:
             if b.room.room_id == room.room_id: 
-                if b.status not in [BookingStatus.CANCELLED_NOSHOW, BookingStatus.COMPLETED]:
+                if b.status not in [BookingStatus.CANCELLED, BookingStatus.COMPLETED]:
                     if start < b.time_slot.end_time and end > b.time_slot.start_time:
                         return False
         return True
@@ -335,9 +325,8 @@ class Restaurant:
         now = SimulationClock.get_time()
         for b in cls._booking_list:
             deadline = b.time_slot.start_time + timedelta(minutes=30)
-            if b.status == BookingStatus.RESERVED and now > deadline:
-                b.status = BookingStatus.CANCELLED_NOSHOW
-                b.deposit_status = DepositStatus.SEIZED
+            if b.status == BookingStatus.DEPOSIT_PAID and now > deadline:
+                b.status = BookingStatus.CANCELLED
                 b.room.status = RoomStatus.AVAILABLE
 
 class TimeSlot:
