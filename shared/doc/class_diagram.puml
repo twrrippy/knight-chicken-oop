@@ -72,9 +72,10 @@ Restaurant o-- Order
 Order *-- Food
 Order --> Booking
 Order --> Customer
-Food --> Particular
-Particular o-- Ingredient
+Food --> FoodItem
+FoodItem o-- Ingredient
 Ingredient --> Item
+Item --o Restaurant
 
 abstract class Order{
     - id:  string
@@ -87,7 +88,7 @@ abstract class Order{
     - final_price : float
     - booking : Booking
     - delivery : Delivery
-    - status : none, reserved, confirmed, paided, cooking, finish, served, cancle
+    - status : none, reserved, confirmed, paided, cooking, ready, served, cancelled
     + update_status(OrderStatus)
     + pre_calculate_totals(coupon: Coupon)
     + calculate_totals(coupon: Coupon)
@@ -98,7 +99,7 @@ abstract class Order{
     + pre_calculate_totals(coupon: Coupon)
 }
 class Food{
-    - particular : Particular
+    - food_item : FoodItem
     - quantity : int
     - status : FoodStatus
     + update_status(FoodStatus)
@@ -122,23 +123,13 @@ class Ingredient{
 }
 class Item{
     - name : string
-    - price : float
+    - unit_cost : float
 }
 
 
-Restaurant --> Stock
-Item --o Stock
-class Stock{
-    - reserved_stock : list of Item
-    - real_stock : list of Item
-    + find_ingredient_in_reserved(Ingredient)
-    + find_ingredient_in_real_stock(Ingredient)
-}
 
 FixedAmountCoupon --|> Coupon
 PercentCoupon --|> Coupon
-Order --> Booking
-
 Coupon --o Member
 
 class Room{
