@@ -49,7 +49,7 @@ class SimulationClock:
 
     
 class Receipt:
-    def __init__(self, amount: float, pay_method: str, status: str, coupon_code: Optional[str] = None, order: Optional[Order] = None):
+    def __init__(self, customer: 'Customer', amount: float, pay_method: str, status: str, coupon_code: Optional[str] = None, order: Optional[Order] = None):
       self._id = f"TXN-{uuid.uuid4().hex[:12].upper()}"
       self._order : order
       self._amount = amount
@@ -58,6 +58,7 @@ class Receipt:
       self._coupon = coupon_code
       self._timestamp = datetime.now()
       self._order_type = None
+      self._customer = customer
 
     def mark_success(self): self._status = Status.SUCCESS
 
@@ -264,6 +265,7 @@ class Restaurant:
             amount=booking.required_deposit,
             pay_method=pay_method.lower(),
             status=BookingStatus.PENDING,
+            customer=member
             )
 
         if success:
