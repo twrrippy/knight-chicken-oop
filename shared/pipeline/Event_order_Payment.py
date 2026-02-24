@@ -105,13 +105,13 @@ class PercentCoupon(Coupon):
 class FixedAmountCoupon(Coupon):
     def __init__(self, id: str, code: str, minimum_price: float, amount: float) -> None:
         super().__init__(id, code, minimum_price)
-        if not (amount < minimum_price):
-            raise ValueError("Minimum Price must be > Amount")
+        if amount > minimum_price:
+            raise ValueError("Minimum Price must be >= Amount")
         self.__amount = amount
 
     def apply_coupon(self, base_price: float) -> float:
         if self.is_applicable(base_price):
-            return base_price - self.__amount
+            return self.__amount
         raise ValueError(f"Does Not Meet Minimum Price")
 
 class Transaction:
@@ -479,13 +479,17 @@ class PaymentStrategy(ABC):
         self.__name = name
 
     @property
-    def name(self): return self.__name
+    @abstractmethod
+    def name(self) -> str: pass
 
     @abstractmethod
     def pay(self, amount: float, **kwargs) -> Tuple[bool, str, str]: pass
 
 class QRCode(PaymentStrategy):
     def __init__(self, id: str, name: str): super().__init__(id, name)
+
+    @property
+    def name(self): return "qrcode"
     
     def pay(self, amount: float, **kwargs) -> Tuple[bool, str, str]:
         txn_id = f"Txn-{uuid.uuid4().hex[:8].upper()}"
@@ -498,6 +502,9 @@ class QRCode(PaymentStrategy):
 class CreditCard(PaymentStrategy):
     def __init__(self, id: str, name: str): super().__init__(id, name)
     
+    @property
+    def name(self): return "creditcard"
+
     def pay(self, amount: float, **kwargs) -> Tuple[bool, str, str]:
         txn_id = f"Txn-{uuid.uuid4().hex[:8].upper()}"
         if not kwargs.get("card_number") or not kwargs.get("cvv"): 
@@ -508,6 +515,9 @@ class CreditCard(PaymentStrategy):
 
 class Cash(PaymentStrategy):
     def __init__(self, id: str, name: str): super().__init__(id, name)
+
+    @property
+    def name(self): return "cash"
     
     def pay(self, amount: float, **kwargs) -> Tuple[bool, str, str]:
         txn_id = f"Txn-{uuid.uuid4().hex[:8].upper()}"
@@ -617,7 +627,10 @@ async def calculate_order(order_id: str, staff_id: str, coupon_code: Optional[st
     
     coupon = None
     if coupon_code:
-        coupon = restaurant_system.get_coupon(coupon_code)
+        if isinstance(order.customer, Member):
+            coupon = order.customer.get_coupon_by_code(coupon_code)
+        else:
+            raise HTTPException(409, "Only members can use coupons")
         if not coupon: raise HTTPException(404, "Coupon Not Found")
 
     try:
@@ -638,12 +651,12 @@ async def confirm_pay(order_id: str, staff_id: str, strategy: str, coupon_code: 
     Arguments:
     - order_id: รหัสออเดอร์ (Format: ORD-xxx-xxx)
     - staff_id: รหัสพนักงานผู้ทำรายการ
-    - strategy: วิธีการชำระเงิน (เช่น 'qrcode', 'creditcard', 'cash')
+    - strategy: วิธีการชำระเงิน (เช่น "qrcode", "creditcard", "cash")
     - coupon_code: (Optional) โค้ดคูปองที่ต้องการใช้งาน
     - payment_details: ข้อมูลเพิ่มเติมตามประเภทการจ่ายเงิน เช่น 
-        - qrcode: {'account_number': 'xxx' } 
-        - creditcard: {'card_number': '...', 'cvv': '...'} 
-        - cash: {'cash_received': xxx}
+        - qrcode: {"account_number": "xxx" } 
+        - creditcard: {"card_number": "...", "cvv": "..."} 
+        - cash: {"cash_received": xxx}
 
     ผลลัพธ์เมื่อทำรายการสำเร็จ:
     1. Order -> เปลี่ยนสถานะเป็น PAID
@@ -663,7 +676,10 @@ async def confirm_pay(order_id: str, staff_id: str, strategy: str, coupon_code: 
 
     coupon = None
     if coupon_code:
-        coupon = restaurant_system.get_coupon(coupon_code)
+        if isinstance(order.customer, Member):
+            coupon = order.customer.get_coupon_by_code(coupon_code)
+        else:
+            raise HTTPException(409, "Only members can use coupons")
         if not coupon: raise HTTPException(404, "Coupon Not Found")
 
     if coupon and coupon.status != CouponStatus.AVAILABLE:
