@@ -23,6 +23,9 @@ class Restaurant{
     + give_coupon(Customer, Coupon)
     + find_item_in_reserved(Item)
     + create_delivery_order()
+    + process_order_payment(order_id, staff_id, coupon, method, details) : Dict
+    + preview_order_bill(order_id, staff_id, coupon) : Dict
+    + check_and_issue_reward(order: Order) : str
 }
 Customer --|> User
 Staff --|> User
@@ -56,6 +59,7 @@ Restaurant o-- Staff
 class Staff{
     - username
     - password
+    - role : StaffRole
     + login()
     + logout()
     + create_order()
@@ -97,10 +101,8 @@ class Order{
     + update_status(OrderStatus)
     + pre_calculate_totals(coupon: Coupon)
     + calculate_totals(coupon: Coupon)
-    + get_bill_info()
+    + execute_payment(method: PaymentMethod, details: Dict, coupon: str) : Receipt
     + booking() : Booking
-    + pre_calculate_totals(coupon: Coupon)
-    + get_bill_info()
     + pre_calculate_totals(coupon: Coupon)
 }
 class OrderItem{
@@ -167,7 +169,7 @@ class Booking{
     - member : Member
     - room : Room
     - time_slot : TimeSlot
-    - status : BookingStatus.PENDING
+    - status : BookingStatus
     - total_price : float
     - deposit_price : float
     + add_order(Order)
@@ -199,10 +201,14 @@ class FixedAmountCoupon{
 
 Delivery <-- Order
 class Delivery{
-    - platform_name : str
+    delivery_id : str
+    - platform : DeliveryPlatform
     - commission_rate : float
+    - distance : float
+    - status : DeliveryStatus
     - delivery_status : finding_driver, driver_assigned, driver_at _store, out_for_delivery, delivered
     + update_status(DeliveryStatus)
+    + fee() : float
 }
 PaymentMethod <-- Restaurant
 abstract class PaymentMethod{
@@ -236,14 +242,8 @@ Order <-- Receipt
 class Receipt{
     - id : str
     - order : Order
-    - type : OrderType
-    - customer : Customer
-    - amount : float
     - time : datetime
     - payment_method : PaymentMethod
-    - coupon : Coupon
-    - status : str
-    + mark_success()
 }
 
 
