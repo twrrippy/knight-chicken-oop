@@ -104,6 +104,7 @@ class Order{
     + pre_calculate_totals(coupon: Coupon)
 }
 class OrderItem{
+    - id : int 
     - menu_item : MenuItem
     - quantity : int
     - status : OrderItemStatus
