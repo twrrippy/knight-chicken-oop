@@ -122,7 +122,6 @@ abstract class MenuItem{
 }
 class SingleMenuItem{
     - recipe : list of Ingredient
-    - cooking_time : datetime
     + custom_add(Item, quantity: int)
     + custom_sub(Item, quantity: int)
 }
