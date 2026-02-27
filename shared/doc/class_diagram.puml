@@ -209,9 +209,9 @@ PaymentMethod <-- Restaurant
 abstract class PaymentMethod{
     - id : str
     - name : str
-    + get_strategy(name:str)
+    + get_method(name:str)
     + get_name() : abstract
-    + {abstract} pay(amount: float, kwargs) : Tuple<bool, str, str>
+    + {abstract} pay(amount: float, kwargs) : Tuple<bool, str>
 }
 
 QRCode --|> PaymentMethod
@@ -283,7 +283,6 @@ package "Enums" {
     }
     enum RoomStatus {
         AVAILABLE
-        RESERVED
         IN_USE
         CLEANING
     }
