@@ -84,7 +84,7 @@ Food --o SetMenuItem
 
 class Order{
     - id:  string
-    - type : DineIn, Event, Delivery
+    - type : OrderType
     - customer : Customer
     - order_list : list of OrderItem
     - sub_total_price : float
@@ -93,7 +93,7 @@ class Order{
     - final_price : float
     - booking : Booking
     - delivery : Delivery
-    - status : none, reserved, confirmed, paided, cooking, ready, served, cancelled
+    - status : OrderStatus
     + update_status(OrderStatus)
     + pre_calculate_totals(coupon: Coupon)
     + calculate_totals(coupon: Coupon)
@@ -115,16 +115,16 @@ abstract class MenuItem{
     - name : str
     - price : float
     - cooking_time : datetime
-    - menu_item_status : available, out_of_stock, deleted
+    - menu_item_status : MenuItemStatus
     + update_status(MenuItemStatus)
     + get_all_ingredient()
     + update_price()
 }
 class SingleMenuItem{
     - recipe : list of Ingredient
-    - customization : list of Ingredient [that can modify]
     - cooking_time : datetime
-    + custom(Item, quantity: int)
+    + custom_add(Item, quantity: int)
+    + custom_sub(Item, quantity: int)
 }
 class SetMenuItem{
     - items : list of Food
@@ -137,6 +137,7 @@ class Food{
 class Ingredient{
     - item : Item
     - quantity : int
+    - type : IngredientType
 }
 class Item{
     - name : string
@@ -201,7 +202,7 @@ Delivery <-- Order
 class Delivery{
     - platform_name : str
     - commission_rate : float
-    - delivery_status : finding_driver, driver_assigned, driver_at _store, out_for_delivery, delivered
+    - delivery_status : DeliveryStatus
     + update_status(DeliveryStatus)
 }
 PaymentMethod <-- Restaurant
@@ -255,9 +256,23 @@ package "Enums" {
         EVENT
     }
     enum OrderStatus {
-        PENDING
-        PAID
+        NONE
+        RESERVED
+        CONFIRMED
+        PAIDED
+        COOKING
+        READY
+        SERVED
         CANCELED
+    }
+    enum MenuItemStatus{
+        AVAILABLE
+        OUT_OF_STOCK
+        DELETED
+    }
+    enum IngredientType{
+        STRICT
+        CUSTOMIZABLE
     }
     enum BookingStatus {
         PENDING
@@ -286,14 +301,12 @@ package "Enums" {
         AVAILABLE
         NOT_AVAILABLE
     }
-    enum StaffRole {
-        PartyStaff
-        KitchenStaff
-    }
-    enum TransactionStatus {
-        PENDING
-        FAILED
-        SUCCESS
+    enum DeliveryStatus{
+        FINDING_DRIVER
+        DRIVER_ASSIGNED
+        DRIVER_AT_STORE
+        OUT_FOR_DELIVERY
+        DELIVERED
     }
 }
 
