@@ -8,6 +8,17 @@ from fastmcp import FastMCP
 import uuid
 import random
 
+"""
+TODO: 
+    - ส่วนลด member teir  -> Done
+    - จ่ายเงิน Deposit -> Done
+    - VAT + Service Charge
+    - Points system
+    - Void Bill แล้ว? คืนเงินให้ลูกค้าไหม หรือคืนเป็น coupons
+    - Tip?
+    - Better Delivery
+"""
+
 app = FastAPI()
 mcp = FastMCP("PartyRoomPayment System")
 
@@ -222,8 +233,7 @@ class Customer(User):
         self.__tier: MemberTier = MemberTier.GENERAL
 
     @property
-    @abstractmethod
-    def tier(self) -> MemberTier: self.__tier
+    def tier(self) -> MemberTier: return self.__tier
 
 class Member(Customer):
     def __init__(self, id: str, name: str, tier: MemberTier):
@@ -231,6 +241,7 @@ class Member(Customer):
         self.__coupon_list: List[Coupon] = [] 
         self.__receipt_list: List[Receipt] = []
         self.__tier: MemberTier = tier
+        self.__points: int = 0
 
     def add_receipt(self, receipt: Receipt): self.__receipt_list.append(receipt)
     def add_coupon(self, coupon: Coupon): self.__coupon_list.append(coupon)
@@ -239,6 +250,15 @@ class Member(Customer):
         for coupon in self.__coupon_list:
             if coupon.code == code: return coupon
         raise HTTPException(404, "Coupon Not Found")
+
+    def get_member_discount(self, base_price: float):
+        match self.tier:
+            case MemberTier.GENERAL: return 0.0
+            case MemberTier.BRONZE: return base_price * 0.05
+            case MemberTier.SILVER: return base_price * 0.10
+            case MemberTier.GOLD: return base_price * 0.15
+        return 0.0
+
     @property
     def tier(self) -> MemberTier: return self.__tier
 
@@ -309,8 +329,33 @@ class Booking:
         self.__time_slot = time_slot
         self.__status = BookingStatus.PENDING
 
-    def mark_paid_deposit(self):
+    def pay_deposit(self, method: PaymentMethod, payment_details: Dict[str, Any] = {}) -> Dict:
+        sucess, note = method.pay(self.deposit, **payment_details)
+        if not sucess: raise HTTPException(400, note)
         self.__status = BookingStatus.DEPOSIT_PAID
+        return {
+            "booking_no": self.id,
+            "date": SimulationClock.get_time().strftime("%Y-%m-%d %H:%M:%S"),
+            "merchant": "Knight Chicken Fast Food Co.",
+            
+            "customer_info": {
+                "name": self.member.name,
+                "tier": self.member.tier.value
+            },
+            
+            "booking_details": self.get_details(),
+            
+            "financial_summary": {
+                "subtotal": self.full_price,
+                "deposit paid": self.deposit,
+                "amount_due": self.amount_due
+            },
+            
+            "payment_record": {
+                "method": method.name,
+                "status": "deposit Paid"
+            }
+        }
 
     def mark_completed(self):
         self.__status = BookingStatus.COMPLETED
@@ -436,11 +481,17 @@ class Order:
         if self.delivery:
             subtotal += self.delivery.fee
 
-        discount = 0.0
+        coupon_discount = 0.0
         if coupon:
              if coupon.status != CouponStatus.AVAILABLE:
                 raise ValueError("Coupon Not Available")
-             discount = min(coupon.apply_coupon(subtotal), subtotal)
+             coupon_discount = coupon.apply_coupon(subtotal)
+        
+        teir_discount = 0.0
+        if isinstance(self.customer, Member):
+            teir_discount = self.customer.get_member_discount(subtotal)
+
+        discount = min(teir_discount + coupon_discount, subtotal)
 
         final_price = subtotal - discount - deposit
         if final_price < 0: final_price = 0.0
@@ -586,7 +637,7 @@ class Cash(PaymentMethod):
 
 class Restaurant:
     def __init__(self):
-        self.__recipts: List[Receipt] = []
+        self.__receipts: List[Receipt] = []
         self.__coupon_list: List[Coupon] = []
         self.__members: List[Member] = []
         self.__staff_list: List[Staff] = []
@@ -598,10 +649,11 @@ class Restaurant:
     def add_room(self, room: Room): self.__room_list.append(room)
 
     def add_booking(self, booking: Booking): self.__bookings.append(booking)
-    def get_booking(self, booking_id: str) -> Optional[Booking]:
+    def get_booking(self, booking_id: str) -> Booking:
         for b in self.__bookings:
             if b.id == booking_id: return b
-        return None
+        raise HTTPException(404, "Booking Not Found")
+
 
     def add_order(self, order: Order): self.__orders.append(order)
     def get_order(self, order_id: str) -> Order:
@@ -615,25 +667,25 @@ class Restaurant:
             if s.name.lower() == method_name.lower(): return s
         raise HTTPException(400, "Invalid Payment Method")
 
-    def add_recipts(self, r: Receipt): self.__recipts.append(r)
+    def add_receipts(self, r: Receipt): self.__receipts.append(r)
     def add_member(self, m: Member): self.__members.append(m)
     def add_coupon(self, c: Coupon): self.__coupon_list.append(c)
     def add_staff(self, s: Staff): self.__staff_list.append(s)
 
-    def get_coupon(self, code: str) -> Optional[Coupon]: 
+    def get_coupon(self, code: str) -> Coupon: 
         for c in self.__coupon_list: 
             if c.code == code: return c
-        return None
+        raise HTTPException(404, "Coupon Not Found")
     
     def get_staff(self, id: str) -> Staff:
         for s in self.__staff_list:
             if s.id == id: return s
         raise HTTPException(404, "Staff Not Found")
 
-    def get_member(self, id: str) -> Optional[Member]:
+    def get_member(self, id: str) -> Member:
         for m in self.__members:
             if m.id == id: return m
-        return None
+        raise HTTPException(404, "Member Not Found")
     
     def check_and_issue_reward(self, order: Order):
         if not isinstance(order.customer, Member):
@@ -658,6 +710,19 @@ class Restaurant:
             
         return None
     
+    def preview_booking_details(self, booking_id: str):
+        booking = self.get_booking(booking_id)
+        return booking.get_details()
+    
+    def process_pay_deposit(self, booking_id: str, method_name: str, payment_details: Dict[str, Any]):
+        booking = self.get_booking(booking_id)
+        method = self.get_payment_method(method_name)
+        if booking.status != BookingStatus.PENDING:
+            raise HTTPException(400, "Booking Already Paid")
+        
+        return booking.pay_deposit(method, payment_details)
+
+    
     def process_order_payment(self, order_id: str, staff_id: str, coupon_code: Optional[str], method_name: str, payment_details: Dict[str, Any]):
         method = self.get_payment_method(method_name)
         staff = self.get_staff(staff_id)
@@ -670,7 +735,7 @@ class Restaurant:
             raise HTTPException(400, "Order Already Paid")
             
         receipt = order.execute_payment(method, payment_details, coupon_code)
-        self.add_recipts(receipt)
+        self.add_receipts(receipt)
         
         reward_code = self.check_and_issue_reward(order)
         
@@ -688,6 +753,21 @@ class Restaurant:
 
 restaurant_system = Restaurant()
 
+@mcp.tool
+@app.get("/booking/preview_booking/{booking_id}")
+async def preview_booking(booking_id: str):
+    """
+    
+    """
+    return restaurant_system.preview_booking_details(booking_id)
+
+@mcp.tool
+@app.post("/booking/pay_deposit/{booking_id}")
+async def pay_deposit(booking_id: str, method: str, payment_details: Dict[str, Any]):
+    """
+    
+    """
+    return restaurant_system.process_pay_deposit(booking_id, method, payment_details)
 
 @mcp.tool
 @app.post("/payment/confirm_pay/{order_id}")
@@ -720,10 +800,10 @@ async def confirm_pay(order_id: str, staff_id: str, method: str, coupon_code: Op
     return restaurant_system.process_order_payment(order_id, staff_id, coupon_code, method, payment_details)
 
 @mcp.tool
-@app.post("/payment/calculate_order/{order_id}")
-async def calculate_order(order_id: str, staff_id: str, coupon_code: Optional[str] = Query(default=None)):
+@app.post("/payment/preview_order/{order_id}")
+async def preview_order(order_id: str, staff_id: str, coupon_code: Optional[str] = Query(default=None)):
     """
-    คำนวณยอดเงินที่ต้องชำระสำหรับ Order (Pre-calculation / Preview)
+    คำนวณยอดเงินที่ต้องชำระสำหรับ Order (Preview)
     
     หน้าที่:
     - ดึงข้อมูล Order ตาม ID (Format: ORD-xxx-xxx)
@@ -737,113 +817,3 @@ async def calculate_order(order_id: str, staff_id: str, coupon_code: Optional[st
     """
 
     return restaurant_system.preview_order_bill(order_id, staff_id, coupon_code)
-
-# ==========================================
-#             MOCK DATA SETUP
-# ==========================================
-print("Initializing Comprehensive Mock Data...")
-
-# ------------------------------------------
-# 1. SETUP PAYMENT METHODS
-# ------------------------------------------
-qr_code = QRCode("PAY-QR", "QR Code")
-credit_card = CreditCard("PAY-CC", "Credit Card")
-cash = Cash("PAY-CSH", "Cash")
-
-restaurant_system.add_payment_method(qr_code)
-restaurant_system.add_payment_method(credit_card)
-restaurant_system.add_payment_method(cash)
-
-# ------------------------------------------
-# 2. SETUP STAFF
-# ------------------------------------------
-party_staff = Staff("STF-001", "Alice (Party Manager)", StaffRole.PartyStaff)
-kitchen_staff = Staff("STF-002", "Bob (Head Chef)", StaffRole.KitchenStaff)
-
-restaurant_system.add_staff(party_staff)
-restaurant_system.add_staff(kitchen_staff)
-
-# ------------------------------------------
-# 3. SETUP CUSTOMERS & MEMBERS
-# ------------------------------------------
-# ลูกค้าทั่วไป
-general_customer = Customer("CUS-001", "Mr. General Walker")
-
-# สมาชิก (Member)
-member_gold = Member("MEM-G01", "เสี่ยตง (Gold)", MemberTier.GOLD)
-member_silver = Member("MEM-S01", "คุณหญิง (Silver)", MemberTier.SILVER)
-
-restaurant_system.add_member(member_gold)
-restaurant_system.add_member(member_silver)
-
-# ------------------------------------------
-# 4. SETUP MENU ITEMS
-# ------------------------------------------
-menu_steak = MenuItem("Wagyu Steak", 1299.0, MenuItemStatus.AVAILABLE)
-menu_coke = MenuItem("Coke Refill", 49.0, MenuItemStatus.AVAILABLE)
-menu_fries = MenuItem("French Fries", 89.0, MenuItemStatus.AVAILABLE)
-menu_party_set = MenuItem("Party Set L", 899.0, MenuItemStatus.AVAILABLE)
-
-# ------------------------------------------
-# 5. SETUP COUPONS
-# ------------------------------------------
-# คูปองลด 20% เมื่อซื้อครบ 1000 บาท
-coupon_percent = PercentCoupon("CPN-P20", "DISC20", 1000.0, 20.0)
-# คูปองลด 100 บาท เมื่อซื้อครบ 300 บาท
-coupon_fixed = FixedAmountCoupon("CPN-F100", "MINUS100", 300.0, 100.0)
-
-restaurant_system.add_coupon(coupon_percent)
-restaurant_system.add_coupon(coupon_fixed)
-
-# แจกคูปองให้สมาชิกเก็บไว้ในกระเป๋า
-member_gold.add_coupon(coupon_percent)
-member_gold.add_coupon(coupon_fixed) # Gold มี 2 ใบ
-member_silver.add_coupon(coupon_fixed)
-
-# ------------------------------------------
-# 6. SETUP ROOMS
-# ------------------------------------------
-room_vip = Room("VIP-01", RoomType.VIP) # 2000 / hr
-room_std = Room("STD-01", RoomType.STANDARD) # 500 / hr
-restaurant_system.add_room(room_vip)
-restaurant_system.add_room(room_std)
-
-# ------------------------------------------
-# 7. SETUP ORDERS (Test Scenarios)
-# ------------------------------------------
-
-# === SCENARIO 1: General Order (ลูกค้าทั่วไป ทานที่ร้านปกติ) ===
-order_general = Order("ORD-001", general_customer)
-order_general.add_item(OrderItem(menu_steak, 1))
-order_general.add_item(OrderItem(menu_coke, 2))
-restaurant_system.add_order(order_general)
-
-# === SCENARIO 2: Event Order (สมาชิก Gold จองห้อง VIP พร้อมสั่งอาหาร) ===
-# จองห้อง VIP 3 ชั่วโมง
-time_slot_vip = TimeSlot(datetime.now() + timedelta(days=1), 3) 
-booking_vip = Booking("BKG-001", member_gold, room_vip, time_slot_vip)
-booking_vip.mark_paid_deposit() # สมมติว่าจ่ายมัดจำ 50% แล้ว
-restaurant_system.add_booking(booking_vip)
-
-order_event = Order("ORD-002", member_gold)
-order_event.add_item(OrderItem(menu_party_set, 2)) # สั่ง Party Set 2 ชุด
-order_event.add_booking(booking_vip) # ผูก Booking เข้ากับ Order นี้
-restaurant_system.add_order(order_event)
-
-# === SCENARIO 3: Delivery Order (สมาชิก Silver สั่ง Grab) ===
-# ระยะทาง 5.5 km (Grab คิดกิโลละ 10 บาท -> ค่าส่ง 55 บาท)
-delivery_grab = Delivery("DEL-001", DeliveryPlatform.GRAB, 5.5)
-
-order_delivery = Order("ORD-003", member_silver)
-order_delivery.add_item(OrderItem(menu_fries, 3))
-order_delivery.add_delivery(delivery_grab) # ผูก Delivery เข้ากับ Order
-restaurant_system.add_order(order_delivery)
-
-# === SCENARIO 4: Order ที่จ่ายเงินแล้ว (เพื่อทดสอบเช็คการจ่ายซ้ำซ้อน) ===
-order_paid = Order("ORD-004", member_gold)
-order_paid.add_item(OrderItem(menu_coke, 1))
-order_paid.status = OrderStatus.PAID
-restaurant_system.add_order(order_paid)
-
-print("System Ready! Data Loaded.")
-# ==========================================
