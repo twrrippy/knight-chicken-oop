@@ -122,8 +122,8 @@ abstract class MenuItem{
 }
 class SingleMenuItem{
     - recipe : list of Ingredient
-    + custom_add(Item, quantity: int)
-    + custom_sub(Item, quantity: int)
+    + custom_add(Item)
+    + custom_sub(Item)
 }
 class SetMenuItem{
     - items : list of Food
@@ -137,6 +137,8 @@ class Ingredient{
     - item : Item
     - quantity : int
     - type : IngredientType
+    + custom_add()
+    + custom_sub()
 }
 class Item{
     - name : string
