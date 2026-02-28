@@ -143,7 +143,7 @@ class Ingredient{
 }
 class Item{
     - name : string
-    - unit_cost : float
+    - price : float
 }
 
 
