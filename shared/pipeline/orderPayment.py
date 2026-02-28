@@ -16,71 +16,73 @@ TODO:
     - Points system
     - Void Bill แล้ว? คืนเงินให้ลูกค้าไหม หรือคืนเป็น coupons
     - Tip?
-    - Better Delivery
+    - Better Delivery -> เหลือแต่ตอนเรียกไปใช้ ยังไม่ได้ทำ
 """
 
 app = FastAPI()
 mcp = FastMCP("PartyRoomPayment System")
 
-class DeliveryPlatform(Enum):
+class PlatformName(str, Enum):
     GRAB = "Grab"
     LINE_MAN = "Line Man"
     SHOPEE_FOOD = "Shopee Food"
 
-class OrderType(Enum):
+class OrderType(str, Enum):
     GENERAL = "General"   
     DELIVERY = "Delivery" 
     EVENT = "Event"       
 
-class OrderStatus(Enum):
+class OrderStatus(str, Enum):
     PENDING = "Pending"
     PAID = "Paid"
+    READY = "Ready"
     CANCELED = "Canceled"
 
-class DeliveryStatus(Enum):
+class DeliveryStatus(str, Enum):
     PENDING = "Pending"
     PAID = "Paid"
+    DRIVER_ASSIGNED = "Driver Assigned"
     IN_TRANSIT = "In Transit"
     DELIVERED = "Delivered"
     CANCELED = "Canceled"
 
-class BookingStatus(Enum):
+class BookingStatus(str, Enum):
     PENDING = "Pending"
     DEPOSIT_PAID = "Deposit Paid" 
     CHECKED_IN = "Checked In"
     COMPLETED = "Completed"    
 
-class RoomStatus(Enum):
+class RoomStatus(str, Enum):
     AVAILABLE = "Available"
     RESERVED = "Reserved"
     IN_USE = "In-Use"
     CLEANING = "Cleaning"
 
-class RoomType(Enum):
+class RoomType(str, Enum):
     VIP = "VIP"
     STANDARD = "Standard"
     HALL = "Hall"
 
-class MemberTier(Enum):
+class MemberTier(str, Enum):
     GENERAL = "General"
     BRONZE = "Bronze"
     SILVER = "Silver"
     GOLD = "Gold"
 
-class CouponStatus(Enum):
+class CouponStatus(str, Enum):
     AVAILABLE = "Available"
     NOT_AVAILABLE = "Not Available"
 
-class StaffRole(Enum):
+class StaffRole(str, Enum):
     PartyStaff = "Party Staff"
     KitchenStaff = "Kitchen Staff"
 
-class TransactionStatus(Enum):
+class TransactionStatus(str, Enum):
     PENDING = "PENDING"
     FAILED = "FAILED"
     SUCCESS = "SUCCESS"
 
-class MenuItemStatus(Enum):
+class MenuItemStatus(str, Enum):
     AVAILABLE = "Available"
     UNAVAILABLE = "Unavailable"
 
@@ -141,7 +143,7 @@ class PercentCoupon(Coupon):
     def apply_coupon(self, base_price: float) -> float:
         if self.is_applicable(base_price):
             return base_price * (self.__percent / 100)
-        raise ValueError(f"Does Not Meet Minimum Price")
+        raise HTTPException(409, f"Does Not Meet Minimum Price {self.minimum_price}")
 
 class FixedAmountCoupon(Coupon):
     def __init__(self, id: str, code: str, minimum_price: float, amount: float) -> None:
@@ -153,7 +155,7 @@ class FixedAmountCoupon(Coupon):
     def apply_coupon(self, base_price: float) -> float:
         if self.is_applicable(base_price):
             return self.__amount
-        raise ValueError(f"Does Not Meet Minimum Price")
+        raise HTTPException(409, f"Does Not Meet Minimum Price {self.minimum_price}")
 
 class Receipt:
     def __init__(self, order: Order, method: PaymentMethod):
@@ -183,12 +185,12 @@ class Receipt:
             
             "customer_info": {
                 "name": order.customer.name,
-                "tier": order.customer.tier.value
+                "tier": order.customer.tier
             },
             
             "order_summary": {
                 "order_id": order.id,
-                "order_type": order.order_type.value
+                "order_type": order.order_type
             },
             
             "itemized_bill": {
@@ -340,7 +342,7 @@ class Booking:
             
             "customer_info": {
                 "name": self.member.name,
-                "tier": self.member.tier.value
+                "tier": self.member.tier
             },
             
             "booking_details": self.get_details(),
@@ -366,10 +368,10 @@ class Booking:
     def get_details(self) -> Dict[str, Any]:
         return {
             "type": "Booking Details",
-            "status": self.status.value,
+            "status": self.status,
             "booking_id": self.id,
             "room_id": self.room.id,
-            "room_type": self.room.type.value,
+            "room_type": self.room.type,
             "time_slot": self.time_slot.start_time,
             "full_price": self.full_price,
             "deposit": self.deposit,
@@ -394,31 +396,76 @@ class Booking:
     @property
     def status(self): return self.__status
 
+class DeliveryProvider():
+    def __init__(self, platform_name: PlatformName) -> None:
+        self.__platform_name = platform_name
+    
+    def request_rider(self, order_id: str) -> Tuple[bool, str, str]:
+        is_success = True
+        match self.platform_name:
+            case PlatformName.GRAB:
+                rider_name = random.choice(["สุธนิษฐา จารุตัน", "คมพิชญ์ คำป้อง", "ชูวิทย์ มาตรเหลือง"])
+                tracking_id = f"GRB-{random.randint(1000000, 9999999)}"
+            case PlatformName.LINE_MAN:
+                rider_name = random.choice(["ขวัญหล้า บุญวิวัฒนาการ", "สุสกาวรัตน์อัจฉรา ศรีหะจันทร์", "อัศนีชัย สุติ"])
+                tracking_id = f"LMN-{random.randint(1000000, 9999999)}"
+            case PlatformName.SHOPEE_FOOD:
+                rider_name = random.choice(["ทนากร เอี้ยวพันธ์", "ละม้าย ศรีพลับ", "รุจาภา สันทาลุนัย"])
+                tracking_id = f"SHP-{random.randint(1000000, 9999999)}"
+            case _:
+                is_success = False
+                rider_name = "Unknown"
+                tracking_id = "Unknown"
+
+        return (is_success, rider_name, tracking_id)
+
+    def calculate_fee(self, distance_km: float) -> float:
+        match self.platform_name:
+            case PlatformName.GRAB:
+                return distance_km * 10
+            case PlatformName.LINE_MAN:
+                return distance_km * 5
+            case PlatformName.SHOPEE_FOOD:
+                return distance_km * 2
+            case _:
+                return 0.0
+    
+    @property
+    def platform_name(self): return self.__platform_name
+
 class Delivery:
-    def __init__(self, delivery_id: str, platfrom: DeliveryPlatform, distance: float):
+    def __init__(self, delivery_id: str, provider: DeliveryProvider, distance: float):
         self.__delivery_id = delivery_id
-        self.__platform = platfrom
+        self.__provider = provider
         self.__distance = distance
         self.__status = DeliveryStatus.PENDING
-
+        self.__tracking_id: Optional[str] = None
+        self.__rider_name: Optional[str] = None
+    
+    @property
+    def tracking_id(self): return self.__tracking_id
+    @property
+    def rider_name(self): return self.__rider_name
     @property
     def id(self): return self.__delivery_id
     @property
-    def platform(self): return self.__platform
+    def provider(self): return self.__provider
     @property
     def distance(self): return self.__distance
     @property
     def status(self): return self.__status
     @property
     def fee(self):
-        fee = 0.0
-        if self.platform == DeliveryPlatform.GRAB:
-            fee = self.distance * 10
-        elif self.platform == DeliveryPlatform.LINE_MAN:
-            fee = self.distance * 5
-        elif self.platform == DeliveryPlatform.SHOPEE_FOOD:
-            fee = self.distance * 2
-        return fee
+        return self.provider.calculate_fee(self.distance)
+    
+    def request_rider(self):
+        success, rider_name, tracking_id = self.provider.request_rider(self.id)
+        if success:
+            self.__rider_name = rider_name
+            self.__tracking_id = tracking_id
+            self.__status = DeliveryStatus.DRIVER_ASSIGNED
+            return success, rider_name, tracking_id
+        raise HTTPException(400, "Rider Request Failed")
 
     def mark_delivered(self):
         self.__status = DeliveryStatus.DELIVERED
@@ -432,9 +479,11 @@ class Delivery:
     def get_details(self) -> Dict[str, Any]:
         return {
             "type": "Delivery Details",
-            "status": self.status.value,
+            "status": self.status,
             "delivery_id": self.id,
-            "platform": self.platform.value,
+            "provider": self.provider.platform_name,
+            "tracking_id": self.tracking_id,
+            "rider_name": self.rider_name,
             "distance": self.distance,
             "fee": self.fee
         }
@@ -469,7 +518,7 @@ class Order:
             if isinstance(self.customer, Member):
                 coupon = self.customer.get_coupon_by_code(coupon_code)
             else:
-                raise ValueError("Only members can use coupons")
+                raise HTTPException(409, "Only members can use coupons")
         
         subtotal = sum(item.price for item in self.order_item)
         deposit = 0.0
@@ -484,7 +533,7 @@ class Order:
         coupon_discount = 0.0
         if coupon:
              if coupon.status != CouponStatus.AVAILABLE:
-                raise ValueError("Coupon Not Available")
+                raise HTTPException(409, "Coupon Not Available")
              coupon_discount = coupon.apply_coupon(subtotal)
         
         teir_discount = 0.0
@@ -526,7 +575,7 @@ class Order:
             if isinstance(self.customer, Member):
                 coupon = self.customer.get_coupon_by_code(coupon_code)
             else:
-                raise ValueError("Only members can use coupons")
+                raise HTTPException(409, "Only members can use coupons")
             
         info = self.calculate_totals(coupon_code)
         total_payable = info["Final Price"]
