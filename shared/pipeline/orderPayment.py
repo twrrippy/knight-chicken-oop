@@ -17,6 +17,8 @@ TODO:
     - Void Bill แล้ว? คืนเงินให้ลูกค้าไหม หรือคืนเป็น coupons
     - Tip?
     - Better Delivery -> เหลือแต่ตอนเรียกไปใช้ ยังไม่ได้ทำ
+    - ใส่รหัสเข้าใช้ ยืนยันตัวก่อนใช้ระบบ แบบ staff ใส่ id + รหัส ถ้าถูก ก็เป็น session นั้นๆได้?
+    - พวก api เอาไว้ดูพวก ใบเสร็จ บลาๆ
 """
 
 app = FastAPI()
@@ -400,7 +402,12 @@ class DeliveryProvider():
     def __init__(self, platform_name: PlatformName) -> None:
         self.__platform_name = platform_name
     
-    def request_rider(self, order_id: str) -> Tuple[bool, str, str]:
+    def request_rider(self, delivery: Delivery) -> Tuple[bool, str, str]:
+        if not delivery.provider.platform_name == self.platform_name:
+            raise HTTPException(400, "Invalid Provider")
+        if delivery.status != DeliveryStatus.PENDING:
+            raise HTTPException(400, "Delivery Already Assigned")
+
         is_success = True
         match self.platform_name:
             case PlatformName.GRAB:
@@ -412,10 +419,6 @@ class DeliveryProvider():
             case PlatformName.SHOPEE_FOOD:
                 rider_name = random.choice(["ทนากร เอี้ยวพันธ์", "ละม้าย ศรีพลับ", "รุจาภา สันทาลุนัย"])
                 tracking_id = f"SHP-{random.randint(1000000, 9999999)}"
-            case _:
-                is_success = False
-                rider_name = "Unknown"
-                tracking_id = "Unknown"
 
         return (is_success, rider_name, tracking_id)
 
@@ -459,7 +462,7 @@ class Delivery:
         return self.provider.calculate_fee(self.distance)
     
     def request_rider(self):
-        success, rider_name, tracking_id = self.provider.request_rider(self.id)
+        success, rider_name, tracking_id = self.provider.request_rider(self)
         if success:
             self.__rider_name = rider_name
             self.__tracking_id = tracking_id
@@ -694,15 +697,25 @@ class Restaurant:
         self.__orders: List[Order] = []      
         self.__payment_strategies: List[PaymentMethod] = []
         self.__room_list: List[Room] = []
+        self.__delivery_providers: List[DeliveryProvider] = []
 
+    def add_delivery_provider(self, provider: DeliveryProvider): self.__delivery_providers.append(provider)
+    def get_delivery_provider(self, provider_name: str) -> DeliveryProvider:
+        for p in self.__delivery_providers:
+            if p.platform_name.lower() == provider_name.lower(): return p
+        raise HTTPException(404, "Delivery Provider Not Found")
+    
     def add_room(self, room: Room): self.__room_list.append(room)
-
+    def get_room(self, room_id: str) -> Room:
+        for r in self.__room_list:
+            if r.id == room_id: return r
+        raise HTTPException(404, "Room Not Found")
+    
     def add_booking(self, booking: Booking): self.__bookings.append(booking)
     def get_booking(self, booking_id: str) -> Booking:
         for b in self.__bookings:
             if b.id == booking_id: return b
         raise HTTPException(404, "Booking Not Found")
-
 
     def add_order(self, order: Order): self.__orders.append(order)
     def get_order(self, order_id: str) -> Order:
@@ -717,24 +730,30 @@ class Restaurant:
         raise HTTPException(400, "Invalid Payment Method")
 
     def add_receipts(self, r: Receipt): self.__receipts.append(r)
-    def add_member(self, m: Member): self.__members.append(m)
-    def add_coupon(self, c: Coupon): self.__coupon_list.append(c)
-    def add_staff(self, s: Staff): self.__staff_list.append(s)
+    def get_receipts_by_order_id(self, order_id: str) -> Receipt:
+        for r in self.__receipts:
+            if r.order.id == order_id: return r
+        raise HTTPException(404, "Receipt Not Found")
 
+    def add_member(self, m: Member): self.__members.append(m)
+    def get_member_by_id(self, id: str) -> Member:
+        for m in self.__members:
+            if m.id == id: return m
+        raise HTTPException(404, "Member Not Found")
+    
+    def add_coupon(self, c: Coupon): self.__coupon_list.append(c)
     def get_coupon(self, code: str) -> Coupon: 
         for c in self.__coupon_list: 
             if c.code == code: return c
         raise HTTPException(404, "Coupon Not Found")
-    
+
+    def add_staff(self, s: Staff): self.__staff_list.append(s)    
     def get_staff(self, id: str) -> Staff:
         for s in self.__staff_list:
             if s.id == id: return s
         raise HTTPException(404, "Staff Not Found")
 
-    def get_member(self, id: str) -> Member:
-        for m in self.__members:
-            if m.id == id: return m
-        raise HTTPException(404, "Member Not Found")
+    ### --------- API --------- ###    
     
     def check_and_issue_reward(self, order: Order):
         if not isinstance(order.customer, Member):
@@ -770,7 +789,6 @@ class Restaurant:
             raise HTTPException(400, "Booking Already Paid")
         
         return booking.pay_deposit(method, payment_details)
-
     
     def process_order_payment(self, order_id: str, staff_id: str, coupon_code: Optional[str], method_name: str, payment_details: Dict[str, Any]):
         method = self.get_payment_method(method_name)
