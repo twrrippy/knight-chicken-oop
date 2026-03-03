@@ -1,4 +1,5 @@
 @startuml ClassDiagram
+skinparam Linetype ortho
 
 class Restaurant{
     - member : list of Member
@@ -8,9 +9,8 @@ class Restaurant{
     - receipt_log : list of Receipt
     - room : list of Room
     - staff : list of Staff
-    - stock : Stock
-    - menu : list of MenuFood
-    - payment_method : PaymentMethod
+    - menu : list of MenuItem
+    - payment_gateway : PaymentMethod
     - booking_list : list of Booking
     + add_coupon(Coupon)
     + get_coupon_by_code(code)
@@ -69,26 +69,31 @@ class Staff{
 }
 
 Restaurant o-- Order
-Order *-- Food
+Restaurant o-- MenuItem
+Order *-- OrderItem
 Order --> Booking
 Order --> Customer
-Food --> FoodItem
-FoodItem o-- Ingredient
+OrderItem --> MenuItem
 Ingredient --> Item
 Item --o Restaurant
+SingleMenuItem --|> MenuItem
+SingleMenuItem o-- Ingredient
+SetMenuItem --|> MenuItem
+SingleMenuItem <-- Food
+Food --o SetMenuItem
 
-abstract class Order{
+class Order{
     - id:  string
-    - type : DineIn, Event, Delivery
+    - type : OrderType
     - customer : Customer
-    - food_list : list Food
+    - order_list : list of OrderItem
     - sub_total_price : float
     - status_start : datetime
     - discount : float
     - final_price : float
     - booking : Booking
     - delivery : Delivery
-    - status : none, reserved, confirmed, paided, cooking, ready, served, cancelled
+    - status : OrderStatus
     + update_status(OrderStatus)
     + pre_calculate_totals(coupon: Coupon)
     + calculate_totals(coupon: Coupon)
@@ -98,32 +103,47 @@ abstract class Order{
     + get_bill_info()
     + pre_calculate_totals(coupon: Coupon)
 }
-class Food{
-    - food_item : FoodItem
+class OrderItem{
+    - id : int 
+    - menu_item : MenuItem
     - quantity : int
-    - status : FoodStatus
-    + update_status(FoodStatus)
+    - status : OrderItemStatus
+    + update_status(OrderItemStatus)
     + get_details() : Dict<str, Any>
 }
-class FoodItem{
+
+abstract class MenuItem{
     - name : str
-    - recipe : list of Ingredient
-    - add_on : list of Ingredient [that can modify]
     - price : float
     - cooking_time : datetime
-    - menu_status : available, out_of_stock, deleted
-    + update_status(MenuFoodStatus)
+    - menu_item_status : MenuItemStatus
+    + update_status(MenuItemStatus)
     + get_all_ingredient()
-    + add_on()
     + update_price()
+}
+class SingleMenuItem{
+    - recipe : list of Ingredient
+    + custom_add(Item)
+    + custom_sub(Item)
+}
+class SetMenuItem{
+    - items : list of Food
+    + get_all_ingredient()
+}
+class Food{
+    - item : SingleMenuItem
+    - quantity : int
 }
 class Ingredient{
     - item : Item
     - quantity : int
+    - type : IngredientType
+    + custom_add()
+    + custom_sub()
 }
 class Item{
     - name : string
-    - unit_cost : float
+    - price : float
 }
 
 
@@ -184,7 +204,7 @@ Delivery <-- Order
 class Delivery{
     - platform_name : str
     - commission_rate : float
-    - delivery_status : finding_driver, driver_assigned, driver_at _store, out_for_delivery, delivered
+    - delivery_status : DeliveryStatus
     + update_status(DeliveryStatus)
 }
 PaymentMethod <-- Restaurant
@@ -215,6 +235,7 @@ Restaurant o-- Receipt
 Member o-- Receipt
 PaymentMethod <-- Receipt
 Customer <-- Receipt
+Order <-- Receipt
 class Receipt{
     - id : str
     - order : Order
@@ -237,9 +258,23 @@ package "Enums" {
         EVENT
     }
     enum OrderStatus {
-        PENDING
-        PAID
+        NONE
+        RESERVED
+        CONFIRMED
+        PAIDED
+        COOKING
+        READY
+        SERVED
         CANCELED
+    }
+    enum MenuItemStatus{
+        AVAILABLE
+        OUT_OF_STOCK
+        DELETED
+    }
+    enum IngredientType{
+        STRICT
+        CUSTOMIZABLE
     }
     enum BookingStatus {
         PENDING
@@ -267,14 +302,12 @@ package "Enums" {
         AVAILABLE
         NOT_AVAILABLE
     }
-    enum StaffRole {
-        PartyStaff
-        KitchenStaff
-    }
-    enum TransactionStatus {
-        PENDING
-        FAILED
-        SUCCESS
+    enum DeliveryStatus{
+        FINDING_DRIVER
+        DRIVER_ASSIGNED
+        DRIVER_AT_STORE
+        OUT_FOR_DELIVERY
+        DELIVERED
     }
 }
 
