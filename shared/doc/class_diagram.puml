@@ -12,6 +12,7 @@ class Restaurant{
     - menu : list of MenuItem
     - payment_gateway : PaymentMethod
     - booking_list : list of Booking
+    - deliveryproviders : list of DeliveryProvider
     + add_coupon(Coupon)
     + get_coupon_by_code(code)
     + booking_room(staff_id, member_id, room_id, amount_paid, start_time, hours)
@@ -23,12 +24,17 @@ class Restaurant{
     + give_coupon(Customer, Coupon)
     + find_item_in_reserved(Item)
     + create_delivery_order()
+    + process_order_payment(order_id, staff_id, coupon, method, details) : Dict
+    + preview_order_bill(order_id, staff_id, coupon) : Dict
+    + check_and_issue_reward(order: Order) : str
 }
 Customer --|> User
 Staff --|> User
 class User{
     - id : string
     - name : string
+    - username : string
+    - password : string
     - phoneNumber : string
     + get_id()
     + get_name()
@@ -56,6 +62,7 @@ Restaurant o-- Staff
 class Staff{
     - username
     - password
+    - role : StaffRole
     + login()
     + logout()
     + create_order()
@@ -97,10 +104,8 @@ class Order{
     + update_status(OrderStatus)
     + pre_calculate_totals(coupon: Coupon)
     + calculate_totals(coupon: Coupon)
-    + get_bill_info()
+    + execute_payment(method: PaymentMethod, details: Dict, coupon: str) : Receipt
     + booking() : Booking
-    + pre_calculate_totals(coupon: Coupon)
-    + get_bill_info()
     + pre_calculate_totals(coupon: Coupon)
 }
 class OrderItem{
@@ -170,7 +175,7 @@ class Booking{
     - member : Member
     - room : Room
     - time_slot : TimeSlot
-    - status : BookingStatus.PENDING
+    - status : BookingStatus
     - total_price : float
     - deposit_price : float
     + add_order(Order)
@@ -202,10 +207,15 @@ class FixedAmountCoupon{
 
 Delivery <-- Order
 class Delivery{
-    - platform_name : str
+    delivery_id : str
+    - platform : DeliveryPlatform
     - commission_rate : float
+    - distance : float
+    - status : DeliveryStatus
+    - delivery_status : finding_driver, driver_assigned, driver_at _store, out_for_delivery, delivered
     - delivery_status : DeliveryStatus
     + update_status(DeliveryStatus)
+    + fee() : float
 }
 PaymentMethod <-- Restaurant
 abstract class PaymentMethod{
@@ -215,6 +225,34 @@ abstract class PaymentMethod{
     + get_name() : abstract
     + {abstract} pay(amount: float, kwargs) : Tuple<bool, str>
 }
+
+
+DeliveryProvider --o Restaurant
+
+abstract class DeliveryProvider{
+    - platform_name : str
+    - riders : list of rider_name
+    - commission_rate : float
+    + assign_rider() : str
+    + update_status(DeliveryStatus)
+    + fee() : float
+}
+
+GrabDeliveryProvider --|> DeliveryProvider
+class GrabDeliveryProvider{
+
+}
+
+LineManDeliveryProvider --|> DeliveryProvider
+class LineManDeliveryProvider{
+
+}
+
+ShopeeFoodDeliveryProvider --|> DeliveryProvider
+class ShopeeFoodDeliveryProvider{
+
+}
+
 
 QRCode --|> PaymentMethod
 class QRCode{
@@ -239,14 +277,8 @@ Order <-- Receipt
 class Receipt{
     - id : str
     - order : Order
-    - type : OrderType
-    - customer : Customer
-    - amount : float
     - time : datetime
     - payment_method : PaymentMethod
-    - coupon : Coupon
-    - status : str
-    + mark_success()
 }
 
 
