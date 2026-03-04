@@ -71,7 +71,7 @@ class Receipt:
     @property
     def amount(self): return self._amount
     @property
-    def strategy(self): return self._strategy
+    def strategy(self): return self._method
     @property
     def coupon_code(self): return self._coupon
     @property
@@ -412,7 +412,7 @@ async def book_room(
 @app.get("/admin/get-logs", tags=["Admin & Testing"])
 async def get_logs():
     """retrieve all audit logs from the centralized logging system"""
-    return {"logs": Restaurant._receipt_list}
+    return {"logs": restaurant_system._receipt_list}
 
 @app.get("/admin/get-all-members", tags=["Admin & Testing"])
 async def get_all_members():

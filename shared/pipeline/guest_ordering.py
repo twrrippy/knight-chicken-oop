@@ -5,9 +5,17 @@ from fastapi import FastAPI, HTTPException
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from pydantic import BaseModel
+from enum import Enum
+import copy
 
 class User(ABC):
+    @staticmethod
+    def is_valid_phone_number(phone_number: str):
+        return len(phone_number) == 10 and phone_number.isdigit()
+    
     def __init__(self, id: str, name: str, phone_number: str):
+        if not User.is_valid_phone_number(phone_number):
+            raise ValueError("INVALID: Phone number")
         self.__id = id
         self.__name = name
         self.__phone_number = phone_number
@@ -23,12 +31,8 @@ class User(ABC):
         return self.__phone_number
     
     def __eq__(self, other):
-        if not (type(other) is type(self)):
-            return False
-        return self.__name == other.name and self.__id == other.id and self.__phone_number == other.phone_number
+        return (type(other) is type(self)) and self.__name == other.name and self.__id == other.id and self.__phone_number == other.phone_number
     
-    def check(self, other):
-        return self.__eq__(other)
     
 class Staff(User):
     pass
@@ -42,10 +46,21 @@ class Guest(Customer):
         name: str
         phone_number: str
 
-class Item():
+class Item:
+    class ItemStatus(Enum):
+        AVAILABLE = "Available"
+        RESERVED = "Reserved"
+
+    @staticmethod
+    def is_valid_price(price: float):
+        return price > 0
+    
     def __init__(self, name: str, price: float):
+        if not Item.is_valid_price(price):
+            raise ValueError("INVALID: Price")
         self.__name = name
         self.__price = price
+        self.__status = Item.ItemStatus.AVAILABLE
 
     class ItemDTO(BaseModel):
         name: str
@@ -58,9 +73,203 @@ class Item():
     @property
     def price(self):
         return self.__price
+    
+    @property
+    def status(self):
+        return self.__status
+    
+    def update_status(self, status: ItemStatus):
+        self.__status = status
+    
+    def __eq__(self, other):
+        return (type(other) is type(self)) and self.__name == other.name and self.__price == other.price
+    
+class Ingredient:
+    class IngredientType(Enum):
+        STRICT = "Strict"
+        CUSTOMIZABLE = "Customizable"
 
-class Ingredient():
-    def __init__(self, item: Item, quantity: int):
+    @staticmethod
+    def is_valid_quantity(quantity: int):
+        return quantity >= 0
+
+    def __init__(self, item: Item, quantity: int, type: IngredientType):
+        if not Ingredient.is_valid_quantity(quantity):
+            raise ValueError("INVALID: Quantity")
+        self.__item = item
+        self.__quantity = quantity
+        self.__type = type
+
+    @property
+    def item(self):
+        return self.__item
+    @property
+    def quantity(self):
+        return self.__quantity
+    @property
+    def type(self):
+        return self.__type
+    
+    def modify(self, quantity: int):
+        if not self.is_valid_quantity(quantity):
+            raise ValueError("INVALID: Quantity")
+        self.__quantity = quantity
+
+    @property
+    def custom_add(self):
+        if self.__type == self.IngredientType.CUSTOMIZABLE:
+            self.__quantity += 1
+        else:
+            raise TypeError("CAN NOT Custom this Item.")
+
+    @property   
+    def custom_sub(self):
+        if self.__type == self.IngredientType.CUSTOMIZABLE:
+            if not self.is_valid_quantity(self.__quantity - 1):
+                raise ValueError("INVALID: Quantity")
+            else:
+                self.__quantity -= 1
+        else:
+            raise TypeError("CAN NOT Custom this Item.")
+        
+    @property
+    def ingredient_to_dict(self):
+        return {
+            "name": self.__item.name,
+            "quantity": self.__quantity
+        }
+        
+class MenuItem(ABC):
+    @staticmethod
+    def is_valid_price(price: float):
+        return price > 0
+    
+    @staticmethod
+    def is_valid_cooking_time(time: timedelta):
+        return time > timedelta(seconds=0)
+    
+    def __init__(self, name: str, price: float, cooking_time: timedelta):
+        if not MenuItem.is_valid_price(price):
+            raise ValueError("INVALID: Price")
+        if not MenuItem.is_valid_cooking_time(cooking_time):
+            raise ValueError("INVALID: Cooking time")
+        self.__name = name
+        self.__price = price
+        self.__cooking_time = cooking_time
+        self.__status = MenuItem.MenuItemStatus.OUT_OF_STOCK
+    
+    class MenuItemStatus(Enum):
+        AVAILABLE = "Available"
+        OUT_OF_STOCK = "Out of Stock"
+        DELETED = "Deleted"
+
+    @property
+    def name(self):
+        return self.__name
+    
+    @property
+    def price(self):
+        return self.__price
+    
+    @property
+    def cooking_time(self):
+        return self.__cooking_time
+    
+    @abstractmethod
+    def all_ingredient(self):
+        pass
+    @abstractmethod
+    def calculate_price(self, original_menu: 'MenuItem'):
+        pass
+
+    def update_price(self, original_menu: 'MenuItem'):
+        self.__price = self.calculate_price(original_menu)
+
+    def update_status(self, status: MenuItemStatus):
+        self.__status = status
+
+    def to_dict_order(self, restaurant: 'Restaurant'):
+        original_menu = restaurant.search_menu_item_from_name(self.name)
+        self.update_price(original_menu)
+        return {
+            "name": self.__name,
+            "price": self.__price
+        }
+
+    def to_dict_menu(self, restaurant: 'Restaurant'):
+        self.__status = MenuItem.MenuItemStatus.AVAILABLE
+        custom = []
+        for ingredient in self.all_ingredient:
+            if restaurant.check_stock(ingredient.item.name, Item.ItemStatus.AVAILABLE) < ingredient.quantity:
+                self.__status = MenuItem.MenuItemStatus.OUT_OF_STOCK
+                break
+            if ingredient.type == Ingredient.IngredientType.CUSTOMIZABLE:
+                custom.append(ingredient.ingredient_to_dict)
+        if custom:
+            return {
+                "name": self.__name,
+                "customizable": custom,
+                "price": self.__price,
+                "status": self.__status
+            }
+        else:
+            return {
+                "name": self.__name,
+                "price": self.__price,
+                "status": self.__status
+            }
+        
+class SingleMenuItem(MenuItem):
+    def __init__(self, name: str, price: float, cooking_time: datetime, recipe: list):
+        try:
+            super().__init__(name, price, cooking_time)
+        except ValueError as e:
+            raise ValueError(str(e))
+        for ingredient in recipe:
+            if not Ingredient.is_valid_quantity(ingredient.quantity):
+                raise ValueError("INVALID: Ingredient QUANTITY in Recipe")
+        self.__recipe = recipe
+        
+    def find_ingredient_in_recipe(self, item: Item):
+        for find_ingredient in self.__recipe:
+            if find_ingredient.item == item:
+                return find_ingredient
+        raise ValueError("INVALID: Item")
+    
+    def calculate_price(self, original_menu: MenuItem):
+        add_price = 0
+        for ingredient in self.all_ingredient:
+            if ingredient.type == Ingredient.IngredientType.CUSTOMIZABLE:
+                original_ingredient_quantity = original_menu.find_ingredient_in_recipe(ingredient.item).quantity
+                ingredient_add = ingredient.quantity - original_ingredient_quantity
+                if ingredient_add > 0:
+                    add_price += ingredient_add * ingredient.item.price
+        return add_price + original_menu.price
+
+    @property
+    def all_ingredient(self):
+        return self.__recipe
+    
+    def custom_add(self, item: Item):
+        try:
+            ingredient = self.__find_ingredient_in_recipe(item)
+            ingredient.custom_add
+        except ValueError as e:
+            raise ValueError(str(e))
+        except TypeError as e:
+            raise TypeError(str(e))
+        
+    def custom_sub(self, item: Item):
+        try:
+            ingredient = self.__find_ingredient_in_recipe(item)
+            ingredient.custom_sub
+        except ValueError as e:
+            raise ValueError(str(e))
+        except TypeError as e:
+            raise TypeError(str(e))
+        
+class Food:
+    def __init__(self, item: SingleMenuItem, quantity: int):
         self.__item = item
         self.__quantity = quantity
 
@@ -71,116 +280,143 @@ class Ingredient():
     def quantity(self):
         return self.__quantity
     
-    def modify(self, quantity: int):
-        self.__quantity = quantity
-
-class Particular(ABC):
-    def __init__(self,name: str, recipe: list, price: float, cooking_time: datetime):
-        self.__name = name
-        self._recipe = recipe
-        self.__price = price
-        self.__cooking_time = cooking_time
-
     @property
-    def name(self):
-        return self.__name
-    
+    def get_ingredient_per_unit(self):
+        return self.__item.all_ingredient
+
+class SetMenuItem(MenuItem):
+    def __init__(self, name, price, items: list):
+        total_cooking_time = timedelta(seconds=0)
+        for food in items:
+            total_cooking_time += food.item.cooking_time
+        super().__init__(name, price, total_cooking_time)
+        self.__items = items
+
+    def find_ingredient_in_recipe(self, item: Item):
+        for find_ingredient in self.all_ingredient:
+            if find_ingredient.item == item:
+                return find_ingredient
+        raise ValueError("INVALID: Item")
+
+    # merge duplicate ingredient
     @property
-    def price(self):
-        return self.__price
+    def all_ingredient(self):
+        ingredients = []
+        for food in self.__items:
+            add_ingredients = copy.deepcopy(food.get_ingredient_per_unit)
+            for unit in add_ingredients:
+                for merge in ingredients:
+                    if merge.item == unit.item:
+                        merge.modify(merge.quantity + (unit.quantity * food.quantity))
+                else:
+                    unit.modify(unit.quantity * food.quantity)
+                    ingredients.append(unit)
+        return ingredients
     
-    @abstractmethod
-    def all_ingredient(self):
-        pass
+    def calculate_price(self, original_menu: MenuItem):
+        return original_menu.price
 
-    @property
-    def to_dict(self):
-        return {
-            "name": self.__name,
-            "price": self.__price
-        }
-
-class ChickenSet(Particular):
-
-    def all_ingredient(self):
-        return self._recipe
-    
-class Burger(Particular):
-    def __init__(self,name: str, recipe: list, price: float, cooking_time: datetime, add_on: Union[list, None] = None):
-        add_on_price = self.__calculate_add_on_price(add_on)
-        super().__init__(name, recipe, price + add_on_price , cooking_time)
-        self.__add_on = add_on
-
-    def __calculate_add_on_price(self, add_on: list):
-        add_on_price = 0
-        for ingredient in add_on:
-            add_on_price += ingredient.quantity * ingredient.item.price
-        return add_on_price
-        
-    def all_ingredient(self):
-        return self._recipe + self.__add_on
-
-class Food():
-    def __init__(self, particular: Particular, quantity: int):
-        self.__particular = particular
-        self.__quantity = quantity
-        self.__status = None
-
-    class FoodDTO(BaseModel):
-        particular: str
+class OrderItem:
+    class OrderItemDTO(BaseModel):
+        order_id: str
+        menu: str
         quantity: int
+
+    class OrderItemStatus(Enum):
+        NONE = "None"
+        ADDED = "Added to Order"
+        AVAILABLE = "Available"
+        OUT_OF_STOCK = "Out of Stock"
+        COOKING = "Cooking"
+        FINISHED = "Finished"
+        CANCEL = "Cancel"
+
+    @staticmethod
+    def is_valid_quantity(quantity: int):
+        return quantity > 0
     
+    def __init__(self, id: int, menu: MenuItem, quantity: int):
+        if not OrderItem.is_valid_quantity(quantity):
+            raise ValueError("INVALID: Order Item Quantity")
+        self.__id = id
+        self.__menu_item = menu
+        self.__quantity = quantity
+        self.__status = self.OrderItemStatus.NONE
+
+    @property
+    def id(self):
+        return self.__id
     @property
     def price(self):
-        return self.__quantity * self.__particular.price
+        return self.__quantity * self.__menu_item.price
     @property
     def status(self):
         return self.__status
     
-    def update_status(self, food_status: str):
-        self.__status = food_status
-
-    def reserve(self, stock):
-        all_ingredient_in_particular = self.__particular.all_ingredient()
-        for ingredient in all_ingredient_in_particular:
-            if not stock.reserve(ingredient.item, ingredient.quantity * self.__quantity):
-                self.reverse(stock, all_ingredient_in_particular, ingredient)
-                self.update_status("Out of Stock")
-                break
-        else:
-            self.update_status("Available")
-        return self
-    def reverse(self, stock, all_ingredient_in_particular, ingredient):       
-        for deleting_ingredient in all_ingredient_in_particular:
-            if deleting_ingredient == ingredient:
-                break
+    def update_status(self, status: OrderItemStatus):
+        self.__status = status
+        
+    def order_item_reserve(self, restaurant: 'Restaurant'):
+        try:
+            for ingredient in self.__menu_item.all_ingredient:
+                success = restaurant.stock_reserve(ingredient.item.name, ingredient.quantity * self.__quantity)
+                if not success:
+                    self.order_item_reverse(restaurant, ingredient)
+                    self.update_status(OrderItem.OrderItemStatus.OUT_OF_STOCK)
+                    return
             else:
-                stock.reverse(deleting_ingredient.item, deleting_ingredient.quantity * self.__quantity)
-    
-    @property
-    def to_dict(self):
+                self.update_status(OrderItem.OrderItemStatus.AVAILABLE)
+        except ValueError as e:
+            raise ValueError(str(e))
+    def order_item_reverse(self, restaurant: 'Restaurant', ingredient: Ingredient):
+        for reserved_ingredient in self.__menu_item.all_ingredient:
+            if reserved_ingredient.item.name == ingredient.item.name:
+                return
+            restaurant.stock_reverse(reserved_ingredient.item.name, reserved_ingredient.quantity * self.__quantity)
+
+    def order_item_to_dict(self, restaurant: 'Restaurant'):
         return {
-            "particular": self.__particular.to_dict,
+            "id": self.__id,
+            "menu": self.__menu_item.to_dict_order(restaurant),
             "quantity": self.__quantity,
             "status": self.__status
         }
-
-class Order():
-    def __init__(self, id: str, type: str, customer: Customer):
-        self.__id = id
-        self.__type = type
-        self.__customer = customer
-        self.__food_list = []
-        self.__total_price = 0
-        self.__status_start = datetime.now()
-        self.__status = None
+    
+class Order:
+    class OrderType(Enum):
+        GENERAL = "General"
+        EVENT = "Event"
+        DELIVERY = "Delivery"
+    class OrderStatus(Enum):
+        NONE = "None"
+        RESERVED = "Reserved"
+        CONFIRMED = "Confirmed"
+        PAIDED = "Paided"
+        COOKING = "Cooking"
+        FINISHED = "Finished"
+        SERVED = "Served"
+        CANCELLED = "Cancelled"
 
     class OrderDTO(BaseModel):
         order_id: str
         order_type: str
+        order_status: str
         customer: str
         food_list: list
         total_price: float
+
+    def __init__(self, id: str, type: OrderType, customer: Customer):
+        self.__id = id
+        self.__type = type
+        self.__customer = customer
+        self.__order_item_list = []
+        self.__order_item_id_count = 0
+        self.__sub_total_price = 0
+        self.__final_price = 0
+        self.__status_start = datetime.now()
+        self.__status = self.OrderStatus.NONE
+        self.__booking = None
+        self.__delivery = None
 
     @property
     def status(self):
@@ -188,173 +424,95 @@ class Order():
     @property
     def id(self):
         return self.__id
-    
     @property
     def update_price(self):
         count_price = 0
-        for food in self.__food_list:
-            if food.status != "Out of Stock" and food.status != "Cancle":
-                count_price += food.price
-        self.__total_price = count_price
+        for order_item in self.__order_item_list:
+            if order_item.status != OrderItem.OrderItemStatus.OUT_OF_STOCK and order_item.status != OrderItem.OrderItemStatus.CANCEL:
+                count_price += order_item.price
+        self.__sub_total_price = count_price
     
-    def update_status(self, order_status: str):
+    def update_status(self, order_status: OrderStatus):
         self.__status = order_status
+        self.__status_start = datetime.now()
 
     def check_customer(self, customer: Customer):
-        return self.__customer.check(customer)
+        if self.__customer != customer:
+            raise ValueError("Wrong Customer")
     
-    def add_food(self, food: Food):
-        self.__food_list.append(food)
-        food.update_status("Add to Order")
+    def add_order_item(self, menu: MenuItem, quantity: int):
+        try:
+            new_menu = copy.deepcopy(menu)
+            current_order_item = OrderItem(self.__order_item_id_count, new_menu, quantity)
+            self.__order_item_id_count += 1
+        except ValueError as e:
+            raise ValueError(str(e))
+        self.__order_item_list.append(current_order_item)
+        current_order_item.update_status(OrderItem.OrderItemStatus.ADDED)
+        self.update_price
 
-    def reserve(self, stock):
-        for food in self.__food_list:
-            if food.status == "Add to Order":
-                food.reserve(stock)
-        self.update_status("Reserved")
+    def search_order_item_from_id(self, order_item_id: int):
+        for order_item in self.__order_item_list:
+            if order_item.id == order_item_id:
+                return order_item
+        raise ValueError("Order Item NOT FOUND")
+
+    def order_reserve(self, restaurant: 'Restaurant'):
+        for order_item in self.__order_item_list:
+            if order_item.status == OrderItem.OrderItemStatus.ADDED:
+                order_item.order_item_reserve(restaurant)
+        self.update_status(Order.OrderStatus.RESERVED)
         return self
     
-    @property
-    def to_dict(self) -> dict:
+    def order_confirm(self):
+        if self.__status == Order.OrderStatus.NONE:
+            raise ValueError("Ordering Food First.")
+        if self.__status == Order.OrderStatus.CANCELLED:
+            raise ValueError("Order already been cancelled")
+        if self.__status != Order.OrderStatus.RESERVED:
+            raise ValueError("Confirmed Already")
+        for order_item_index in range(len(self.__order_item_list) - 1, -1, -1):
+            order_item = self.__order_item_list[order_item_index]
+            if order_item.status == OrderItem.OrderItemStatus.OUT_OF_STOCK or order_item.status == OrderItem.OrderItemStatus.CANCEL:
+                del self.__order_item_list[order_item_index]
+        self.update_status(Order.OrderStatus.CONFIRMED)
+        return self
+    
+    def order_item_dict_list(self, restaurant: 'Restaurant') -> list:
+        dict_list = []
+        for e in self.__order_item_list:
+            dict_list.append(e.order_item_to_dict(restaurant))
+        return dict_list
+    
+    def order_to_dict(self, restaurant: 'Restaurant') -> dict:
         return {
             "order_id": self.__id,
             "order_type": self.__type,
+            "order_status": self.__status,
             "customer": self.__customer.name,
-            "food_list": self.food_dict_list,
-            "total_price": self.__total_price
+            "order_item_list": self.order_item_dict_list(restaurant),
+            "total_price": self.__sub_total_price
         }
     
-    @property
-    def food_dict_list(self) -> list:
-        dict_list = []
-        for e in self.__food_list:
-            dict_list.append(e.to_dict)
-        return dict_list
-    
-class DineInOrder(Order):
-    def __init__(self, id: str, customer: Customer):
-        super().__init__(id, "DineIn", customer)
 
-class Stock():
+class Restaurant:
     def __init__(self):
-        self.__reserved_stock = []
-        self.__real_stock = []
-    
-    def check_real_stock(self, item:Item):
-        count_stock = 0
-        for find in self.__real_stock:
-            if find == item:
-                count_stock += 1
-        return count_stock
-    def check_reserved_stock(self, item:Item):
-        count_stock = 0
-        for find in self.__reserved_stock:
-            if find == item:
-                count_stock += 1
-        return count_stock
-    
-    def check_real_by_name(self, item_name: str):
-        count_stock = 0
-        for find in self.__real_stock:
-            if find.name == item_name:
-                count_stock += 1
-        return count_stock
-    def check_reserved_by_name(self, item_name: str):
-        count_stock = 0
-        for find in self.__reserved_stock:
-            if find.name == item_name:
-                count_stock += 1
-        return count_stock
-
-    def add_stock(self, item: Item, quantity: int):
-        for e in range(quantity):
-            self.__real_stock.append(item)
-
-    def reserve(self, item: Item, quantity: int):
-        count = quantity
-        for item_index in range(len(self.__real_stock) - 1, -1, -1):
-            if self.__real_stock[item_index] == item:
-                self.__reserved_stock.append(self.__real_stock[item_index])
-                del self.__real_stock[item_index]
-                count-=1
-            if count == 0:
-                return True
-        else:
-            stock.reverse(item, quantity - count)
-            return False
-            
-    def reverse(self, item: Item, quantity: int):
-        if self.check_reserved_stock(item) < quantity:
-            raise ValueError("reverse thing you should not")
-        count = quantity
-        for item_index in range(len(self.__reserved_stock) - 1, -1, -1):
-            if count == 0:
-                return True
-            if self.__reserved_stock[item_index] == item:
-                self.__real_stock.append(self.__reserved_stock[item_index])
-                del self.__reserved_stock[item_index]
-                count -= 1
-
-class StockLog():
-    def __init__(self, id: str, action :str, ingredient: Ingredient, staff: Union[Staff, None] = None):
-        self.__id = id
-        self.__action = action
-        self.__ingredient = Ingredient
-        if staff == None:
-            self.__staff = "System"
-        else:
-            self.__staff = staff
-
-class MenuFood():
-    def __init__(self, particular: Particular):
-        self.__particular = particular
-        self.__status = "Out of Stock"
-
-    @property
-    def get_particular_name(self):
-        return self.__particular.name
-    @property
-    def particular(self):
-        return self.__particular
-    
-    def update_status(self, menu_food_status: str):
-        self.__status = menu_food_status
-
-    def to_dict(self, stock: Stock):
-        self.__status = "Available"
-        for ingredient in self.__particular.all_ingredient():
-            if stock.check_real_stock(ingredient.item) < ingredient.quantity:
-                self.__status = "Out of Stock"
-                break
-        return {
-            "particular": self.__particular.to_dict,
-            "status": self.__status
-        }
-
-class Restaurant():
-    def __init__(self, stock: Stock):
         self.__member_list = []
         self.__order_list = []
+        self.__stock = []
         self.__coupon_list = []
-        self.__stock_log = []
-        self.__transaction_log = []
+        self.__receipt_log = []
         self.__room_list = []
         self.__staff_list = []
-        self.__stock = stock
         self.__menu = []
         self.__payment_gateway = None
-        self.__delivery_platform = None
+        self.__booking_list = []
 
     def add_order(self, order: Order):
         self.__order_list.append(order)
 
-    #อาจจะย้ายไปอยู่ manager
-    def add_menu(self, particular: Particular):
-        new_menufood = MenuFood(particular)
-        self.__menu.append(new_menufood)
-
-    def add_stock_log(self, new_log: StockLog):
-        self.__stock_log.append(new_log)
+    def add_menu(self, menu: MenuItem):
+        self.__menu.append(menu)
 
     @property
     def count_order(self):
@@ -364,154 +522,191 @@ class Restaurant():
     def check_queue(self):
         count_queue = 0
         for order in self.__order_list:
-            if order.status == "Paided" or order.status == "Cooking":
+            if order.status == Order.OrderStatus.PAIDED or order.status == Order.OrderStatus.COOKING:
                 count_queue += 1
-            if count_queue >= 50:
-                return False
-        return True
+        return count_queue
     
-    def get_menu(self, stock: Stock):
+    def add_stock(self, item: Item, quantity: int):
+        for e in range(quantity):
+            self.__stock.append(copy.deepcopy(item))
+
+    def get_queue(self, queue_order: int):
+        count_queue = 0
+        for order in self.__order_list:
+            if order.status == Order.OrderStatus.PAIDED or order.status == Order.OrderStatus.COOKING:
+                count_queue += 1
+            if count_queue == queue_order:
+                return order
+        return False
+    
+    def check_stock(self, item_name: str, status: Item.ItemStatus):
+        count_stock = 0
+        for find in self.__stock:
+            if find.name == item_name and find.status == status:
+                count_stock += 1
+        return count_stock
+    
+    def get_menu(self):
         menu = []
         for each_menu in self.__menu:
-            menu.append(each_menu.to_dict(stock))
+            menu.append(each_menu.to_dict_menu(self))
         return {"menu": menu}
     
-    def search_menu_from_name(self, particular_name: str, add_on: Union[list,None] = None):
-        for menu_food in self.__menu:
-            if menu_food.get_particular_name == particular_name:
-                if isinstance(menu_food, Burger):
-                    menu_food.update_add_on(add_on)
-                return menu_food.particular
-        raise ValueError("Particular NOT FOUND")
+    def search_menu_item_from_name(self, menu_item_name: str):
+        for menu_item in self.__menu:
+            if menu_item.name == menu_item_name:
+                return menu_item
+        raise ValueError("Menu NOT FOUND")
     
-    def search_order_from_id(self, order_id: str, customer: Union[Customer, None]) -> Order:
+    def search_order_from_id(self, order_id: str) -> Order:
         for find in self.__order_list:
             if find.id == order_id:
-                if find.check_customer(customer) or customer == None:
-                    return find
-                else:
-                    raise ValueError("Wrong Customer")
-        raise ValueError("Order not found")
+                return find
+        raise ValueError("Order NOT FOUND")
+    
+    def reserve(self, order: Order):
+        return order.order_reserve(self)
+    
+    def stock_reserve(self, item_name: str, quantity: int):
+        if quantity <= 0:
+            raise ValueError("INVALID: Quantity")
+        count = 0
+        for item in self.__stock:
+            if item.name == item_name and item.status == Item.ItemStatus.AVAILABLE:
+                item.update_status(Item.ItemStatus.RESERVED)
+                count += 1
+            if count == quantity:
+                return True
+        self.stock_reverse(item_name, count)
+        return False
+        
+    def stock_reverse(self, item_name: str, quantity: int):
+        if quantity < 0:
+            raise ValueError("INVALID: Quantity")
+        if self.check_stock(item_name, Item.ItemStatus.RESERVED) < quantity:
+            raise ValueError("reverse thing you should not")
+        count = 0
+        for item_index in range(len(self.__stock) - 1, -1, -1):
+            if count == quantity:
+                return True
+            item = self.__stock[item_index]
+            if item.name == item_name and item.status == Item.ItemStatus.RESERVED:
+                item.update_status(Item.ItemStatus.AVAILABLE)
+                count += 1
 
-    def reserve(self, order: Order, stock: Stock) -> Order:
-        return order.reserve(stock)
+    def confirm(self, order:Order):
+        try:
+            confirmed_order = order.order_confirm()
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        return confirmed_order
 
-
-# def ordering(order_id: str,customer: Customer):
-#     if not restaurant.check_queue:
-#         print("oo")
-#         return
-#     order = restaurant.search_order_from_id(order_id,customer)
-#     reserved_order = restaurant.reserve(order, stock)
-#     order.update_price
-#     print(reserved_order.to_dict)
 
 guest1 = Guest("123", "Anna", "0100000000")
-stock = Stock()
-restaurant = Restaurant(stock)
+restaurant = Restaurant()
 # Mock Order
 chicken = Item("Chicken", 30)
 bread = Item("Bread", 5)
 cheese = Item("Cheese", 20)
-stock.add_stock(chicken, 20)
-stock.add_stock(bread, 10)
-stock.add_stock(cheese, 10)
+restaurant.add_stock(chicken, 20)
+restaurant.add_stock(bread, 10)
+restaurant.add_stock(cheese, 10)
 
 
 chicken_recipe = []
-chicken_recipe.append(Ingredient(chicken, 1))
-fried_chicken= ChickenSet("Fried Chicken", chicken_recipe, 20, timedelta(minutes=10))
+chicken_recipe.append(Ingredient(chicken, 1, Ingredient.IngredientType.STRICT))
+fried_chicken= SingleMenuItem("Fried Chicken", 20, timedelta(minutes=10), chicken_recipe)
 restaurant.add_menu(fried_chicken)
 
 burger_recipe = []
-burger_recipe.append(Ingredient(bread, 1))
-burger_recipe.append(Ingredient(chicken, 1))
-burger_add_on = []
-burger_add_on.append(Ingredient(cheese, 1))
-burger = Burger("Hamburger", burger_recipe, 60, timedelta(minutes=15), burger_add_on)
+burger_recipe.append(Ingredient(bread, 1, Ingredient.IngredientType.STRICT))
+burger_recipe.append(Ingredient(chicken, 1, Ingredient.IngredientType.STRICT))
+burger_recipe.append(Ingredient(cheese, 1, Ingredient.IngredientType.CUSTOMIZABLE))
+burger = SingleMenuItem("Hamburger", 60, timedelta(minutes=15), burger_recipe)
 restaurant.add_menu(burger)
 
-burger2_recipe = []
-burger2_recipe.append(Ingredient(bread, 1))
-burger2_recipe.append(Ingredient(chicken, 1))
-burger2_add_on = []
-burger2 = Burger("Hamburger", burger2_recipe, 60, timedelta(minutes=15), burger2_add_on)
 
 party_chicken_recipe = []
-party_chicken_recipe.append(Ingredient(bread, 1))
-party_chicken_recipe.append(Ingredient(chicken, 30))
-party_chicken= ChickenSet("Party Set", party_chicken_recipe, 1000, timedelta(minutes=30))
+party_chicken_recipe.append(Food(fried_chicken, 60))
+party_chicken= SetMenuItem("Party Set", 1000, party_chicken_recipe)
 restaurant.add_menu(party_chicken)
 
-# Case 101
-order1 = DineInOrder("101", guest1)
-order1.add_food(Food(fried_chicken, 2))
-restaurant.add_order(order1)
+# party_chicken.all_ingredient
+# print(restaurant.get_menu())
 
-# Case 102
-order2 = DineInOrder("102", guest1)
-order2.add_food(Food(burger, 2))
-order2.add_food(Food(burger2, 2))
-restaurant.add_order(order2)
-
-# Case 103
-order3 = DineInOrder("103", guest1)
-order3.add_food(Food(fried_chicken, 2))
-order3.add_food(Food(party_chicken, 1))
-restaurant.add_order(order3)
-
-# also_guest1 = Guest("123", "Anna", "0100000000")
-# ordering("101", also_guest1)
-# ordering("102", also_guest1)
-# ordering("103", also_guest1)
 
 app = FastAPI()
 
-@app.get("/menu")
+@app.get("/menu", response_model=dict, tags=["Menu"])
 async def get_menu():
-    return restaurant.get_menu(stock)
+    return restaurant.get_menu()
     
-@app.post("/order/dinein/guest/start")
+@app.post("/order/general/guest/start", response_model=str, tags=["Ordering"])
 async def start_order(guest: Guest.GuestDTO):
-    current_customer = Guest(guest.id, guest.name, guest.phone_number)
-    order = Order(str(uuid.uuid4()), "Dine In", current_customer)
-    restaurant.add_order(order)
-    return order.id
-
-@app.put("/order/food/add", response_model=Union[Order.OrderDTO, dict])
-async def add_order(order_id: str, food: Food.FoodDTO):
-    particular_name = food.particular
     try:
-        particular = restaurant.search_menu_from_name(particular_name)
-        new_food = Food(particular, food.quantity)
-        order = restaurant.search_order_from_id(order_id, None)
+        current_customer = Guest(guest.id, guest.name, guest.phone_number)
+        order = Order(str(uuid.uuid4()), Order.OrderType.GENERAL, current_customer)
+        restaurant.add_order(order)
+        return order.id
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    order.add_food(new_food)
-    return order.to_dict
 
-@app.put("/ordering/guest", response_model=Union[Order.OrderDTO, dict])
+@app.put("/order/orderitem/add", response_model=Union[Order.OrderDTO, dict], tags=["Ordering"])
+async def add_order(orderitem: OrderItem.OrderItemDTO):
+    try:
+        current_order = restaurant.search_order_from_id(orderitem.order_id)
+        menu = restaurant.search_menu_item_from_name(orderitem.menu)
+        current_order.add_order_item(menu, orderitem.quantity)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=(str(e)))
+    return current_order.order_to_dict(restaurant)
+
+@app.put("/order/ordering/guest", response_model=Union[Order.OrderDTO, dict], tags=["Ordering"])
 async def ordering(order_id: str, guest: Guest.GuestDTO):
-    if not restaurant.check_queue:
+    if restaurant.check_queue >= 50:
         raise HTTPException(status_code=418, detail="Queue Overload")
     try:
         current_customer = Guest(guest.id, guest.name, guest.phone_number)
-        order = restaurant.search_order_from_id(order_id, current_customer)
+        order = restaurant.search_order_from_id(order_id)
+        order.check_customer(current_customer)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    reserved_order = restaurant.reserve(order, stock)
-    order.update_price
-    return reserved_order.to_dict
+    reserved_order = restaurant.reserve(order)
+    reserved_order.update_price
+    return reserved_order.order_to_dict(restaurant)
 
-@app.get("/stock/{item_name}")
+@app.put("/order/confirm/guest", response_model=Union[Order.OrderDTO, dict], tags=["Ordering"])
+async def confirm_order(order_id: str, guest: Guest.GuestDTO):
+    try:
+        current_customer = Guest(guest.id, guest.name, guest.phone_number)
+        order = restaurant.search_order_from_id(order_id)
+        order.check_customer(current_customer)
+        confirmed_order = restaurant.confirm(order)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return confirmed_order.order_to_dict(restaurant)
+
+@app.get("/stock/check/{item_name}", tags=["Stock"])
 async def get_stock(item_name: str):
-    item_in_real_stock = stock.check_real_by_name(item_name)
-    item_in_reserved_stock = stock.check_reserved_by_name(item_name)
+    item_available = restaurant.check_stock(item_name, Item.ItemStatus.AVAILABLE)
+    item_reserved = restaurant.check_stock(item_name, Item.ItemStatus.RESERVED)
     return {
-        "Real Stock": item_in_real_stock,
-        "Reserved Stock": item_in_reserved_stock
+        "Available": item_available,
+        "Reserved": item_reserved
     }
+
+@app.get("/restaurant/queue/check", tags=["Queue"])
+async def check_queue():
+    return { "Queue": restaurant.check_queue}
+
+@app.get("/restaurant/queue/get/{queue_order}", response_model=Union[Order.OrderDTO, dict], tags=["Queue"])
+async def get_queue(queue_order: int):
+    if queue_order > 50 or queue_order < 1:
+        raise HTTPException(status_code=400, detail="Queue not Found")
+    order = restaurant.get_queue()
+    if order == False:
+        raise HTTPException(status_code=400, detail="Queue not Found")
+    return order.order_to_dict(restaurant)
 
 if __name__ == "__main__":
     uvicorn.run("main:app",host="127.0.0.1",port=8000,reload=True)
-
