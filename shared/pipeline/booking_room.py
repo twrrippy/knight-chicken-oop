@@ -8,8 +8,8 @@ from typing import Any, Dict, List, Optional, Tuple
 from enum import Enum
 # from fastmcp import FastMCP
 from abc import ABC, abstractmethod
-
-from shared.pipeline.Event_order_Payment import Coupon, CouponStatus, EventOrder, RoomType, OrderType, Order
+from shared.pipeline.delivery_order import CouponStatus
+from shared.pipeline.orderPayment import Coupon, RoomType
 from shared.utils.response import success_response_status, error_response_status
 from shared.pipeline.cooking import Status
 
@@ -166,7 +166,6 @@ class Booking:
         self._room = room
         self._time_slot = TimeSlot(start_time, hours)
         self._status: BookingStatus = BookingStatus.PENDING
-        self._event_order: Optional[EventOrder] = None
         self._base_room_fee = room.price_per_hour * hours
         discount = 0.0
         if self.member.tier == "Gold":
