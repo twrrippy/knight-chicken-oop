@@ -9,3 +9,6 @@ class Guest(Customer):
 
 class Member(Customer):
     pass
+
+class Coupon:
+    pass
