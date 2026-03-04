@@ -303,7 +303,7 @@ class SetMenuItem(MenuItem):
     def all_ingredient(self):
         ingredients = []
         for food in self.__items:
-            add_ingredients = food.get_ingredient_per_unit
+            add_ingredients = copy.deepcopy(food.get_ingredient_per_unit)
             for unit in add_ingredients:
                 for merge in ingredients:
                     if merge.item == unit.item:
@@ -359,7 +359,8 @@ class OrderItem:
     def order_item_reserve(self, restaurant: 'Restaurant'):
         try:
             for ingredient in self.__menu_item.all_ingredient:
-                if not restaurant.stock_reserve(ingredient.item.name, ingredient.quantity * self.__quantity):
+                success = restaurant.stock_reserve(ingredient.item.name, ingredient.quantity * self.__quantity)
+                if not success:
                     self.order_item_reverse(restaurant, ingredient)
                     self.update_status(OrderItem.OrderItemStatus.OUT_OF_STOCK)
                     return
@@ -371,7 +372,7 @@ class OrderItem:
         for reserved_ingredient in self.__menu_item.all_ingredient:
             if reserved_ingredient.item.name == ingredient.item.name:
                 return
-            restaurant.stock_reverse(reserved_ingredient.item.name, reserved_ingredient.quantity)
+            restaurant.stock_reverse(reserved_ingredient.item.name, reserved_ingredient.quantity * self.__quantity)
 
     def order_item_to_dict(self, restaurant: 'Restaurant'):
         return {
@@ -461,6 +462,20 @@ class Order:
             if order_item.status == OrderItem.OrderItemStatus.ADDED:
                 order_item.order_item_reserve(restaurant)
         self.update_status(Order.OrderStatus.RESERVED)
+        return self
+    
+    def order_confirm(self):
+        if self.__status == Order.OrderStatus.NONE:
+            raise ValueError("Ordering Food First.")
+        if self.__status == Order.OrderStatus.CANCELLED:
+            raise ValueError("Order already been cancelled")
+        if self.__status != Order.OrderStatus.RESERVED:
+            raise ValueError("Confirmed Already")
+        for order_item_index in range(len(self.__order_item_list) - 1, -1, -1):
+            order_item = self.__order_item_list[order_item_index]
+            if order_item.status == OrderItem.OrderItemStatus.OUT_OF_STOCK or order_item.status == OrderItem.OrderItemStatus.CANCEL:
+                del self.__order_item_list[order_item_index]
+        self.update_status(Order.OrderStatus.CONFIRMED)
         return self
     
     def order_item_dict_list(self, restaurant: 'Restaurant') -> list:
@@ -562,9 +577,8 @@ class Restaurant:
                 count += 1
             if count == quantity:
                 return True
-        else:
-            self.stock_reverse(item_name, count)
-            return False
+        self.stock_reverse(item_name, count)
+        return False
         
     def stock_reverse(self, item_name: str, quantity: int):
         if quantity < 0:
@@ -579,6 +593,14 @@ class Restaurant:
             if item.name == item_name and item.status == Item.ItemStatus.RESERVED:
                 item.update_status(Item.ItemStatus.AVAILABLE)
                 count += 1
+
+    def confirm(self, order:Order):
+        try:
+            confirmed_order = order.order_confirm()
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        return confirmed_order
+
 
 guest1 = Guest("123", "Anna", "0100000000")
 restaurant = Restaurant()
@@ -615,11 +637,11 @@ restaurant.add_menu(party_chicken)
 
 app = FastAPI()
 
-@app.get("/menu", response_model=dict)
+@app.get("/menu", response_model=dict, tags=["Menu"])
 async def get_menu():
     return restaurant.get_menu()
     
-@app.post("/order/general/guest/start", response_model=str)
+@app.post("/order/general/guest/start", response_model=str, tags=["Ordering"])
 async def start_order(guest: Guest.GuestDTO):
     try:
         current_customer = Guest(guest.id, guest.name, guest.phone_number)
@@ -629,7 +651,7 @@ async def start_order(guest: Guest.GuestDTO):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.put("/order/orderitem/add", response_model=Union[Order.OrderDTO, dict])
+@app.put("/order/orderitem/add", response_model=Union[Order.OrderDTO, dict], tags=["Ordering"])
 async def add_order(orderitem: OrderItem.OrderItemDTO):
     try:
         current_order = restaurant.search_order_from_id(orderitem.order_id)
@@ -639,7 +661,7 @@ async def add_order(orderitem: OrderItem.OrderItemDTO):
         raise HTTPException(status_code=400, detail=(str(e)))
     return current_order.order_to_dict(restaurant)
 
-@app.put("/order/ordering/guest", response_model=Union[Order.OrderDTO, dict])
+@app.put("/order/ordering/guest", response_model=Union[Order.OrderDTO, dict], tags=["Ordering"])
 async def ordering(order_id: str, guest: Guest.GuestDTO):
     if restaurant.check_queue >= 50:
         raise HTTPException(status_code=418, detail="Queue Overload")
@@ -652,3 +674,39 @@ async def ordering(order_id: str, guest: Guest.GuestDTO):
     reserved_order = restaurant.reserve(order)
     reserved_order.update_price
     return reserved_order.order_to_dict(restaurant)
+
+@app.put("/order/confirm/guest", response_model=Union[Order.OrderDTO, dict], tags=["Ordering"])
+async def confirm_order(order_id: str, guest: Guest.GuestDTO):
+    try:
+        current_customer = Guest(guest.id, guest.name, guest.phone_number)
+        order = restaurant.search_order_from_id(order_id)
+        order.check_customer(current_customer)
+        confirmed_order = restaurant.confirm(order)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return confirmed_order.order_to_dict(restaurant)
+
+@app.get("/stock/check/{item_name}", tags=["Stock"])
+async def get_stock(item_name: str):
+    item_available = restaurant.check_stock(item_name, Item.ItemStatus.AVAILABLE)
+    item_reserved = restaurant.check_stock(item_name, Item.ItemStatus.RESERVED)
+    return {
+        "Available": item_available,
+        "Reserved": item_reserved
+    }
+
+@app.get("/restaurant/queue/check", tags=["Queue"])
+async def check_queue():
+    return { "Queue": restaurant.check_queue}
+
+@app.get("/restaurant/queue/get/{queue_order}", response_model=Union[Order.OrderDTO, dict], tags=["Queue"])
+async def get_queue(queue_order: int):
+    if queue_order > 50 or queue_order < 1:
+        raise HTTPException(status_code=400, detail="Queue not Found")
+    order = restaurant.get_queue()
+    if order == False:
+        raise HTTPException(status_code=400, detail="Queue not Found")
+    return order.order_to_dict(restaurant)
+
+if __name__ == "__main__":
+    uvicorn.run("main:app",host="127.0.0.1",port=8000,reload=True)
