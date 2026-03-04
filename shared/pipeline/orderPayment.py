@@ -14,11 +14,14 @@ TODO:
     - จ่ายเงิน Deposit -> Done
     - VAT + Service Charge
     - Points system
+    - point -> upgrade member tier
     - Void Bill แล้ว? คืนเงินให้ลูกค้าไหม หรือคืนเป็น coupons
     - Tip?
     - Better Delivery -> เหลือแต่ตอนเรียกไปใช้ ยังไม่ได้ทำ
     - ใส่รหัสเข้าใช้ ยืนยันตัวก่อนใช้ระบบ แบบ staff ใส่ id + รหัส ถ้าถูก ก็เป็น session นั้นๆได้?
     - พวก api เอาไว้ดูพวก ใบเสร็จ บลาๆ
+    - check in
+    - check out
 """
 
 app = FastAPI()
@@ -751,9 +754,7 @@ class Restaurant:
     def get_staff(self, id: str) -> Staff:
         for s in self.__staff_list:
             if s.id == id: return s
-        raise HTTPException(404, "Staff Not Found")
-
-    ### --------- API --------- ###    
+        raise HTTPException(404, "Staff Not Found")    
     
     def check_and_issue_reward(self, order: Order):
         if not isinstance(order.customer, Member):
@@ -777,6 +778,15 @@ class Restaurant:
             return reward_coupon.code
             
         return None
+    
+    def check_and_issue_member_teir(self, order: Order):
+        if not isinstance(order.customer, Member):
+            return None
+
+        member = order.customer
+        spending = order.subtotal
+    
+    ### --------- API --------- ###
     
     def preview_booking_details(self, booking_id: str):
         booking = self.get_booking(booking_id)

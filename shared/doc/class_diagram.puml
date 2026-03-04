@@ -12,6 +12,7 @@ class Restaurant{
     - menu : list of MenuItem
     - payment_gateway : PaymentMethod
     - booking_list : list of Booking
+    - deliveryproviders : list of DeliveryProvider
     + add_coupon(Coupon)
     + get_coupon_by_code(code)
     + booking_room(staff_id, member_id, room_id, amount_paid, start_time, hours)
@@ -32,6 +33,8 @@ Staff --|> User
 class User{
     - id : string
     - name : string
+    - username : string
+    - password : string
     - phoneNumber : string
     + get_id()
     + get_name()
@@ -222,6 +225,34 @@ abstract class PaymentMethod{
     + get_name() : abstract
     + {abstract} pay(amount: float, kwargs) : Tuple<bool, str>
 }
+
+
+DeliveryProvider --o Restaurant
+
+abstract class DeliveryProvider{
+    - platform_name : str
+    - riders : list of rider_name
+    - commission_rate : float
+    + assign_rider() : str
+    + update_status(DeliveryStatus)
+    + fee() : float
+}
+
+GrabDeliveryProvider --|> DeliveryProvider
+class GrabDeliveryProvider{
+
+}
+
+LineManDeliveryProvider --|> DeliveryProvider
+class LineManDeliveryProvider{
+
+}
+
+ShopeeFoodDeliveryProvider --|> DeliveryProvider
+class ShopeeFoodDeliveryProvider{
+
+}
+
 
 QRCode --|> PaymentMethod
 class QRCode{
