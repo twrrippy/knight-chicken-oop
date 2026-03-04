@@ -198,7 +198,7 @@ class MenuItem(ABC):
 
     def to_dict_menu(self, restaurant: 'Restaurant'):
         self.__status = MenuItem.MenuItemStatus.AVAILABLE
-        custom = []
+        custom: list[Ingredient] = []
         for ingredient in self.all_ingredient:
             if restaurant.check_stock(ingredient.item.name, Item.ItemStatus.AVAILABLE) < ingredient.quantity:
                 self.__status = MenuItem.MenuItemStatus.OUT_OF_STOCK
@@ -301,7 +301,7 @@ class SetMenuItem(MenuItem):
     # merge duplicate ingredient
     @property
     def all_ingredient(self):
-        ingredients = []
+        ingredients: list[Ingredient] = []
         for food in self.__items:
             add_ingredients = copy.deepcopy(food.get_ingredient_per_unit)
             for unit in add_ingredients:
@@ -409,7 +409,7 @@ class Order:
         self.__id = id
         self.__type = type
         self.__customer = customer
-        self.__order_item_list = []
+        self.__order_item_list: list[OrderItem] = []
         self.__order_item_id_count = 0
         self.__sub_total_price = 0
         self.__final_price = 0

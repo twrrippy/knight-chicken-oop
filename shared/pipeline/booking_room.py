@@ -9,7 +9,7 @@ from enum import Enum
 # from fastmcp import FastMCP
 from abc import ABC, abstractmethod
 
-from shared.pipeline.Event_order_Payment import Coupon, CouponStatus, EventOrder, RoomType, OrderType, Order
+from shared.pipeline.orderPayment import Coupon, CouponStatus, EventOrder, RoomType, Order
 from shared.utils.response import success_response_status, error_response_status
 from shared.pipeline.cooking import Status
 
@@ -51,7 +51,7 @@ class SimulationClock:
 class Receipt:
     def __init__(self, customer: 'Customer', amount: float, pay_method: str, status: str, coupon_code: Optional[str] = None, order: Optional[Order] = None):
       self._id = f"TXN-{uuid.uuid4().hex[:12].upper()}"
-      self._order : order
+      self._order = order
       self._amount = amount
       self._method = pay_method
       self._status = status
