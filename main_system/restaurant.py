@@ -6,7 +6,6 @@ from main_system.external_platform.payment_method import PaymentMethod
 from shared.utils.simulate import SimulationClock
 from actor.customer import Member, Coupon, FixedAmountCoupon, PercentCoupon
 from actor.staff import Staff
-from __future__ import annotations
 from typing import Optional, List, Tuple, Dict, Any
 from fastapi import FastAPI, HTTPException, Query
 from abc import ABC, abstractmethod
@@ -17,13 +16,13 @@ import uuid
 import random
 class Restaurant:
     def __init__(self):
-        self.__receipts: List[Receipt] = []
+        self.__receipt_list: List[Receipt] = []
         self.__coupon_list: List[Coupon] = []
-        self.__members: List[Member] = []
+        self.__member_list: List[Member] = []
         self.__staff_list: List[Staff] = []
-        self.__bookings: List[Booking] = []  
-        self.__orders: List[Order] = []      
-        self.__payment_strategies: List[PaymentMethod] = []
+        self.__booking_list: List[Booking] = []  
+        self.__order_list: List[Order] = []      
+        self.__payment_method: List[PaymentMethod] = []
         self.__room_list: List[Room] = []
         self.__delivery_providers: List[DeliveryProvider] = []
 
@@ -39,35 +38,35 @@ class Restaurant:
             if r.id == room_id: return r
         raise HTTPException(404, "Room Not Found")
     
-    def add_booking(self, booking: Booking): self.__bookings.append(booking)
+    def add_booking(self, booking: Booking): self.__booking_list.append(booking)
     def get_booking(self, booking_id: str) -> Booking:
-        for b in self.__bookings:
+        for b in self.__booking_list:
             if b.id == booking_id: return b
         raise HTTPException(404, "Booking Not Found")
 
-    def add_order(self, order: Order): self.__orders.append(order)
+    def add_order(self, order: Order): self.__order_list.append(order)
     def get_order(self, order_id: str) -> Order:
-        for o in self.__orders:
+        for o in self.__order_list:
             if o.id == order_id: return o
         raise HTTPException(404, "Order Not Found")
 
-    def add_payment_method(self, method: PaymentMethod): self.__payment_strategies.append(method)
+    def add_payment_method(self, method: PaymentMethod): self.__payment_method.append(method)
     def get_payment_method(self, method_name: str) -> PaymentMethod:
-        for s in self.__payment_strategies:
+        for s in self.__payment_method:
             if s.name.lower() == method_name.lower(): return s
         raise HTTPException(400, "Invalid Payment Method")
 
     def add_receipts(self, receipt: Receipt): 
-        self.__receipts.append(receipt)
+        self.__receipt_list.append(receipt)
          # print(f"[SYSTEM LOG] {receipt.timestamp} | {receipt.id} | {receipt.status} | {receipt.amount} THB")
     def get_receipts_by_order_id(self, order_id: str) -> Receipt:
-        for r in self.__receipts:
+        for r in self.__receipt_list:
             if r.order.id == order_id: return r
         raise HTTPException(404, "Receipt Not Found")
 
-    def add_member(self, member: Member): self.__members.append(member)
+    def add_member(self, member: Member): self.__member_list.append(member)
     def get_member_by_id(self, id: str) -> Member:
-        for m in self.__members:
+        for m in self.__member_list:
             if m.id == id: return m
         raise HTTPException(404, "Member Not Found")
     
@@ -110,11 +109,8 @@ class Restaurant:
         if not isinstance(order.customer, Member):
             return None
 
-        member = order.customer
-        spending = order.subtotal
-
     def get_payment_method(self, method_name: str) -> 'PaymentMethod':
-        for s in self._payment_method:
+        for s in self.__payment_method:
             if s.name.lower() == method_name.lower(): return s
         raise HTTPException(status_code=400, detail="Unknown Method")
     
@@ -149,7 +145,7 @@ class Restaurant:
 
         if success:
             receipt.mark_success()
-            self.add_receipt(receipt=receipt)
+            self.add_receipts(receipt=receipt)
             booking.status = BookingStatus.DEPOSIT_PAID
         else:
             raise HTTPException(status_code=400, detail=f"Payment Failed: {receipt_or_msg}")
@@ -168,7 +164,7 @@ class Restaurant:
 
     def is_slot_avaliable(self, room, start, hours): # เปลี่ยนชื่อ room_id เป็น room ให้สื่อความหมาย
         end = start + timedelta(hours=hours)
-        for b in self._booking_list:
+        for b in self.__booking_list:
             if b.room.room_id == room.room_id: 
                 if b.status not in [BookingStatus.CANCELLED, BookingStatus.COMPLETED]:
                     if start < b.time_slot.end_time and end > b.time_slot.start_time:
@@ -178,7 +174,7 @@ class Restaurant:
     @classmethod
     def auto_check_no_show(cls):
         now = SimulationClock.get_time()
-        for b in cls._booking_list:
+        for b in cls.__booking_list:
             deadline = b.time_slot.start_time + timedelta(minutes=30)
             if b.status == BookingStatus.DEPOSIT_PAID and now > deadline:
                 b.status = BookingStatus.CANCELLED
