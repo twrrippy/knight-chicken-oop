@@ -3,6 +3,7 @@ from shared.utils.response import success_response_status, error_response_status
 from main_system.restaurant import restaurant
 from actor.customer import Guest
 from main_system.order.order import Order, OrderItem
+from main_system.enum import OrderType
 from typing import Union
 import uuid
 """
@@ -17,7 +18,7 @@ router = APIRouter(prefix="/order", tags=["order"])
 async def start_order(guest: Guest.GuestDTO):
     try:
         current_customer = Guest(guest.id, guest.name, guest.phone_number)
-        order = Order(str(uuid.uuid4()), Order.OrderType.GENERAL, current_customer)
+        order = Order(str(uuid.uuid4()), OrderType.GENERAL, current_customer)
         restaurant.add_order(order)
         return order.id
     except ValueError as e:
