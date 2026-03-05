@@ -221,3 +221,7 @@ class Restaurant:
         if order.status == OrderStatus.PAID: raise HTTPException(400, "Order Already Paid")
         staff = self.get_staff(staff_id)
         return order.pre_calculate_totals(coupon_code)
+    
+
+
+restaurant_system = Restaurant()

@@ -1,9 +1,6 @@
 import dotenv
 dotenv.load_dotenv()
 
-from fastapi import FastAPI
-from fastmcp import FastMCP
-from main_system.restaurant import Restaurant
 from controller.order_controller import router as order_router
 from controller.resource_controller import router as resource_router
 from controller.kitchen_controller import router as kitchen_router
@@ -11,8 +8,9 @@ from controller.payment_controller import router as payment_router
 from controller.admin_controller import router as admin_router
 from controller.booking_controller import router as booking_router
 
-from shared.utils.simulate import SimulationClock
-from datetime import timedelta
+from system_interface import FastAPI, FastMCP, timedelta, uvicorn
+from system_interface import SimulationClock
+
 
 app = FastAPI()
 mcp = FastMCP()
@@ -35,5 +33,6 @@ async def advance_time(minutes: int):
 # # ==========================================
 # # Mock Data Setup
 # # ==========================================
+if __name__ == "__main__":
+    uvicorn.run("main:app",host="127.0.0.1",port=8000,reload=True)
 
-restaurant_system = Restaurant()

@@ -1,8 +1,8 @@
-from abc import ABC, abstractmethod
-from fastapi import HTTPException
-from typing import List
-from main_system.enum import CouponStatus, MemberTier
-from main_system.log.receipt import Receipt
+from system_interface import ABC, abstractmethod
+from system_interface import HTTPException
+from system_interface import List
+from system_interface import CouponStatus, MemberTier
+from system_interface import Receipt
 
 class Customer(ABC):
     pass

@@ -1,10 +1,10 @@
 from datetime import datetime, timedelta
 from fastapi import HTTPException
 from typing import Dict, Any
-from main_system.enum import RoomStatus, RoomType, BookingStatus
-from actor.customer import Member
-from shared.utils.simulate import SimulationClock
-from main_system.external_platform.payment_method import PaymentMethod
+from system_interface import RoomStatus, RoomType, BookingStatus
+from system_interface import Member
+from system_interface import SimulationClock
+from system_interface import PaymentMethod
 class TimeSlot:
     def __init__(self, start_time: datetime, hours: int):
         self.__start_time = start_time
