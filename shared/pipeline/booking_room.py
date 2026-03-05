@@ -12,6 +12,7 @@ from shared.pipeline.delivery_order import CouponStatus
 from shared.pipeline.orderPayment import Coupon, RoomType
 from shared.utils.response import success_response_status, error_response_status
 from shared.pipeline.cooking import Status
+from main_system.order.order import Order
 
 
 app = FastAPI()

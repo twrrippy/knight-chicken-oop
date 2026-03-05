@@ -277,8 +277,8 @@ Order <-- Receipt
 class Receipt{
     - id : str
     - order : Order
-    - time : datetime
-    - payment_method : PaymentMethod
+    - timestamp : datetime
+    - method : PaymentMethod
 }
 
 

@@ -36,6 +36,8 @@ class Member(Customer):
 
     @property
     def tier(self) -> MemberTier: return self.__tier
+    @property
+    def name(self): return self._name
 
 class Coupon(ABC):
     def __init__(self, id, code, minimum_price) -> None:

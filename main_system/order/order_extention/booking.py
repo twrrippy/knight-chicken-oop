@@ -32,6 +32,8 @@ class Room:
         elif room_type == RoomType.STANDARD: 
             self.__price_per_hour = 500.0
             self.__capacity = 10
+        else:
+            raise ValueError("Unknown room type")
     
     def mark_room_in_use(self):
         self.__status = RoomStatus.IN_USE
@@ -39,11 +41,13 @@ class Room:
     @property
     def price_per_hour(self): return self.__price_per_hour
     @property
-    def id(self): return self.__room_id
+    def room_id(self): return self.__room_id
     @property
     def status(self): return self.__status
+    @status.setter
+    def status(self, new_status: RoomStatus): self._status = new_status
     @property
-    def type(self): return self.__room_type
+    def room_type(self): return self.__room_type
     @property
     def capacity(self): return self.__capacity
 class Booking:
@@ -53,6 +57,46 @@ class Booking:
         self.__room = room
         self.__time_slot = time_slot
         self.__status = BookingStatus.PENDING
+
+    # def __init__(self, booking_id, member: Member, room: Room, start_time: datetime, hours: int) -> None:
+    #     self._booking_id = booking_id
+    #     self._member = member
+    #     self._room = room
+    #     self._time_slot = TimeSlot(start_time, hours)
+    #     self._status: BookingStatus = BookingStatus.PENDING
+    #     self._base_room_fee = room.price_per_hour * hours
+    #     discount = 0.0
+    #     if self.member.tier == "Gold":
+    #         discount = self._base_room_fee * 0.2
+
+    #     self.required_deposit = (self._base_room_fee - discount) * 0.5
+
+    # @property
+    # def required_deposit(self):
+    #     return self._required_deposit
+    # @required_deposit.setter
+    # def required_deposit(self, amount):
+    #     self._required_deposit = amount
+    
+    # @property
+    # def deposit_status(self): return self._deposit_status
+    # @deposit_status.setter  
+    # def deposit_status(self, val: str): 
+    #     self._deposit_status = val
+    # @property
+    # def hours(self): return self._time_slot.hours
+    # @property
+    # def end_time(self): return self._time_slot.end_time
+    # @property
+    # def start_time(self): return self._time_slot.start_time
+    # @property
+    # def base_room_fee(self): return self._base_room_fee
+    # @status.setter
+    # def status(self, val: BookingStatus): self._status = val
+    # @property
+    # def room_price(self): return self._base_room_fee
+    # @property
+    # def id(self): return self._booking_id
 
     def pay_deposit(self, method: PaymentMethod, payment_details: Dict[str, Any] = {}) -> Dict:
         sucess, note = method.pay(self.deposit, **payment_details)

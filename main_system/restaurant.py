@@ -1,8 +1,9 @@
 from main_system.log.receipt import Receipt
 from main_system.order.order import Order, OrderStatus
-from main_system.order.order_extention.booking import Booking, Room, BookingStatus
+from main_system.order.order_extention.booking import Booking, Room, BookingStatus, RoomStatus
 from main_system.external_platform.delivery_provider import DeliveryProvider
 from main_system.external_platform.payment_method import PaymentMethod
+from shared.utils.simulate import SimulationClock
 from actor.customer import Member, Coupon, FixedAmountCoupon, PercentCoupon
 from actor.staff import Staff
 from __future__ import annotations
@@ -56,25 +57,27 @@ class Restaurant:
             if s.name.lower() == method_name.lower(): return s
         raise HTTPException(400, "Invalid Payment Method")
 
-    def add_receipts(self, r: Receipt): self.__receipts.append(r)
+    def add_receipts(self, receipt: Receipt): 
+        self.__receipts.append(receipt)
+         # print(f"[SYSTEM LOG] {receipt.timestamp} | {receipt.id} | {receipt.status} | {receipt.amount} THB")
     def get_receipts_by_order_id(self, order_id: str) -> Receipt:
         for r in self.__receipts:
             if r.order.id == order_id: return r
         raise HTTPException(404, "Receipt Not Found")
 
-    def add_member(self, m: Member): self.__members.append(m)
+    def add_member(self, member: Member): self.__members.append(member)
     def get_member_by_id(self, id: str) -> Member:
         for m in self.__members:
             if m.id == id: return m
         raise HTTPException(404, "Member Not Found")
     
-    def add_coupon(self, c: Coupon): self.__coupon_list.append(c)
+    def add_coupon(self, coupon: Coupon): self.__coupon_list.append(coupon)
     def get_coupon(self, code: str) -> Coupon: 
         for c in self.__coupon_list: 
             if c.code == code: return c
         raise HTTPException(404, "Coupon Not Found")
 
-    def add_staff(self, s: Staff): self.__staff_list.append(s)    
+    def add_staff(self, staff: Staff): self.__staff_list.append(staff)    
     def get_staff(self, id: str) -> Staff:
         for s in self.__staff_list:
             if s.id == id: return s
@@ -109,6 +112,77 @@ class Restaurant:
 
         member = order.customer
         spending = order.subtotal
+
+    def get_payment_method(self, method_name: str) -> 'PaymentMethod':
+        for s in self._payment_method:
+            if s.name.lower() == method_name.lower(): return s
+        raise HTTPException(status_code=400, detail="Unknown Method")
+    
+    def booking_room(self, staff_id: str, member_id: str, room_id: str, hours: int, amount_paid: float, pay_method: str, start_time: datetime, payment_details: Dict[str, Any] = {}):
+        staff = self.get_staff(staff_id)
+        if not isinstance(staff, Staff):
+            raise HTTPException(status_code=403, detail="Only Staff can handle bookings")
+
+        member = self.get_member(member_id)
+        if not member or not isinstance(member, Member):
+            raise HTTPException(status_code=404, detail="Member not found")
+        
+        room = self.get_room(room_id)
+        if not room or not isinstance(room, Room):
+            raise HTTPException(status_code=404, detail="Room not found")
+
+        if not staff.check_room_avaliability(room, start_time, hours):
+            raise HTTPException(status_code=400, detail="Time slot already occupied")
+
+        booking = Booking(f"BK-{int(SimulationClock.get_time().timestamp())}", member, room, start_time, hours)
+
+        if amount_paid != booking.required_deposit:
+            raise HTTPException(status_code=404, detail=f"Insufficient Amount: need {booking.required_deposit} THB")
+        pay_strat = self.get_payment_method(pay_method)
+        success, receipt_or_msg = pay_strat.pay(booking.required_deposit, **payment_details)
+        receipt = Receipt(
+            amount=booking.required_deposit,
+            pay_method=pay_method.lower(),
+            status=BookingStatus.PENDING,
+            customer=member
+            )
+
+        if success:
+            receipt.mark_success()
+            self.add_receipt(receipt=receipt)
+            booking.status = BookingStatus.DEPOSIT_PAID
+        else:
+            raise HTTPException(status_code=400, detail=f"Payment Failed: {receipt_or_msg}")
+        
+        self.add_booking(booking)
+        
+
+        return {
+            "message": "Booking successfully confirmed in one step",
+            "booking_id": booking.id,
+            "receipt_id": receipt.id,
+            "total_price": booking.required_deposit,
+            "amount_paid": amount_paid,
+            "status": "Reserved"
+        }
+
+    def is_slot_avaliable(self, room, start, hours): # เปลี่ยนชื่อ room_id เป็น room ให้สื่อความหมาย
+        end = start + timedelta(hours=hours)
+        for b in self._booking_list:
+            if b.room.room_id == room.room_id: 
+                if b.status not in [BookingStatus.CANCELLED, BookingStatus.COMPLETED]:
+                    if start < b.time_slot.end_time and end > b.time_slot.start_time:
+                        return False
+        return True
+
+    @classmethod
+    def auto_check_no_show(cls):
+        now = SimulationClock.get_time()
+        for b in cls._booking_list:
+            deadline = b.time_slot.start_time + timedelta(minutes=30)
+            if b.status == BookingStatus.DEPOSIT_PAID and now > deadline:
+                b.status = BookingStatus.CANCELLED
+                b.room.status = RoomStatus.AVAILABLE
     
     ### --------- API --------- ###
     
