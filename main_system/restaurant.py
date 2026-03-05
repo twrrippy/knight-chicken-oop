@@ -1,6 +1,7 @@
 from __future__ import annotations
 from main_system.authentication import AuthManager
 from main_system.log.receipt import Receipt
+from main_system.menu.menu_item import Item, MenuItem, ItemStatus
 from main_system.order.order import Order, OrderStatus
 from main_system.order.order_extention.booking import Booking, Room, BookingStatus, RoomStatus, TimeSlot
 from main_system.external_platform.delivery_provider import DeliveryProvider
@@ -16,12 +17,15 @@ from main_system.enum import Enum, MemberTier
 from fastmcp import FastMCP
 import uuid
 import random
+import copy
 
 if TYPE_CHECKING:
     from actor.staff import Staff
 
 class Restaurant:
     def __init__(self):
+        self.__menu: List[MenuItem] = []
+        self.__stock: List[Item] = []
         self.__receipt_list: List[Receipt] = []
         self.__coupon_list: List[Coupon] = []
         self.__member_list: List[Member] = []
@@ -87,6 +91,94 @@ class Restaurant:
         for s in self.__staff_list:
             if s.id == id: return s
         raise HTTPException(404, "Staff Not Found")    
+    
+    def add_menu(self, menu: MenuItem): self.__menu.append(menu)
+    
+    @property
+    def count_order(self): return len(self.__order_list)
+
+    @property
+    def check_queue(self):
+        count_queue = 0
+        for order in self.__order_list:
+            if order.status == OrderStatus.PAIDED or order.status == OrderStatus.COOKING:
+                count_queue += 1
+        return count_queue
+    
+    def add_stock(self, item: Item, quantity: int):
+        for e in range(quantity):
+            self.__stock.append(copy.deepcopy(item))
+
+    def get_queue(self, queue_order: int):
+        count_queue = 0
+        for order in self.__order_list:
+            if order.status == OrderStatus.PAIDED or order.status == OrderStatus.COOKING:
+                count_queue += 1
+            if count_queue == queue_order:
+                return order
+        return False
+    
+    def check_stock(self, item_name: str, status: ItemStatus):
+        count_stock = 0
+        for find in self.__stock:
+            if find.name == item_name and find.status == status:
+                count_stock += 1
+        return count_stock
+    
+    def get_menu(self):
+        menu = []
+        for each_menu in self.__menu:
+            menu.append(each_menu.to_dict_menu(self))
+        return {"menu": menu}
+    
+    def search_menu_item_from_name(self, menu_item_name: str):
+        for menu_item in self.__menu:
+            if menu_item.name == menu_item_name:
+                return menu_item
+        raise ValueError("Menu NOT FOUND")
+    
+    def search_order_from_id(self, order_id: str) -> Order:
+        for find in self.__order_list:
+            if find.id == order_id:
+                return find
+        raise ValueError("Order NOT FOUND")
+    
+    def reserve(self, order: Order):
+        return order.order_reserve(self)
+    
+    def stock_reserve(self, item_name: str, quantity: int):
+        if quantity <= 0:
+            raise ValueError("INVALID: Quantity")
+        count = 0
+        for item in self.__stock:
+            if item.name == item_name and item.status == ItemStatus.AVAILABLE:
+                item.update_status(ItemStatus.RESERVED)
+                count += 1
+            if count == quantity:
+                return True
+        self.stock_reverse(item_name, count)
+        return False
+        
+    def stock_reverse(self, item_name: str, quantity: int):
+        if quantity < 0:
+            raise ValueError("INVALID: Quantity")
+        if self.check_stock(item_name, ItemStatus.RESERVED) < quantity:
+            raise ValueError("reverse thing you should not")
+        count = 0
+        for item_index in range(len(self.__stock) - 1, -1, -1):
+            if count == quantity:
+                return True
+            item = self.__stock[item_index]
+            if item.name == item_name and item.status == ItemStatus.RESERVED:
+                item.update_status(ItemStatus.AVAILABLE)
+                count += 1
+
+    def confirm(self, order:Order):
+        try:
+            confirmed_order = order.order_confirm()
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        return confirmed_order
     
     def check_and_issue_reward(self, order: 'Order'):
         if not isinstance(order.customer, 'Member'):
