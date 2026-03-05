@@ -1,6 +1,9 @@
-from fastapi import APIRouter, status, HTTPException
+from typing import Optional
+
+from fastapi import APIRouter, Query, status, HTTPException
 from shared.utils.response import success_response_status, error_response_status
-from main import restaurant_system, mcp
+# from main import restaurant_system, 
+from main_system.restaurant import restaurant
 """Admin Controller Routes include:
 - Log Management: (Manager) call Central Log or Audit Trail
 - Simulation Management: controlling the simulation speed (time acceleration) Expired or Booking
@@ -13,7 +16,7 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 @router.get("/get-logs")
 async def get_logs():
     """retrieve all audit logs from the centralized logging system"""
-    return {"logs": restaurant_system._receipt_list}
+    return {"logs": restaurant.get_all_receipts}
 
 @router.get("/get-all-members")
 async def get_all_members():
@@ -23,7 +26,7 @@ async def get_all_members():
             "member_id": m.id,
             "name": m.name,
             "tier": m.tier
-        } for m in restaurant_system._members
+        } for m in restaurant.get_all_members()
     ]
 
 @router.get("/get-all-rooms")
@@ -31,11 +34,11 @@ async def get_all_rooms():
     """get all rooms in the system"""
     return [
         {
-            "room_id": r.room_id,
-            "name": r.room_type,
+            "room_id": r.id,
+            "name": r.type,
             "status": r.status,
             "price_per_hour": r.price_per_hour,
-        } for r in restaurant_system._rooms
+        } for r in restaurant.get_all_rooms()
     ]
 
 @router.get("/get-all-staff")
@@ -45,5 +48,45 @@ async def get_all_staff():
         {
             "staff_id": s.id,
             "name": s.name,
-        } for s in restaurant_system._staff_list
+        } for s in restaurant.get_all_staff()
     ]
+
+@router.post("/auth/login", tags=["Authentication"])
+async def login(username: str, password: str):
+    """เข้าสู่ระบบด้วย username และ password เพื่อรับ Token"""
+    token = restaurant.login(username, password)
+    return {"access_token": token, "token_type": "bearer"}
+
+@router.post("/auth/logout", tags=["Authentication"])
+async def logout(token: str = Query(...)):
+    """ออกจากระบบและทำลาย Token"""
+    success = restaurant.logout(token)
+    if success:
+        return {"message": "Logged out successfully"}
+    raise HTTPException(status_code=400, detail="Invalid Token")
+
+@router.post("/register/member", tags=["Registration"])
+async def member_sign_up(
+    username: str, 
+    password: str, 
+    display_name: str, 
+    phone: Optional[str] = None
+):
+    """ลงทะเบียนลูกค้าใหม่: ระบบจะ Generate ID และตั้ง Tier เป็น Bronze ให้เอง"""
+    member = restaurant.register_member(username, password, display_name, phone)
+    return {
+        "message": "Welcome to Party Hub!",
+        "your_id": member.id,
+        "username": member.username,
+        "tier": member.tier
+    }
+
+@router.post("/register/staff", tags=["Registration"])
+async def staff_sign_up(username: str, password: str, name: str, phone: str = "0000000000"):
+    """ลงทะเบียนพนักงานใหม่: ระบบจะ Generate ID (S-xxx) ให้อัตโนมัติ"""
+    staff = restaurant.register_staff(username, password, name, phone)
+    return {
+        "message": "Staff registered successfully",
+        "staff_id": staff.id,
+        "name": staff.name
+    }
