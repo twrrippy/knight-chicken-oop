@@ -330,7 +330,7 @@ class Restaurant:
     def add_menu(self, menu_item: MenuItem):
         self.__menu.append(menu_item)
 
-    def get_menu_by_name(self, name: str):
+    def get_menu_by_name  (self, name: str):
         for menu in self.__menu:
             if menu.name == name:
                 return menu
