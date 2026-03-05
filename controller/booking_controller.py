@@ -1,13 +1,12 @@
 from fastapi import APIRouter, HTTPException, Query, status, Body
 from typing import Optional, List, Tuple, Dict, Any
 from datetime import datetime, timedelta
-
-from main import restaurant_system, mcp
+from main_system.restaurant import restaurant
 from shared.utils.response import success_response_status, error_response_status
 
 router = APIRouter(prefix="/booking", tags=["booking"])
 
-@mcp.tool
+# @mcp.tool
 @router.post("/booking-room")
 async def book_room(
     staff_id: str, 
@@ -37,23 +36,23 @@ async def book_room(
         - cash: {'cash_received': xxx}\n
     """
     try:
-        payload = restaurant_system.booking_room(staff_id, member_id, room_id, hours, amount_paid, pay_method, start_time=start_time, payment_details=payment_details)
+        payload = restaurant.booking_room(staff_id, member_id, room_id, hours, amount_paid, pay_method, start_time=start_time, payment_details=payment_details)
         return success_response_status(status= status.HTTP_200_OK,payload= payload)
     except Exception as e:
         raise error_response_status(status= status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(e))
 
-@mcp.tool
+# @mcp.tool
 @router.get("/preview_booking/{booking_id}")
 async def preview_booking(booking_id: str):
     """
     
     """
-    return restaurant_system.preview_booking_details(booking_id)
+    return restaurant.preview_booking_details(booking_id)
 
-@mcp.tool
+# @mcp.tool
 @router.post("/pay_deposit/{booking_id}")
 async def pay_deposit(booking_id: str, method: str, payment_details: Dict[str, Any]):
     """
     
     """
-    return restaurant_system.process_pay_deposit(booking_id, method, payment_details)
+    return restaurant.process_pay_deposit(booking_id, method, payment_details)

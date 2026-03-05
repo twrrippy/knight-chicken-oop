@@ -1,24 +1,49 @@
 from abc import ABC, abstractmethod
 from fastapi import HTTPException
-from typing import List
+from typing import TYPE_CHECKING, List
+from pydantic import BaseModel
 from main_system.enum import CouponStatus, MemberTier
-from main_system.log.receipt import Receipt
+
+if TYPE_CHECKING:
+    # บรรทัดนี้จะทำงานเฉพาะตอน VSCode ตรวจโค้ด (Intellisense) 
+    # แต่ตอนรันจริง Python จะข้ามไปเลย ทำให้ไม่เกิด Circular Import
+    from main_system.log.receipt import Receipt
 
 class Customer(ABC):
-    pass
+    def __init__(self, id: str, name: str, phone: str = ""):
+        self.__id = id
+        self.__name = name
+        self.__phone = phone
+
+    @property
+    def id(self):
+        return self.__id
+
+    @property
+    def name(self):
+        return self.__name
+
+    @property
+    def phone(self):
+        return self.__phone
 
 class Guest(Customer):
-    pass
+    class GuestDTO(BaseModel):
+        id: str
+        name: str
+        phone_number: str
 
 class Member(Customer):
-    def __init__(self, id: str, name: str, tier: MemberTier):
-        super().__init__(id, name)
+    def __init__(self, id: str, name: str, tier: MemberTier, username: str, password: str, phone: str = ""):
+        super().__init__(id, name, phone)
         self.__coupon_list: List[Coupon] = [] 
-        self.__receipt_list: List[Receipt] = []
+        self.__receipt_list: List['Receipt'] = []
         self.__tier: MemberTier = tier
         self.__points: int = 0
+        self.__username = username
+        self.__password = password
 
-    def add_receipt(self, receipt: Receipt): self.__receipt_list.append(receipt)
+    def add_receipt(self, receipt: 'Receipt'): self.__receipt_list.append(receipt)
     def add_coupon(self, coupon: 'Coupon'): self.__coupon_list.append(coupon)
     
     def get_coupon_by_code(self, code: str):
@@ -37,7 +62,15 @@ class Member(Customer):
     @property
     def tier(self) -> MemberTier: return self.__tier
     @property
-    def name(self): return self._name
+    def username(self): return self.__username
+    @property
+    def password(self): return self.__password
+
+    def check_username(self, username: str) -> bool:
+        return hasattr(self, "_username") and self.__username == username
+
+    def check_password(self, password: str) -> bool:
+        return hasattr(self, "_password") and self.__password == password
 
 class Coupon(ABC):
     def __init__(self, id, code, minimum_price) -> None:

@@ -11,9 +11,22 @@ class OrderType(str, Enum):
 
 class OrderStatus(str, Enum):
     PENDING = "Pending"
-    PAID = "Paid"
+    RESERVED = "Reserved"
+    CONFIRMED = "Confirmed"
+    PAIDED = "Paided"
+    COOKING = "Cooking"
     READY = "Ready"
+    SERVED = "Served"
     CANCELED = "Canceled"
+
+class OrderItemStatus(Enum):
+    PENDING = "Pending"
+    ADDED = "Added to Order"
+    AVAILABLE = "Available"
+    OUT_OF_STOCK = "Out of Stock"
+    COOKING = "Cooking"
+    FINISHED = "Finished"
+    CANCEL = "Cancel"
 
 class DeliveryStatus(str, Enum):
     PENDING = "Pending"
@@ -59,3 +72,10 @@ class TransactionStatus(str, Enum):
 class MenuItemStatus(str, Enum):
     AVAILABLE = "Available"
     UNAVAILABLE = "Unavailable"
+
+class ItemStatus(Enum):
+        AVAILABLE = "Available"
+        RESERVED = "Reserved"
+class IngredientType(Enum):
+    STRICT = "Strict"
+    CUSTOMIZABLE = "Customizable"
