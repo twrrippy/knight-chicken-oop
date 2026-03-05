@@ -1,6 +1,9 @@
 import dotenv
 dotenv.load_dotenv()
 
+from fastapi import FastAPI
+from fastmcp import FastMCP
+from main_system.restaurant import restaurant
 from controller.order_controller import router as order_router
 from controller.resource_controller import router as resource_router
 from controller.kitchen_controller import router as kitchen_router
@@ -36,3 +39,4 @@ async def advance_time(minutes: int):
 if __name__ == "__main__":
     uvicorn.run("main:app",host="127.0.0.1",port=8000,reload=True)
 
+# restaurant_system = restaurant
