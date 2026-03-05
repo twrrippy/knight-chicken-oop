@@ -13,7 +13,7 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 @router.get("/get-logs")
 async def get_logs():
     """retrieve all audit logs from the centralized logging system"""
-    return {"logs": restaurant_system._receipt_list}
+    return {"logs": restaurant_system.__receipts}
 
 @router.get("/get-all-members")
 async def get_all_members():
@@ -23,7 +23,7 @@ async def get_all_members():
             "member_id": m.id,
             "name": m.name,
             "tier": m.tier
-        } for m in restaurant_system._members
+        } for m in restaurant_system.__members
     ]
 
 @router.get("/get-all-rooms")
@@ -31,11 +31,11 @@ async def get_all_rooms():
     """get all rooms in the system"""
     return [
         {
-            "room_id": r.room_id,
-            "name": r.room_type,
+            "room_id": r.id,
+            "name": r.type,
             "status": r.status,
             "price_per_hour": r.price_per_hour,
-        } for r in restaurant_system._rooms
+        } for r in restaurant_system.__room_list
     ]
 
 @router.get("/get-all-staff")
@@ -45,5 +45,5 @@ async def get_all_staff():
         {
             "staff_id": s.id,
             "name": s.name,
-        } for s in restaurant_system._staff_list
+        } for s in restaurant_system.__staff_list
     ]

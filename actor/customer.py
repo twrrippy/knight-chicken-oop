@@ -5,7 +5,22 @@ from main_system.enum import CouponStatus, MemberTier
 from main_system.log.receipt import Receipt
 
 class Customer(ABC):
-    pass
+    def __init__(self, id: str, name: str, phone: str = ""):
+        self.__id = id
+        self.__name = name
+        self.__phone = phone
+
+    @property
+    def id(self):
+        return self.__id
+
+    @property
+    def name(self):
+        return self.__name
+
+    @property
+    def phone(self):
+        return self.__phone
 
 class Guest(Customer):
     pass

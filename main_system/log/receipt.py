@@ -2,6 +2,7 @@ import uuid
 from shared.utils.simulate import SimulationClock
 from main_system.order.order import Order
 from main_system.external_platform.payment_method import PaymentMethod
+
 class Receipt:
     def __init__(self, order: Order, method: PaymentMethod):
       self.__id = f"TXN-{uuid.uuid4().hex[:12].upper()}"
@@ -30,7 +31,7 @@ class Receipt:
             
             "customer_info": {
                 "name": order.customer.name,
-                "tier": order.customer.tier
+                "tier": order.customer.tier if order.customer.tier else "None"
             },
             
             "order_summary": {

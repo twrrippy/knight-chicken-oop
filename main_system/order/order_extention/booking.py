@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from fastapi import HTTPException
 from typing import Dict, Any
 from main_system.enum import RoomStatus, RoomType, BookingStatus
-from actor.customer import Member
+
 from shared.utils.simulate import SimulationClock
 from main_system.external_platform.payment_method import PaymentMethod
 class TimeSlot:
@@ -41,66 +41,28 @@ class Room:
     @property
     def price_per_hour(self): return self.__price_per_hour
     @property
-    def room_id(self): return self.__room_id
+    def id(self): return self.__room_id
     @property
     def status(self): return self.__status
     @status.setter
-    def status(self, new_status: RoomStatus): self._status = new_status
+    def status(self, new_status: RoomStatus): self.__status = new_status
     @property
-    def room_type(self): return self.__room_type
+    def type(self): return self.__room_type
     @property
     def capacity(self): return self.__capacity
+
 class Booking:
-    def __init__(self, booking_id, member: Member, room: Room, time_slot: TimeSlot):
-        self.__id = booking_id
+    from actor.customer import Member
+    def __init__(self, member: 'Member', room: 'Room', time_slot: 'TimeSlot'):
+        self.__id = f"BK-{int(SimulationClock.get_time().timestamp())}"
         self.__member = member
         self.__room = room
         self.__time_slot = time_slot
         self.__status = BookingStatus.PENDING
 
-    # def __init__(self, booking_id, member: Member, room: Room, start_time: datetime, hours: int) -> None:
-    #     self._booking_id = booking_id
-    #     self._member = member
-    #     self._room = room
-    #     self._time_slot = TimeSlot(start_time, hours)
-    #     self._status: BookingStatus = BookingStatus.PENDING
-    #     self._base_room_fee = room.price_per_hour * hours
-    #     discount = 0.0
-    #     if self.member.tier == "Gold":
-    #         discount = self._base_room_fee * 0.2
-
-    #     self.required_deposit = (self._base_room_fee - discount) * 0.5
-
-    # @property
-    # def required_deposit(self):
-    #     return self._required_deposit
-    # @required_deposit.setter
-    # def required_deposit(self, amount):
-    #     self._required_deposit = amount
-    
-    # @property
-    # def deposit_status(self): return self._deposit_status
-    # @deposit_status.setter  
-    # def deposit_status(self, val: str): 
-    #     self._deposit_status = val
-    # @property
-    # def hours(self): return self._time_slot.hours
-    # @property
-    # def end_time(self): return self._time_slot.end_time
-    # @property
-    # def start_time(self): return self._time_slot.start_time
-    # @property
-    # def base_room_fee(self): return self._base_room_fee
-    # @status.setter
-    # def status(self, val: BookingStatus): self._status = val
-    # @property
-    # def room_price(self): return self._base_room_fee
-    # @property
-    # def id(self): return self._booking_id
-
     def pay_deposit(self, method: PaymentMethod, payment_details: Dict[str, Any] = {}) -> Dict:
-        sucess, note = method.pay(self.deposit, **payment_details)
-        if not sucess: raise HTTPException(400, note)
+        success, note = method.pay(self.deposit, **payment_details)
+        if not success: raise HTTPException(400, note)
         self.__status = BookingStatus.DEPOSIT_PAID
         return {
             "booking_no": self.id,
@@ -146,7 +108,7 @@ class Booking:
         }
     
     @property
-    def full_price(self): return self.room.price_per_hour * self.time_slot.hours
+    def full_price(self): return self.room.price_per_hour * self.time_slot.hours if self.member.tier != "GOLD" else self.room.price_per_hour * self.time_slot.hours * 0.8
     @property
     def deposit(self): return self.full_price * 0.5
     @property
