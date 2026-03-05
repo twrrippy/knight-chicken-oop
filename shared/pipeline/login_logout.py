@@ -25,30 +25,26 @@ class User:
         self.__phone = phone
 
 class Staff(User):
-    def __init__(self, id: str, name: str, username: str, password: str, phone = ""):
+    def __init__(self, id: str, name: str, tier: str, username: str, password: str, phone):
         super().__init__(id, name, phone)
+        self.__tier = tier
         self.__username = username
         self.__password = password
-
-    @property
-    def username(self):
-        return self.__username
-    @username.setter
+    
     def username(self, username):
         self.__username = username
-    @property
-    def password(self):
-        return self.__password
-    @password.setter
+
+    def check_username(self, username):
+        return self.__username == username
+    
     def password(self, password):
         self.__password = password
     
+    def check_password(self, password):
+        return self.__password == password
 
 class Customer(User):
-    """Basic Customer Class inheriting from User"""
-    def __init__(self, id: str, name: str, phone: str):
-        super().__init__(id, name, phone)
-
+    pass
 class Member(Customer):
     def __init__(self, id: str, name: str, tier: str, username: str, password: str, phone):
         super().__init__(id, name, phone)
@@ -57,53 +53,51 @@ class Member(Customer):
         self.__password = password
 
     @property
-    def username(self):
-        return self.__username
-    @username.setter
-    def username(self, username):
-        self.__username = username
-    @property
-    def password(self):
-        return self.__password
-    @password.setter
-    def password(self, password):
-        self.__password = password
-
-    @property
     def tier(self):
         return self.__tier
+    
+    
+    def username(self, username):
+        self.__username = username
 
-
+    def check_username(self, username):
+        return self.__username == username
+    
+    def password(self, password):
+        self.__password = password
+    
+    def check_password(self, password):
+        return self.__password == password
 
 
 class Session:
-    def __init__(self, staff_id: str):
-        self.token = f"TK-{uuid.uuid4().hex[:8].upper()}"
-        self.staff_id = staff_id
-        self.login_time = SimulationClock.get_time()
-        self._is_active = True
+    def __init__(self, id: str):
+        self.__token = f"TK-{uuid.uuid4().hex[:8].upper()}"
+        self.__id = id
+        self.__login_time = SimulationClock.get_time()
+        self.__is_active = True
 
     def invalidate(self):
-        self._is_active = False
+        self.__is_active = False
 
 class AuthManager:
     """Class สำหรับจัดการ Authentication โดยเฉพาะ (Repository Pattern)"""
     def __init__(self):
-        self._sessions: list[Session] = []
+        self.__sessions: list[Session] = []
 
     def create_session(self, staff_id: str) -> Session:
         # ลบ Session เก่าของ Staff คนนี้ก่อน (ถ้ามี) เพื่อให้ Login ได้ที่เดียว
         self.revoke_staff_sessions(staff_id)
         
         new_session = Session(staff_id)
-        self._sessions.append(new_session)
+        self.__sessions.append(new_session)
         return new_session
 
     def get_session(self, token: str) -> Optional[Session]:
-        return next((s for s in self._sessions if s.token == token and s._is_active), None)
+        return next((s for s in self.__sessions if s.token == token and s._is_active), None)
 
     def revoke_staff_sessions(self, staff_id: str):
-        for s in self._sessions:
+        for s in self.__sessions:
             if s.staff_id == staff_id:
                 s.invalidate()
 
@@ -119,15 +113,14 @@ class Restaurant:
 
     def login(self, username, password):
         # ค้นหา Staff จาก username และ password
-        staff = next((s for s in self.__staff_list if s.username == username and s.password == password), None)
-        """สำหรับเผื่อว่า member log in ได้"""
-        # member = next((m for m in self.__members if m.username == username and m.password == password), None)
-        # if not member or not staff:
-        #     raise HTTPException(401, "Invalid username or password")
-        if not staff:
-            raise HTTPException(401, "Invalid username or password")
+        member = next((m for m in self.__members if m.check_username(username) and m.check_password(password)), None)
+        if member:
+            return self.__auth_manager.create_session(member.id)
+        staff = next((s for s in self.__staff_list if s.check_username(username) and s.check_password(password)), None)
+        if staff:
+            return self.__auth_manager.create_session(staff.id)
         
-        return self.__auth_manager.create_session(staff.id)
+        raise HTTPException(401, "Invalid username or password")
 
     def logout(self, token: str):
         session = self.__auth_manager.get_session(token)
@@ -139,7 +132,7 @@ class Restaurant:
     # --- Member Registration ---
     def register_member(self, username: str, password: str, name: str, phone: str = "") -> Member:
         # ตรวจสอบว่า Username ซ้ำไหม
-        if any(m.username == username for m in self.__members):
+        if any(m.check_username(username) for m in self.__members):
             raise HTTPException(400, "Username already exists")
         
         # ระบบสร้าง ID ให้อัตโนมัติ

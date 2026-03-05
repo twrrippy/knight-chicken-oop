@@ -1,6 +1,8 @@
-from abc import ABC,abstractmethod
+from abc import ABC, abstractmethod
 from fastapi import HTTPException
-from main_system.enum import CouponStatus
+from typing import List
+from main_system.enum import CouponStatus, MemberTier
+from main_system.log.receipt import Receipt
 
 class Customer(ABC):
     pass
@@ -9,7 +11,33 @@ class Guest(Customer):
     pass
 
 class Member(Customer):
-    pass
+    def __init__(self, id: str, name: str, tier: MemberTier):
+        super().__init__(id, name)
+        self.__coupon_list: List[Coupon] = [] 
+        self.__receipt_list: List[Receipt] = []
+        self.__tier: MemberTier = tier
+        self.__points: int = 0
+
+    def add_receipt(self, receipt: Receipt): self.__receipt_list.append(receipt)
+    def add_coupon(self, coupon: 'Coupon'): self.__coupon_list.append(coupon)
+    
+    def get_coupon_by_code(self, code: str):
+        for coupon in self.__coupon_list:
+            if coupon.code == code: return coupon
+        raise HTTPException(404, "Coupon Not Found")
+
+    def get_member_discount(self, base_price: float):
+        match self.tier:
+            case MemberTier.GENERAL: return 0.0
+            case MemberTier.BRONZE: return base_price * 0.05
+            case MemberTier.SILVER: return base_price * 0.10
+            case MemberTier.GOLD: return base_price * 0.15
+        return 0.0
+
+    @property
+    def tier(self) -> MemberTier: return self.__tier
+    @property
+    def name(self): return self._name
 
 class Coupon(ABC):
     def __init__(self, id, code, minimum_price) -> None:

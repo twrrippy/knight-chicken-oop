@@ -27,7 +27,8 @@ class BookingStatus(str, Enum):
     PENDING = "Pending"
     DEPOSIT_PAID = "Deposit Paid" 
     CHECKED_IN = "Checked In"
-    COMPLETED = "Completed"    
+    COMPLETED = "Completed"  
+    CANCELLED = "Canceled"  
 
 class RoomStatus(str, Enum):
     AVAILABLE = "Available"
@@ -49,10 +50,6 @@ class MemberTier(str, Enum):
 class CouponStatus(str, Enum):
     AVAILABLE = "Available"
     NOT_AVAILABLE = "Not Available"
-
-class StaffRole(str, Enum):
-    PartyStaff = "Party Staff"
-    KitchenStaff = "Kitchen Staff"
 
 class TransactionStatus(str, Enum):
     PENDING = "PENDING"

@@ -57,3 +57,4 @@ class Receipt:
                 "status": "SUCCESS"
             }
         }
+    

@@ -12,6 +12,7 @@ from shared.pipeline.delivery_order import CouponStatus
 from shared.pipeline.orderPayment import Coupon, RoomType
 from shared.utils.response import success_response_status, error_response_status
 from shared.pipeline.cooking import Status
+from main_system.order.order import Order
 
 
 app = FastAPI()
@@ -51,7 +52,7 @@ class SimulationClock:
 class Receipt:
     def __init__(self, customer: 'Customer', amount: float, pay_method: str, status: str, coupon_code: Optional[str] = None, order: Optional[Order] = None):
       self._id = f"TXN-{uuid.uuid4().hex[:12].upper()}"
-      self._order : order
+      self._order = order
       self._amount = amount
       self._method = pay_method
       self._status = status
