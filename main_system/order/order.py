@@ -2,11 +2,14 @@ from main_system.menu.menu_item import MenuItem
 from main_system.order.order_extention.booking import Booking
 from main_system.order.order_extention.delivery import Delivery
 from actor.customer import Customer, Coupon, Member, CouponStatus
-from main_system.log.receipt import Receipt
 from main_system.external_platform.payment_method import PaymentMethod
 from main_system.enum import OrderStatus, OrderType
 from fastapi import HTTPException
-from typing import Optional, List, Dict, Any
+from typing import TYPE_CHECKING, Optional, List, Dict, Any
+
+if TYPE_CHECKING:
+    from main_system.log.receipt import Receipt
+
 class OrderItem:
     def __init__(self, menu_item: MenuItem, quantity: int):
         self.__menu_item = menu_item
@@ -106,7 +109,9 @@ class Order:
             self.__coupon_used = self.customer.get_coupon_by_code(coupon_code)
         return info
     
-    def execute_payment(self, method: PaymentMethod, payment_details: Dict[str, Any] = {}, coupon_code: Optional[str] = None) -> Receipt:
+    def execute_payment(self, method: PaymentMethod, payment_details: Dict[str, Any] = {}, coupon_code: Optional[str] = None) -> 'Receipt':
+        from main_system.log.receipt import Receipt 
+        from actor.customer import Member
         coupon = None
         if coupon_code:
             if isinstance(self.customer, Member):

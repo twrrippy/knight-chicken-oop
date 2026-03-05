@@ -3,7 +3,7 @@ dotenv.load_dotenv()
 
 from fastapi import FastAPI
 from fastmcp import FastMCP
-from main_system.restaurant import Restaurant
+from main_system.restaurant import restaurant
 from controller.order_controller import router as order_router
 from controller.resource_controller import router as resource_router
 from controller.kitchen_controller import router as kitchen_router
@@ -36,4 +36,4 @@ async def advance_time(minutes: int):
 # # Mock Data Setup
 # # ==========================================
 
-restaurant_system = Restaurant()
+# restaurant_system = restaurant

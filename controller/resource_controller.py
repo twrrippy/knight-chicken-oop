@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from shared.utils.response import success_response_status, error_response_status
-from main import restaurant_system, mcp
+# from main import restaurant_system, mcp
 """
 Resource Controller Module
 - inventory Management: manage stock levels, add or remove ingredients

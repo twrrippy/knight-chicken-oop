@@ -1,13 +1,16 @@
 from main_system.enum import PlatformName, DeliveryStatus
-from main_system.order.order_extention.delivery import Delivery
-from typing import Tuple
+from typing import TYPE_CHECKING, Tuple
 from fastapi import HTTPException
 import random
+
+if TYPE_CHECKING:
+    from main_system.order.order_extention.delivery import Delivery
+
 class DeliveryProvider():
     def __init__(self, platform_name: PlatformName) -> None:
         self.__platform_name = platform_name
     
-    def request_rider(self, delivery: Delivery) -> Tuple[bool, str, str]:
+    def request_rider(self, delivery: 'Delivery') -> Tuple[bool, str, str]:
         if not delivery.provider.platform_name == self.platform_name:
             raise HTTPException(400, "Invalid Provider")
         if delivery.status != DeliveryStatus.PENDING:

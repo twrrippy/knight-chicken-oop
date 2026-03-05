@@ -1,10 +1,13 @@
+from typing import TYPE_CHECKING
 import uuid
 from shared.utils.simulate import SimulationClock
-from main_system.order.order import Order
-from main_system.external_platform.payment_method import PaymentMethod
+
+if TYPE_CHECKING:
+    from main_system.order.order import Order
+    from main_system.external_platform.payment_method import PaymentMethod
 
 class Receipt:
-    def __init__(self, order: Order, method: PaymentMethod):
+    def __init__(self, order: 'Order', method: 'PaymentMethod'):
       self.__id = f"TXN-{uuid.uuid4().hex[:12].upper()}"
       self.__order = order                 
       self.__method = method
