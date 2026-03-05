@@ -356,7 +356,7 @@ class Restaurant:
         return sum(1 for item in self.__stock if item.name == item_name)
 
     def find_item_in_reserved(self, item_name: str):
-        return sum(1 for res_item in self.__reserved_stock if res_item.name == item_name)
+        return sum(1 for reserved_item in self.__reserved_stock if reserved_item.name == item_name)
 
     def reserve_ingredient(self, item_name: str, quantity: int):
         if self.find_ingredient_in_stock(item_name) < quantity:
@@ -420,77 +420,6 @@ party_set = SetMenuItem("Party Set", 1000, timedelta(minutes=30), [Food(fried_ch
 restaurant.add_menu(fried_chicken)
 restaurant.add_menu(burger)
 restaurant.add_menu(party_set)
-
-# @app.get("/menu", response_model=dict, tags=["Menu"])
-# async def get_menu():
-#     return restaurant.get_all_menu()
-    
-# @app.post("/order/general/guest/start", response_model=str, tags=["Ordering"])
-# async def start_order(guest: Guest.GuestDTO):
-#     try:
-#         current_customer = Guest(guest.id, guest.name, guest.phone_number)
-#         order = Order(str(uuid.uuid4()), OrderType.GENERAL, current_customer)
-#         restaurant.add_order(order)
-#         return order.id
-#     except ValueError as e:
-#         raise HTTPException(status_code=400, detail=str(e))
-
-# @app.put("/order/orderitem/add", response_model=Union[Order.OrderDTO, dict], tags=["Ordering"])
-# async def add_order(orderitem: OrderItem.OrderItemDTO):
-#     try:
-#         current_order = restaurant.search_order_from_id(orderitem.order_id)
-#         menu = restaurant.search_menu_item_from_name(orderitem.menu)
-#         current_order.add_order_item(menu, orderitem.quantity)
-#     except ValueError as e:
-#         raise HTTPException(status_code=400, detail=(str(e)))
-#     return current_order.order_to_dict(restaurant)
-
-# @app.put("/order/ordering/guest", response_model=Union[Order.OrderDTO, dict], tags=["Ordering"])
-# async def ordering(order_id: str, guest: Guest.GuestDTO):
-#     if restaurant.check_queue >= 50:
-#         raise HTTPException(status_code=418, detail="Queue Overload")
-#     try:
-#         current_customer = Guest(guest.id, guest.name, guest.phone_number)
-#         order = restaurant.search_order_from_id(order_id)
-#         order.check_customer(current_customer)
-#     except ValueError as e:
-#         raise HTTPException(status_code=400, detail=str(e))
-#     reserved_order = restaurant.reserve(order)
-#     reserved_order.update_price
-#     return reserved_order.order_to_dict(restaurant)
-
-# @app.put("/order/confirm/guest", response_model=Union[Order.OrderDTO, dict], tags=["Ordering"])
-# async def confirm_order(order_id: str, guest: Guest.GuestDTO):
-#     try:
-#         current_customer = Guest(guest.id, guest.name, guest.phone_number)
-#         order = restaurant.search_order_from_id(order_id)
-#         order.check_customer(current_customer)
-#         confirmed_order = restaurant.confirm(order)
-#     except ValueError as e:
-#         raise HTTPException(status_code=400, detail=str(e))
-#     return confirmed_order.order_to_dict(restaurant)
-
-# @app.get("/stock/check/{item_name}", tags=["Stock"])
-# async def get_stock(item_name: str):
-#     item_available = restaurant.check_stock(item_name, Item.ItemStatus.AVAILABLE)
-#     item_reserved = restaurant.check_stock(item_name, Item.ItemStatus.RESERVED)
-#     return {
-#         "Available": item_available,
-#         "Reserved": item_reserved
-#     }
-
-# @app.get("/restaurant/queue/check", tags=["Queue"])
-# async def check_queue():
-#     return { "Queue": restaurant.check_queue}
-
-# @app.get("/restaurant/queue/get/{queue_order}", response_model=Union[Order.OrderDTO, dict], tags=["Queue"])
-# async def get_queue(queue_order: int):
-#     if queue_order > 50 or queue_order < 1:
-#         raise HTTPException(status_code=400, detail="Queue not Found")
-#     order = restaurant.get_queue()
-#     if order == False:
-#         raise HTTPException(status_code=400, detail="Queue not Found")
-#     return order.order_to_dict(restaurant)
 
 @app.get("/menu")
 async def get_menu():
