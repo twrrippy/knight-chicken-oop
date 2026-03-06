@@ -143,6 +143,7 @@ class Restaurant:
                 return find
         raise ValueError("Order NOT FOUND")
     
+    #reserved while ordering
     def reserve(self, order: Order):
         return order.order_reserve(self)
     
@@ -172,6 +173,28 @@ class Restaurant:
             if item.name == item_name and item.status == ItemStatus.RESERVED:
                 item.update_status(ItemStatus.AVAILABLE)
                 count += 1
+    
+    def consume_reserved_ingredient(self, item_name: str, quantity: int):
+        if self.find_item_in_reserved(item_name) < quantity:
+            return False
+
+        count = 0
+        for i in range(len(self.__reserved_stock) - 1, -1, -1):
+            if self.__reserved_stock[i].name == item_name:
+                self.__reserved_stock.pop(i)
+                count += 1
+                if count == quantity:
+                    break
+        return True
+
+    def reverse_reserve_ingredient(self, item_name: str, quantity: int):
+        count = 0
+        for i in range(len(self.__reserved_stock) - 1, -1, -1):
+            if self.__reserved_stock[i].name == item_name:
+                self.__stock.append(self.__reserved_stock.pop(i)) 
+                count += 1
+                if count == quantity:
+                    break
 
     def confirm(self, order:Order):
         try:
