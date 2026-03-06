@@ -1,6 +1,6 @@
 import dotenv
 dotenv.load_dotenv()
-
+import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastmcp import FastMCP
 from main_system.restaurant import restaurant
