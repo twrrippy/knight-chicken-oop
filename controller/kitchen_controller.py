@@ -6,10 +6,10 @@ router = APIRouter(prefix="/kitchen", tags=["kitchen"])
 # Example endpoint for kitchen status
 @router.post("/cook/{order_id}")
 async def cook_order(order_id: str):
-    order = restaurant.get_order_by_id(order_id)
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
-        
+    try:
+        order = restaurant.search_order_from_id(order_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=(str(e)))
     success = order.cook_order(restaurant)
     if success:
         return {"message": "Cooking finished. Order is READY.", "status": order.status.value}

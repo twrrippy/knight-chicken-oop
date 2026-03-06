@@ -1,4 +1,3 @@
-from actor.customer import Member
 from typing import TYPE_CHECKING
 import uuid
 from shared.utils.simulate import SimulationClock
@@ -35,7 +34,7 @@ class Receipt:
             
             "customer_info": {
                 "name": order.customer.name,
-                "tier": order.customer.tier if isinstance(order.customer, Member) else "None"
+                "tier": order.customer.tier if order.customer.tier else "None"
             },
             
             "order_summary": {

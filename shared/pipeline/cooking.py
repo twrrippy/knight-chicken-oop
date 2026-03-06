@@ -225,7 +225,7 @@ class OrderItem:
         self.__status = status
 
     def reserve(self, restaurant: 'Restaurant'):
-        ingredients = self.__menu_item.get_all_ingredient()
+        ingredients = self.__menu_item.all_ingredient()
         for ingredient in ingredients:
             if restaurant.find_ingredient_in_stock(ingredient.item.name) < (ingredient.quantity * self.__quantity):
                 self.update_status(OrderItemStatus.CANCEL)
@@ -242,7 +242,7 @@ class OrderItem:
              return False
         
         self.update_status(OrderItemStatus.COOKING)
-        ingredients = self.__menu_item.get_all_ingredient()
+        ingredients = self.__menu_item.all_ingredient()
         
         for ingredient in ingredients:
             restaurant.consume_reserved_ingredient(ingredient.item.name, ingredient.quantity * self.__quantity)
