@@ -8,7 +8,6 @@ from main_system.external_platform.delivery_provider import DeliveryProvider
 from main_system.external_platform.payment_method import PaymentMethod
 from shared.utils.simulate import SimulationClock
 from actor.customer import Member, Coupon, FixedAmountCoupon, PercentCoupon
-from actor.staff import Staff
 
 from typing import TYPE_CHECKING, Optional, List, Tuple, Dict, Any
 from fastapi import FastAPI, HTTPException, Query
@@ -144,6 +143,7 @@ class Restaurant:
                 return find
         raise ValueError("Order NOT FOUND")
     
+    #reserved while ordering
     def reserve(self, order: Order):
         return order.order_reserve(self)
     
@@ -173,6 +173,34 @@ class Restaurant:
             if item.name == item_name and item.status == ItemStatus.RESERVED:
                 item.update_status(ItemStatus.AVAILABLE)
                 count += 1
+    
+    # def find_ingredient_in_stock(self, item_name: str):
+    #     return sum(1 for item in self.__stock if item.name == item_name)
+
+    # def find_item_in_reserved(self, item_name: str):
+    #     return sum(1 for reserved_item in self.__reserved_stock if reserved_item.name == item_name)
+    
+    # def consume_reserved_ingredient(self, item_name: str, quantity: int):
+    #     if self.find_item_in_reserved(item_name) < quantity:
+    #         return False
+
+    #     count = 0
+    #     for i in range(len(self.__reserved_stock) - 1, -1, -1):
+    #         if self.__reserved_stock[i].name == item_name:
+    #             self.__reserved_stock.pop(i)
+    #             count += 1
+    #             if count == quantity:
+    #                 break
+    #     return True
+
+    # def reverse_reserve_ingredient(self, item_name: str, quantity: int):
+    #     count = 0
+    #     for i in range(len(self.__reserved_stock) - 1, -1, -1):
+    #         if self.__reserved_stock[i].name == item_name:
+    #             self.__stock.append(self.__reserved_stock.pop(i)) 
+    #             count += 1
+    #             if count == quantity:
+    #                 break
 
     def confirm(self, order:Order):
         try:
@@ -182,7 +210,7 @@ class Restaurant:
         return confirmed_order
     
     def check_and_issue_reward(self, order: 'Order'):
-        if not isinstance(order.customer, Member):
+        if not isinstance(order.customer, 'Member'):
             return None
 
         member = order.customer
@@ -205,7 +233,7 @@ class Restaurant:
         return None
     
     def check_and_issue_member_teir(self, order: 'Order'):
-        if not isinstance(order.customer, Member):
+        if not isinstance(order.customer, 'Member'):
             return None
 
     def get_payment_method(self, method_name: str) -> 'PaymentMethod':
@@ -215,15 +243,15 @@ class Restaurant:
     
     def booking_room(self, staff_id: str, member_id: str, room_id: str, hours: int, amount_paid: float, pay_method: str, start_time: datetime, payment_details: Dict[str, Any] = {}):
         staff = self.get_staff(staff_id)
-        if not isinstance(staff, Staff):
+        if not isinstance(staff, 'Staff'):
             raise HTTPException(status_code=403, detail="Only Staff can handle bookings")
 
         member = self.get_member_by_id(member_id)
-        if not member or not isinstance(member, Member):
+        if not member or not isinstance(member, 'Member'):
             raise HTTPException(status_code=404, detail="Member not found")
         
         room = self.get_room(room_id)
-        if not room or not isinstance(room, Room):
+        if not room or not isinstance(room, 'Room'):
             raise HTTPException(status_code=404, detail="Room not found")
 
         if not self.is_slot_avaliable(room, start_time, hours):
@@ -312,6 +340,8 @@ class Restaurant:
     def get_all_rooms(self) -> List['Room']: return self.__room_list
     def get_all_receipts(self) -> List['Receipt']: return self.__receipts
     
+    ### --------- API --------- ###
+    
     def preview_booking_details(self, booking_id: str):
         booking = self.get_booking(booking_id)
         return booking.get_details()
@@ -328,6 +358,9 @@ class Restaurant:
         method = self.get_payment_method(method_name)
         staff = self.get_staff(staff_id)
         order = self.get_order(order_id)
+        
+        # if order.order_type == OrderType.EVENT and staff.role != StaffRole.PartyStaff:
+        #     raise HTTPException(400, "Invalid Staff Role for Event Order")
             
         if order.status == OrderStatus.PAIDED: 
             raise HTTPException(400, "Order Already Paid")

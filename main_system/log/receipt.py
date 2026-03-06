@@ -1,7 +1,7 @@
-from actor.customer import Member
 from typing import TYPE_CHECKING
 import uuid
 from shared.utils.simulate import SimulationClock
+from actor.customer import Member
 
 if TYPE_CHECKING:
     from main_system.order.order import Order

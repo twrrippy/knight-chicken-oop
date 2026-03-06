@@ -22,10 +22,10 @@ class OrderStatus(str, Enum):
 class OrderItemStatus(Enum):
     PENDING = "Pending"
     ADDED = "Added to Order"
-    AVAILABLE = "Available"
+    RESERVED = "Reserved"
     OUT_OF_STOCK = "Out of Stock"
     COOKING = "Cooking"
-    FINISHED = "Finished"
+    READY = "Ready"
     CANCEL = "Cancel"
 
 class DeliveryStatus(str, Enum):
@@ -74,8 +74,8 @@ class MenuItemStatus(str, Enum):
     UNAVAILABLE = "Unavailable"
 
 class ItemStatus(Enum):
-        AVAILABLE = "Available"
-        RESERVED = "Reserved"
+    AVAILABLE = "Available"
+    RESERVED = "Reserved"
 class IngredientType(Enum):
     STRICT = "Strict"
     CUSTOMIZABLE = "Customizable"

@@ -4,13 +4,13 @@ from main_system.order.order_extention.delivery import Delivery
 from actor.customer import Customer, Coupon, Member, CouponStatus
 from main_system.external_platform.payment_method import PaymentMethod
 from main_system.enum import OrderStatus, OrderType, OrderItemStatus
-from main_system.log.receipt import Receipt
 from fastapi import HTTPException
 from pydantic import BaseModel
 from datetime import datetime
 from shared.utils.simulate import SimulationClock
 import copy
 from typing import TYPE_CHECKING, Optional, List, Dict, Any
+import uuid
 
 if TYPE_CHECKING:
     from main_system.log.receipt import Receipt
@@ -57,7 +57,7 @@ class OrderItem:
                     self.update_status(OrderItemStatus.OUT_OF_STOCK)
                     return
             else:
-                self.update_status(OrderItemStatus.AVAILABLE)
+                self.update_status(OrderItemStatus.RESERVED)
         except ValueError as e:
             raise ValueError(str(e))
     def order_item_reverse(self, ingredient: Ingredient):
@@ -80,10 +80,30 @@ class OrderItem:
             "quantity": self.quantity,
             "price": self.menu_item.price
         }
+        
+    def process_cooking(self):
+        if self.__status != OrderItemStatus.RESERVED:
+             return False
+        
+        self.status(OrderItemStatus.COOKING)
+        ingredients = self.__menu_item.all_ingredient()
+        
+        for ingredient in ingredients:
+            restaurant.consume_reserved_ingredient(ingredient.item.name, ingredient.quantity * self.__quantity)
+            
+        self.status(OrderItemStatus.READY)
+        return True
+
+    def cancel_reservation(self):
+        if self.__status == OrderItemStatus.RESERVED:
+            ingredients = self.__menu_item.all_ingredient()
+            for ingredient in ingredients:
+                restaurant.reverse_reserve_ingredient(ingredient.item.name, ingredient.quantity * self.__quantity)
+            self.status(OrderItemStatus.CANCELED)
     
 class Order:
-    def __init__(self, order_id: str, type: OrderType, customer: Customer):
-        self.__id = order_id
+    def __init__(self, type: OrderType, customer: Customer):
+        self.__id = f"TXN-{uuid.uuid4().hex[:12].upper()}"
         self.__type = type
         self.__customer: Customer = customer
         self.__order_item_list: List[OrderItem] = []
@@ -126,7 +146,7 @@ class Order:
     def update_price(self):
         count_price = 0
         for order_item in self.__order_item_list:
-            if order_item.status != OrderItemStatus.OUT_OF_STOCK and order_item.status != OrderItemStatus.CANCEL:
+            if order_item.status != OrderItemStatus.OUT_OF_STOCK and order_item.status != OrderItemStatus.CANCELED:
                 count_price += order_item.price
         self.__subtotal = count_price
 
@@ -144,21 +164,21 @@ class Order:
         for order_item in self.__order_item_list:
             if order_item.status == OrderItemStatus.ADDED:
                 order_item.order_item_reserve()
-        self.update_status(OrderStatus.RESERVED)
+        self.status = OrderStatus.RESERVED
         return self
     
     def order_confirm(self):
-        if self.__status == OrderStatus.NONE:
+        if self.__status == OrderStatus.PENDING:
             raise ValueError("Ordering Food First.")
-        if self.__status == OrderStatus.CANCELLED:
-            raise ValueError("Order already been cancelled")
+        if self.__status == OrderStatus.CANCELED:
+            raise ValueError("Order already been canceled")
         if self.__status != OrderStatus.RESERVED:
             raise ValueError("Confirmed Already")
         for order_item_index in range(len(self.__order_item_list) - 1, -1, -1):
             order_item = self.__order_item_list[order_item_index]
             if order_item.status == OrderItemStatus.OUT_OF_STOCK or order_item.status == OrderItemStatus.CANCEL:
                 del self.__order_item_list[order_item_index]
-        self.update_status(OrderStatus.CONFIRMED)
+        self.status = OrderStatus.CONFIRMED
         return self
     
     def order_item_dict_list(self) -> list:
@@ -176,6 +196,22 @@ class Order:
             "order_item_list": self.order_item_dict_list(restaurant),
             "total_price": self.__sub_total_price
         }
+        
+    def cook_order(self, restaurant):
+        if self.__status not in [OrderStatus.RESERVED, OrderStatus.PAIDED]:
+            return False
+            
+        self.status(OrderStatus.COOKING)
+        all_done = True
+        for item in self.__order_list:
+            if item.status == OrderItemStatus.RESERVED:
+                if not item.process_cooking(restaurant):
+                    all_done = False
+                
+        if all_done:
+            self.status(OrderStatus.READY)
+            return True
+        return False
 
     def pre_calculate_totals(self, coupon_code: Optional[str] = None):
         coupon = None

@@ -1,18 +1,17 @@
 from fastapi import APIRouter, HTTPException
 from shared.utils.response import success_response_status, error_response_status
-# from main import restaurant_system, mcp
+from main_system.restaurant import restaurant
 router = APIRouter(prefix="/kitchen", tags=["kitchen"])
 
 # Example endpoint for kitchen status
-@router.get("/status")
-def get_kitchen_status():
-    """
-    Endpoint to get the current status of the kitchen.
-    """
-    # Placeholder logic for kitchen status
-    kitchen_status = {
-        "status": "operational",
-        "active_orders": 5,
-        "pending_orders": 2
-    }
-    return success_response_status(status=200, payload=kitchen_status)
+@router.post("/cook/{order_id}")
+async def cook_order(order_id: str):
+    try:
+        order = restaurant.search_order_from_id(order_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=(str(e)))
+    success = order.cook_order(restaurant)
+    if success:
+        return {"message": "Cooking finished. Order is READY.", "status": order.status.value}
+    else:
+        raise HTTPException(status_code=400, detail=f"Cannot cook order. Current status: {order.status.value}")

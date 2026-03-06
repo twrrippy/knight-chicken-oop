@@ -20,7 +20,6 @@ class DeliveryProvider(ABC):
 
         is_success = True
         rider_name = random.choice(self._riders_name)
-
         return (is_success, rider_name)
 
     @abstractmethod

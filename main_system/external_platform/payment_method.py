@@ -21,7 +21,7 @@ class QRCode(PaymentMethod):
     
     def pay(self, amount: float, **kwargs) -> Tuple[bool, str]:
         account_number = kwargs.get("account_number")
-        if not account_number: return False, 'Missing "account_number"'
+        if not account_number: return False, "Missing 'account_number'"
         
         success = random.random() < 0.90
         return (True, "Payment Done") if success else (False, "Bank System Offline")
@@ -47,7 +47,7 @@ class Cash(PaymentMethod):
     
     def pay(self, amount: float, **kwargs) -> Tuple[bool, str]:
         received = kwargs.get("cash_received")
-        if received is None: return False, 'Missing "cash_received"'
+        if received is None: return False, "Missing 'cash_received'"
         
         if float(received) < amount: return False, f"Insufficient Cash"
         return True, "Payment Done"
