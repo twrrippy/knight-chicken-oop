@@ -10,6 +10,7 @@ from datetime import datetime
 from shared.utils.simulate import SimulationClock
 import copy
 from typing import TYPE_CHECKING, Optional, List, Dict, Any
+import uuid
 
 if TYPE_CHECKING:
     from main_system.log.receipt import Receipt
@@ -104,8 +105,8 @@ class OrderItem:
             self.update_status(OrderItemStatus.CANCEL)
     
 class Order:
-    def __init__(self, order_id: str, type: OrderType, customer: Customer):
-        self.__id = order_id
+    def __init__(self, type: OrderType, customer: Customer):
+        self.__id = f"TXN-{uuid.uuid4().hex[:12].upper()}"
         self.__type = type
         self.__customer: Customer = customer
         self.__order_item_list: List[OrderItem] = []

@@ -18,7 +18,7 @@ router = APIRouter(prefix="/order", tags=["order"])
 async def start_order(guest: Guest.GuestDTO):
     try:
         current_customer = Guest(guest.id, guest.name, guest.phone_number)
-        order = Order(str(uuid.uuid4()), OrderType.GENERAL, current_customer)
+        order = Order(OrderType.GENERAL, current_customer)
         restaurant.add_order(order)
         return order.id
     except ValueError as e:
