@@ -311,8 +311,6 @@ class Restaurant:
     def get_all_rooms(self) -> List['Room']: return self.__room_list
     def get_all_receipts(self) -> List['Receipt']: return self.__receipts
     
-    ### --------- API --------- ###
-    
     def preview_booking_details(self, booking_id: str):
         booking = self.get_booking(booking_id)
         return booking.get_details()
@@ -329,11 +327,8 @@ class Restaurant:
         method = self.get_payment_method(method_name)
         staff = self.get_staff(staff_id)
         order = self.get_order(order_id)
-        
-        # if order.order_type == OrderType.EVENT and staff.role != StaffRole.PartyStaff:
-        #     raise HTTPException(400, "Invalid Staff Role for Event Order")
             
-        if order.status == OrderStatus.PAID: 
+        if order.status == OrderStatus.PAIDED: 
             raise HTTPException(400, "Order Already Paid")
             
         receipt = order.execute_payment(method, payment_details, coupon_code)
@@ -349,7 +344,7 @@ class Restaurant:
     
     def preview_order_bill(self, order_id: str, staff_id: str, coupon_code: Optional[str]):
         order = self.get_order(order_id)
-        if order.status == OrderStatus.PAID: raise HTTPException(400, "Order Already Paid")
+        if order.status == OrderStatus.PAIDED: raise HTTPException(400, "Order Already Paid")
         staff = self.get_staff(staff_id)
         return order.pre_calculate_totals(coupon_code)
     
