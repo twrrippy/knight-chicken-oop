@@ -1,6 +1,6 @@
 from fastapi import APIRouter, status, HTTPException
 from shared.utils.response import success_response_status, error_response_status
-from main import restaurant_system, mcp
+from main import restaurant
 from datetime import timedelta
 import uvicorn
 from shared.utils.simulate import SimulationClock

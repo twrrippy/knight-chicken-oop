@@ -182,12 +182,19 @@ class SetMenuItem(MenuItem):
         super().__init__(name, price, cooking_time)
         self.__items = items
         
-    def get_all_ingredient(self):
-        total_ingredients = []
+    @property
+    def all_ingredient(self):
+        ingredients = []
         for food in self.__items:
-            for ingredient in food.item.get_all_ingredient():
-                total_ingredients.append(Ingredient(ingredient.item, ingredient.quantity * food.quantity,ingredient.type))
-        return total_ingredients
+            add_ingredients = copy.deepcopy(food.get_ingredient_per_unit)
+            for unit in add_ingredients:
+                for merge in ingredients:
+                    if merge.item == unit.item:
+                        merge.modify(merge.quantity + (unit.quantity * food.quantity))
+                else:
+                    unit.modify(unit.quantity * food.quantity)
+                    ingredients.append(unit)
+        return ingredients
     
 class OrderItem:
     class OrderItemDTO(BaseModel):
