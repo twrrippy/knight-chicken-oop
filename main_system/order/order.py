@@ -4,6 +4,7 @@ from main_system.order.order_extention.delivery import Delivery
 from actor.customer import Customer, Coupon, Member, CouponStatus
 from main_system.external_platform.payment_method import PaymentMethod
 from main_system.enum import OrderStatus, OrderType, OrderItemStatus
+from main_system.log.receipt import Receipt
 from fastapi import HTTPException
 from pydantic import BaseModel
 from datetime import datetime
@@ -52,7 +53,7 @@ class OrderItem:
             for ingredient in self.__menu_item.all_ingredient:
                 success = restaurant.stock_reserve(ingredient.item.name, ingredient.quantity * self.__quantity)
                 if not success:
-                    self.order_item_reverse(restaurant, ingredient)
+                    self.order_item_reverse(ingredient)
                     self.update_status(OrderItemStatus.OUT_OF_STOCK)
                     return
             else:
@@ -68,7 +69,7 @@ class OrderItem:
     def order_item_to_dict(self):
         return {
             "id": self.__id,
-            "menu": self.__menu_item.to_dict_order(restaurant),
+            "menu": self.__menu_item.to_dict_order(),
             "quantity": self.__quantity,
             "status": self.__status
         }
@@ -142,7 +143,7 @@ class Order:
     def order_reserve(self):
         for order_item in self.__order_item_list:
             if order_item.status == OrderItemStatus.ADDED:
-                order_item.order_item_reserve(restaurant)
+                order_item.order_item_reserve()
         self.update_status(OrderStatus.RESERVED)
         return self
     
@@ -163,7 +164,7 @@ class Order:
     def order_item_dict_list(self) -> list:
         dict_list = []
         for e in self.__order_item_list:
-            dict_list.append(e.order_item_to_dict(restaurant))
+            dict_list.append(e.order_item_to_dict())
         return dict_list
     
     def order_to_dict(self) -> dict:
@@ -230,7 +231,7 @@ class Order:
     def calculate_totals(self, coupon_code: Optional[str] = None):
         info = self.pre_calculate_totals(coupon_code)
         self.__subtotal = info.get("Total Price Before Discount")
-        self.__discount = info.get("Discounted")
+        self.__discount = info.get("Total Discounted")
         self.__final_price = info.get("Final Price")
         if coupon_code and isinstance(self.__customer, Member):
             self.__coupon_used = self.__customer.get_coupon_by_code(coupon_code)

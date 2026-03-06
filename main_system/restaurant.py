@@ -8,6 +8,7 @@ from main_system.external_platform.delivery_provider import DeliveryProvider
 from main_system.external_platform.payment_method import PaymentMethod
 from shared.utils.simulate import SimulationClock
 from actor.customer import Member, Coupon, FixedAmountCoupon, PercentCoupon
+from actor.staff import Staff
 
 from typing import TYPE_CHECKING, Optional, List, Tuple, Dict, Any
 from fastapi import FastAPI, HTTPException, Query
@@ -181,7 +182,7 @@ class Restaurant:
         return confirmed_order
     
     def check_and_issue_reward(self, order: 'Order'):
-        if not isinstance(order.customer, 'Member'):
+        if not isinstance(order.customer, Member):
             return None
 
         member = order.customer
@@ -204,7 +205,7 @@ class Restaurant:
         return None
     
     def check_and_issue_member_teir(self, order: 'Order'):
-        if not isinstance(order.customer, 'Member'):
+        if not isinstance(order.customer, Member):
             return None
 
     def get_payment_method(self, method_name: str) -> 'PaymentMethod':
@@ -214,15 +215,15 @@ class Restaurant:
     
     def booking_room(self, staff_id: str, member_id: str, room_id: str, hours: int, amount_paid: float, pay_method: str, start_time: datetime, payment_details: Dict[str, Any] = {}):
         staff = self.get_staff(staff_id)
-        if not isinstance(staff, 'Staff'):
+        if not isinstance(staff, Staff):
             raise HTTPException(status_code=403, detail="Only Staff can handle bookings")
 
         member = self.get_member_by_id(member_id)
-        if not member or not isinstance(member, 'Member'):
+        if not member or not isinstance(member, Member):
             raise HTTPException(status_code=404, detail="Member not found")
         
         room = self.get_room(room_id)
-        if not room or not isinstance(room, 'Room'):
+        if not room or not isinstance(room, Room):
             raise HTTPException(status_code=404, detail="Room not found")
 
         if not self.is_slot_avaliable(room, start_time, hours):
