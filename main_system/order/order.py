@@ -197,7 +197,7 @@ class Order:
             "total_price": self.__sub_total_price
         }
         
-    def cook_order(self):
+    def cook_order(self, restaurant):
         if self.__status not in [OrderStatus.RESERVED, OrderStatus.PAIDED]:
             return False
             
