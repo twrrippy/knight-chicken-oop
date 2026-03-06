@@ -182,19 +182,12 @@ class SetMenuItem(MenuItem):
         super().__init__(name, price, cooking_time)
         self.__items = items
         
-    @property
-    def all_ingredient(self):
-        ingredients = []
+    def get_all_ingredient(self):
+        total_ingredients = []
         for food in self.__items:
-            add_ingredients = copy.deepcopy(food.get_ingredient_per_unit)
-            for unit in add_ingredients:
-                for merge in ingredients:
-                    if merge.item == unit.item:
-                        merge.modify(merge.quantity + (unit.quantity * food.quantity))
-                else:
-                    unit.modify(unit.quantity * food.quantity)
-                    ingredients.append(unit)
-        return ingredients
+            for ingredient in food.item.get_all_ingredient():
+                total_ingredients.append(Ingredient(ingredient.item, ingredient.quantity * food.quantity,ingredient.type))
+        return total_ingredients
     
 class OrderItem:
     class OrderItemDTO(BaseModel):
@@ -232,7 +225,7 @@ class OrderItem:
         self.__status = status
 
     def reserve(self, restaurant: 'Restaurant'):
-        ingredients = self.__menu_item.get_all_ingredient()
+        ingredients = self.__menu_item.all_ingredient()
         for ingredient in ingredients:
             if restaurant.find_ingredient_in_stock(ingredient.item.name) < (ingredient.quantity * self.__quantity):
                 self.update_status(OrderItemStatus.CANCEL)
@@ -249,7 +242,7 @@ class OrderItem:
              return False
         
         self.update_status(OrderItemStatus.COOKING)
-        ingredients = self.__menu_item.get_all_ingredient()
+        ingredients = self.__menu_item.all_ingredient()
         
         for ingredient in ingredients:
             restaurant.consume_reserved_ingredient(ingredient.item.name, ingredient.quantity * self.__quantity)

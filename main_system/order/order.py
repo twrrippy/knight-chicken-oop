@@ -81,28 +81,25 @@ class OrderItem:
             "price": self.menu_item.price
         }
         
-    def update_status(self, status: OrderItemStatus):
-        self.__status = status
-        
     def process_cooking(self):
         if self.__status != OrderItemStatus.RESERVED:
              return False
         
-        self.update_status(OrderItemStatus.COOKING)
-        ingredients = self.__menu_item.get_all_ingredient()
+        self.status(OrderItemStatus.COOKING)
+        ingredients = self.__menu_item.all_ingredient()
         
         for ingredient in ingredients:
             restaurant.consume_reserved_ingredient(ingredient.item.name, ingredient.quantity * self.__quantity)
             
-        self.update_status(OrderItemStatus.READY)
+        self.status(OrderItemStatus.READY)
         return True
 
     def cancel_reservation(self):
         if self.__status == OrderItemStatus.RESERVED:
-            ingredients = self.__menu_item.get_all_ingredient()
+            ingredients = self.__menu_item.all_ingredient()
             for ingredient in ingredients:
                 restaurant.reverse_reserve_ingredient(ingredient.item.name, ingredient.quantity * self.__quantity)
-            self.update_status(OrderItemStatus.CANCEL)
+            self.status(OrderItemStatus.CANCEL)
     
 class Order:
     def __init__(self, type: OrderType, customer: Customer):
@@ -167,7 +164,7 @@ class Order:
         for order_item in self.__order_item_list:
             if order_item.status == OrderItemStatus.ADDED:
                 order_item.order_item_reserve(restaurant)
-        self.update_status(OrderStatus.RESERVED)
+        self.status(OrderStatus.RESERVED)
         return self
     
     def order_confirm(self):
@@ -181,7 +178,7 @@ class Order:
             order_item = self.__order_item_list[order_item_index]
             if order_item.status == OrderItemStatus.OUT_OF_STOCK or order_item.status == OrderItemStatus.CANCEL:
                 del self.__order_item_list[order_item_index]
-        self.update_status(OrderStatus.CONFIRMED)
+        self.status(OrderStatus.CONFIRMED)
         return self
     
     def order_item_dict_list(self) -> list:
@@ -204,7 +201,7 @@ class Order:
         if self.__status not in [OrderStatus.RESERVED, OrderStatus.PAIDED]:
             return False
             
-        self.update_status(OrderStatus.COOKING)
+        self.status(OrderStatus.COOKING)
         all_done = True
         for item in self.__order_list:
             if item.status == OrderItemStatus.RESERVED:
@@ -212,7 +209,7 @@ class Order:
                     all_done = False
                 
         if all_done:
-            self.update_status(OrderStatus.READY)
+            self.status(OrderStatus.READY)
             return True
         return False
 
