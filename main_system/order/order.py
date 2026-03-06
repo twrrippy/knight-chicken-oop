@@ -85,7 +85,7 @@ class Order:
         self.__id = order_id
         self.__type = type
         self.__customer: Customer = customer
-        self.__order_list: List[OrderItem] = []
+        self.__order_item_list: List[OrderItem] = []
         self.__order_item_id_count = 0
         self.__status = OrderStatus.PENDING
         self.__status_start = SimulationClock.get_time()
@@ -111,7 +111,7 @@ class Order:
         except ValueError as e:
             raise ValueError(str(e))
         self.__order_item_list.append(current_order_item)
-        current_order_item.status(OrderItem.OrderItemStatus.ADDED)
+        current_order_item.status(OrderItemStatus.ADDED)
         self.update_price()
 
     def add_booking(self, booking: Booking):
