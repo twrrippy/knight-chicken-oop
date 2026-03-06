@@ -3,12 +3,12 @@ from typing import Optional, List, Tuple, Dict, Any
 from fastapi import HTTPException, Query
 from shared.utils.response import success_response_status, error_response_status
 from main_system.restaurant import restaurant
-# from main import mcp
+from mcp_core import mcp
+
 router = APIRouter(prefix="/payment", tags=["payment"])
 
-
-# @mcp.tool
-@router.post("/payment/confirm_pay/{order_id}")
+@mcp.tool
+@router.post("/confirm_pay/{order_id}")
 async def confirm_pay(order_id: str, staff_id: str, method: str, coupon_code: Optional[str] = Query(default=None), payment_details: Dict[str, Any] = {}):
     """
     ยืนยันการชำระเงิน คำนวณยอดสุดท้าย และออกใบเสร็จ (Execute Payment)
@@ -35,10 +35,17 @@ async def confirm_pay(order_id: str, staff_id: str, method: str, coupon_code: Op
     5. Coupon -> ถูกมาร์คว่าใช้งานแล้ว (NOT_AVAILABLE)
     6. Receipt -> สร้างใบเสร็จ เก็บลงประวัติลูกค้า และคืนค่า JSON ให้ Frontend
     """
-    return restaurant.process_order_payment(order_id, staff_id, coupon_code, method, payment_details)
 
-# @mcp.tool
-@router.post("/payment/preview_order/{order_id}")
+    try:
+        result = restaurant.process_order_payment(order_id, staff_id, coupon_code, method, payment_details)
+        return result
+    except HTTPException as e:
+        return f"ไม่สามารถดำเนินการได้: {e.detail}"
+    except Exception as e:
+        return f"เกิดข้อผิดพลาดของระบบ: {str(e)}"
+
+@mcp.tool
+@router.post("/preview_order/{order_id}")
 async def preview_order(order_id: str, staff_id: str, coupon_code: Optional[str] = Query(default=None)):
     """
     คำนวณยอดเงินที่ต้องชำระสำหรับ Order (Preview)
@@ -53,5 +60,10 @@ async def preview_order(order_id: str, staff_id: str, coupon_code: Optional[str]
     - แสดงยอดรวมก่อนลด, ส่วนลดจากคูปอง, เงินมัดจำที่หักออก (ถ้ามี), และยอดสุทธิ (Final Price) เพื่อให้พนักงานแจ้งลูกค้า
     - ฟังก์ชันนี้เป็นแบบ Stateless จะยังไม่บันทึกการใช้คูปองหรือเปลี่ยนแปลงสถานะใดๆ จนกว่าจะเรียก /confirm_pay
     """
-
-    return restaurant.preview_order_bill(order_id, staff_id, coupon_code)
+    try:
+        result = restaurant.preview_order_bill(order_id, staff_id, coupon_code)
+        return result
+    except HTTPException as e:
+        return f"ไม่สามารถดำเนินการได้: {e.detail}"
+    except Exception as e:
+        return f"เกิดข้อผิดพลาดของระบบ: {str(e)}"
