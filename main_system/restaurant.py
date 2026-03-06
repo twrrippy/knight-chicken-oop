@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 class Restaurant:
     def __init__(self):
         self.__menu: List[MenuItem] = []
+        self.__reserved_stock: List[Item] = []
         self.__stock: List[Item] = []
         self.__receipt_list: List[Receipt] = []
         self.__coupon_list: List[Coupon] = []
@@ -173,6 +174,12 @@ class Restaurant:
             if item.name == item_name and item.status == ItemStatus.RESERVED:
                 item.update_status(ItemStatus.AVAILABLE)
                 count += 1
+    
+    def find_ingredient_in_stock(self, item_name: str):
+        return sum(1 for item in self.__stock if item.name == item_name)
+
+    def find_item_in_reserved(self, item_name: str):
+        return sum(1 for reserved_item in self.__reserved_stock if reserved_item.name == item_name)
     
     def consume_reserved_ingredient(self, item_name: str, quantity: int):
         if self.find_item_in_reserved(item_name) < quantity:
