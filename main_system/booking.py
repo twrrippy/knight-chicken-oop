@@ -53,7 +53,7 @@ class Room:
     def capacity(self): return self.__capacity
 
 class Booking:
-    from actor.customer import Member
+    from main_system.coupon import Member
     def __init__(self, member: 'Member', room: 'Room', time_slot: 'TimeSlot'):
         self.__id = f"BK-{int(SimulationClock.get_time().timestamp())}"
         self.__member = member

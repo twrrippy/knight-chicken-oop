@@ -5,7 +5,7 @@ from main_system.booking import Booking, Room, BookingStatus, RoomStatus, TimeSl
 from main_system.external_platform.delivery_provider import DeliveryProvider, Delivery
 from main_system.external_platform.payment_method import PaymentMethod
 from shared.utils.simulate import SimulationClock
-from actor.customer import Member, Coupon, FixedAmountCoupon, PercentCoupon, Customer
+from main_system.coupon import Member, Coupon, FixedAmountCoupon, PercentCoupon, Customer
 
 from typing import TYPE_CHECKING, Optional, List, Tuple, Dict, Any
 from fastapi import FastAPI, HTTPException, Query
@@ -18,8 +18,113 @@ import uuid
 import random
 import copy
 
-if TYPE_CHECKING:
-    from actor.staff import Staff
+class User(ABC):
+    @staticmethod
+    def is_valid_phone_number(phone_number: str):
+        return len(phone_number) == 10 and phone_number.isdigit()
+    
+    def __init__(self, id: str, name: str, phone_number: str, username: str, password: str):
+        if not User.is_valid_phone_number(phone_number):
+            raise ValueError("INVALID: Phone number")
+        self.__id = id
+        self.__name = name
+        self.__phone_number = phone_number
+        self.__username = username
+        self.__password = password
+    
+    @property
+    def id(self):
+        return self.__id
+    @property
+    def name(self):
+        return self.__name
+    @property
+    def phone_number(self):
+        return self.__phone_number
+    @property
+    def username(self):
+        return self.__username
+    @property
+    def password(self):
+        return self.__password
+    
+    def check_username(self, username):
+        return self.__username == username
+    def check_password(self, password):
+        return self.__password == password
+    
+    def __eq__(self, other):
+        return (type(other) is type(self)) and self.__name == other.name and self.__id == other.id and self.__phone_number == other.phone_number
+class Staff(User):
+    def __init__(self, id: str, name: str, phone_number: str, username: str="", password: str=""):
+        super().__init__(id, name, phone_number, username, password)
+
+    def check_room_availability(self, room, start_time: datetime, hours: int) -> bool:
+        return restaurant.is_slot_available(room, start_time, hours)
+    
+class Customer(ABC):
+    def __init__(self, id: str, name: str, phone: str = ""):
+        self.__id = id
+        self.__name = name
+        self.__phone = phone
+
+    @property
+    def id(self):
+        return self.__id
+
+    @property
+    def name(self):
+        return self.__name
+
+    @property
+    def phone(self):
+        return self.__phone
+
+class Guest(Customer):
+    class GuestDTO(BaseModel):
+        id: str
+        name: str
+        phone_number: str
+
+class Member(Customer):
+    def __init__(self, id: str, name: str, tier: MemberTier, username: str, password: str, phone: str = ""):
+        super().__init__(id, name, phone)
+        self.__coupon_list: List[Coupon] = [] 
+        self.__receipt_list: List['Receipt'] = []
+        self.__tier: MemberTier = tier
+        self.__points: int = 0
+        self.__username = username
+        self.__password = password
+
+    def add_receipt(self, receipt: 'Receipt'): self.__receipt_list.append(receipt)
+    def add_coupon(self, coupon: 'Coupon'): self.__coupon_list.append(coupon)
+    
+    def get_coupon_by_code(self, code: str):
+        for coupon in self.__coupon_list:
+            if coupon.code == code: return coupon
+        raise HTTPException(404, "Coupon Not Found")
+
+    def get_member_discount(self, base_price: float):
+        match self.tier:
+            case MemberTier.GENERAL: return 0.0
+            case MemberTier.BRONZE: return base_price * 0.05
+            case MemberTier.SILVER: return base_price * 0.10
+            case MemberTier.GOLD: return base_price * 0.15
+        return 0.0
+
+    @property
+    def tier(self) -> MemberTier: return self.__tier
+    @property
+    def username(self): return self.__username
+    @property
+    def password(self): return self.__password
+
+    def check_username(self, username: str) -> bool:
+        return hasattr(self, "_username") and self.__username == username
+
+    def check_password(self, password: str) -> bool:
+        return hasattr(self, "_password") and self.__password == password
+
 
 class MenuItem(ABC):
     @staticmethod
@@ -860,7 +965,6 @@ class Restaurant:
 
     # --- Staff Registration ---
     def register_staff(self, username: str, password: str, name: str, phone: str = "0000000000") -> 'Staff':
-        from actor.staff import Staff
         if any(s.username == username for s in self.__staff_list) or any(m.username == username for m in self.__members):
             raise HTTPException(400, "Username already exists")
 
