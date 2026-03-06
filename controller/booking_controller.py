@@ -2,7 +2,6 @@ from fastapi import APIRouter, HTTPException, Query, status, Body
 from typing import Optional, List, Tuple, Dict, Any
 from datetime import datetime, timedelta
 from main_system.restaurant import restaurant
-# from main import restaurant_system, mcp
 from shared.utils.response import success_response_status, error_response_status
 
 router = APIRouter(prefix="/booking", tags=["booking"])

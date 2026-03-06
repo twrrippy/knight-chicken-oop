@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from fastapi import HTTPException
 from typing import TYPE_CHECKING, List
+from pydantic import BaseModel
 from main_system.enum import CouponStatus, MemberTier
 
 if TYPE_CHECKING:
@@ -27,7 +28,10 @@ class Customer(ABC):
         return self.__phone
 
 class Guest(Customer):
-    pass
+    class GuestDTO(BaseModel):
+        id: str
+        name: str
+        phone_number: str
 
 class Member(Customer):
     def __init__(self, id: str, name: str, tier: MemberTier, username: str, password: str, phone: str = ""):

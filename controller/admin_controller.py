@@ -2,6 +2,9 @@ from typing import Optional
 
 from fastapi import APIRouter, Query, status, HTTPException
 from shared.utils.response import success_response_status, error_response_status
+from main_system.enum import ItemStatus
+from main_system.order.order import Order
+from typing import Union
 # from main import restaurant_system, 
 from main_system.restaurant import restaurant
 """Admin Controller Routes include:
@@ -90,3 +93,25 @@ async def staff_sign_up(username: str, password: str, name: str, phone: str = "0
         "staff_id": staff.id,
         "name": staff.name
     }
+
+@router.get("/stock/check/{item_name}", tags=["Stock"])
+async def get_stock(item_name: str):
+    item_available = restaurant.check_stock(item_name, ItemStatus.AVAILABLE)
+    item_reserved = restaurant.check_stock(item_name, ItemStatus.UNAVS)
+    return {
+        "Available": item_available,
+        "Reserved": item_reserved
+    }
+
+@router.get("/queue/check", tags=["Queue"])
+async def check_queue():
+    return { "Queue": restaurant.check_queue}
+
+@router.get("/queue/get/{queue_order}", response_model=Union[Order.OrderDTO, dict], tags=["Queue"])
+async def get_queue(queue_order: int):
+    if queue_order > 50 or queue_order < 1:
+        raise HTTPException(status_code=400, detail="Queue not Found")
+    order = restaurant.get_queue()
+    if order == False:
+        raise HTTPException(status_code=400, detail="Queue not Found")
+    return order.order_to_dict(restaurant)

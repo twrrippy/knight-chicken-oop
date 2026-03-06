@@ -8,13 +8,14 @@ from abc import ABC, abstractmethod
 from enum import Enum
   
 app = FastAPI()    
+app = FastAPI()    
 class OrderType(Enum):
     GENERAL = "General"
     DELIVERY = "Delivery"
     EVENT = "Event"
     
 class OrderStatus(Enum):
-    NONE = "None"
+    PENDING = "Pending"
     RESERVED = "Reserved"
     CONFIRMED = "Confirmed"
     PAIDED = "Paided"
@@ -24,20 +25,17 @@ class OrderStatus(Enum):
     CANCELED = "Canceled"
     
 class OrderItemStatus(Enum):
-    NONE = "None"
-    ADDED = "Added to Order"
     PENDING = "Pending"
+    ADDED = "Added to Order"
     RESERVED = "Reserved"
-    AVAILABLE = "Available"
     OUT_OF_STOCK = "Out of Stock"
     COOKING = "Cooking"
-    FINISHED = "Finished"
+    READY = "Ready"
     CANCEL = "Cancel"
 
 class MenuItemStatus(Enum):
     AVAILABLE = "Available"
-    OUT_OF_STOCK = "Out_of_stock"
-    DELETED = "Deleted"
+    UNAVAILABLE = "Unavailable"
 class ItemStatus(Enum):
     AVAILABLE = "Available"
     RESERVED = "Reserved"
@@ -56,7 +54,6 @@ class User(ABC):
         return self._name
 
 class Customer(User):
-    def request_bill(self):
         pass
 
 class Guest(Customer):
@@ -64,10 +61,6 @@ class Guest(Customer):
         id: str
         name: str
         phone_number: str
-        
-    def register(self):
-        pass
-
 class Staff(User):
     pass
 
@@ -102,17 +95,22 @@ class Ingredient:
     def type(self):
         return self.__type
     
+    @property
     def custom_add(self):
         if self.__type == IngredientType.CUSTOMIZABLE:
             self.__quantity += 1
         else:
-            raise TypeError("CAN NOT Custom this Item")
-        
+            raise TypeError("CAN NOT Custom this Item.")
+
+    @property   
     def custom_sub(self):
-        if self.__type == IngredientType.CUSTOMIZABLE and self.__quantity> 0:
-            self.__quantity -= 1
+        if self.__type == IngredientType.CUSTOMIZABLE:
+            if not self.is_valid_quantity(self.__quantity - 1):
+                raise ValueError("INVALID: Quantity")
+            else:
+                self.__quantity -= 1
         else:
-            raise TypeError("CAN NOT Custom this Item")
+            raise TypeError("CAN NOT Custom this Item.")
         
 class MenuItem(ABC):
     def __init__(self,name:str, price: float, cooking_time: timedelta ):
@@ -132,36 +130,87 @@ class MenuItem(ABC):
     def update_status(self, status: MenuItemStatus):
         self.__menu_item_status = status
     
-    @abstractmethod    
-    def get_all_ingredient(self):
-        pass
-    
-    def update_price(self, new_price:float):
-        self.__price = new_price
-
 class SingleMenuItem(MenuItem):
-    def __init__(self, name:str, price:float, cooking_time:datetime,recipe: list ):
-        super().__init__(name,price,cooking_time)
+    def __init__(self, name: str, price: float, cooking_time: timedelta, recipe: list):
+        try:
+            super().__init__(name, price, cooking_time)
+        except ValueError as e:
+            raise ValueError(str(e))
+        for ingredient in recipe:
+            if not Ingredient.is_valid_quantity(ingredient.quantity):
+                raise ValueError("INVALID: Ingredient QUANTITY in Recipe")
         self.__recipe = recipe
         
-    def get_all_ingredient(self):
+    def find_ingredient_in_recipe(self, item: Item):
+        for find_ingredient in self.__recipe:
+            if find_ingredient.item == item:
+                return find_ingredient
+        raise ValueError("INVALID: Item")
+        
+    @property
+    def all_ingredient(self):
         return self.__recipe
     
-    def custom_add(self, item_name:str):
-        for ingredient in self.__recipe:
-            if ingredient.item.name == item_name:
-                ingredient.custom_add()
-                return
+    def custom_add(self, item: Item):
+        try:
+            ingredient = self.__find_ingredient_in_recipe(item)
+            ingredient.custom_add
+        except ValueError as e:
+            raise ValueError(str(e))
+        except TypeError as e:
+            raise TypeError(str(e))
         
-    def custom_sub(self, item_name: str):
-        for ingredient in self.__recipe:
-            if ingredient.item.name == item_name:
-                ingredient.custom_sub()
-                return
+    def custom_sub(self, item: Item):
+        try:
+            ingredient = self.__find_ingredient_in_recipe(item)
+            ingredient.custom_sub
+        except ValueError as e:
+            raise ValueError(str(e))
+        except TypeError as e:
+            raise TypeError(str(e))
 class Food:
     def __init__(self, item: SingleMenuItem, quantity: int):
         self.__item = item
+    def __init__(self, item: SingleMenuItem, quantity: int):
+        self.__item = item
         self.__quantity = quantity
+
+    @property
+    def item(self):
+        return self.__item
+    
+    @property
+    def quantity(self):
+        return self.__quantity
+
+class SetMenuItem(MenuItem):
+    def __init__(self, name, price, cooking_time, items: list):
+        super().__init__(name, price, cooking_time)
+        self.__items = items
+        
+    def get_all_ingredient(self):
+        total_ingredients = []
+        for food in self.__items:
+            for ingredient in food.item.get_all_ingredient():
+                total_ingredients.append(Ingredient(ingredient.item, ingredient.quantity * food.quantity,ingredient.type))
+        return total_ingredients
+    
+class OrderItem:
+    class OrderItemDTO(BaseModel):
+        order_id: str
+        menu_name: str
+        quantity: int
+    
+    def __init__(self, item_id: int, menu_item: MenuItem, quantity: int):
+        self.__id = item_id
+        self.__menu_item = menu_item
+        self.__quantity = quantity
+        self.__status = OrderItemStatus.PENDING
+
+    @property
+    def id(self):
+        return self.__id
+
 
     @property
     def item(self):
@@ -236,7 +285,7 @@ class OrderItem:
              return False
         
         self.update_status(OrderItemStatus.COOKING)
-        ingredients = self.__menu_item.get_all_ingredient()
+        ingredients = self.__menu_item.all_ingredient()
         
         for ingredient in ingredients:
             restaurant.consume_reserved_ingredient(ingredient.item.name, ingredient.quantity * self.__quantity)
