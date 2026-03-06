@@ -15,16 +15,3 @@ class SimulationClock:
     @classmethod
     def get_time(cls):
         return cls._current_time
-    
-class TimeSlot:
-    def __init__(self, start_time: datetime, hours: int):
-        self.__start_time = start_time
-        self.__end_time = start_time + timedelta(hours=hours)
-        self.__hours = hours
-
-    @property
-    def start_time(self): return self.__start_time
-    @property
-    def end_time(self): return self.__end_time
-    @property
-    def hours(self): return self.__hours

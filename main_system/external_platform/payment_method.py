@@ -37,7 +37,7 @@ class CreditCard(PaymentMethod):
             return False, "Missing Card Details"
             
         success = random.random() < 0.80
-        return (True, "Payment Done") if success else (False, "Card Declined")
+        return (True, "Payment Done") if success else (False, "Card Declined Please Try Again")
 
 class Cash(PaymentMethod):
     def __init__(self, id: str, name: str): super().__init__(id, name)

@@ -25,7 +25,6 @@ if TYPE_CHECKING:
 class Restaurant:
     def __init__(self):
         self.__menu: List[MenuItem] = []
-        self.__reserved_stock: List[Item] = []
         self.__stock: List[Item] = []
         self.__receipt_list: List[Receipt] = []
         self.__coupon_list: List[Coupon] = []
@@ -175,33 +174,33 @@ class Restaurant:
                 item.update_status(ItemStatus.AVAILABLE)
                 count += 1
     
-    def find_ingredient_in_stock(self, item_name: str):
-        return sum(1 for item in self.__stock if item.name == item_name)
+    # def find_ingredient_in_stock(self, item_name: str):
+    #     return sum(1 for item in self.__stock if item.name == item_name)
 
-    def find_item_in_reserved(self, item_name: str):
-        return sum(1 for reserved_item in self.__reserved_stock if reserved_item.name == item_name)
+    # def find_item_in_reserved(self, item_name: str):
+    #     return sum(1 for reserved_item in self.__reserved_stock if reserved_item.name == item_name)
     
-    def consume_reserved_ingredient(self, item_name: str, quantity: int):
-        if self.find_item_in_reserved(item_name) < quantity:
-            return False
+    # def consume_reserved_ingredient(self, item_name: str, quantity: int):
+    #     if self.find_item_in_reserved(item_name) < quantity:
+    #         return False
 
-        count = 0
-        for i in range(len(self.__reserved_stock) - 1, -1, -1):
-            if self.__reserved_stock[i].name == item_name:
-                self.__reserved_stock.pop(i)
-                count += 1
-                if count == quantity:
-                    break
-        return True
+    #     count = 0
+    #     for i in range(len(self.__reserved_stock) - 1, -1, -1):
+    #         if self.__reserved_stock[i].name == item_name:
+    #             self.__reserved_stock.pop(i)
+    #             count += 1
+    #             if count == quantity:
+    #                 break
+    #     return True
 
-    def reverse_reserve_ingredient(self, item_name: str, quantity: int):
-        count = 0
-        for i in range(len(self.__reserved_stock) - 1, -1, -1):
-            if self.__reserved_stock[i].name == item_name:
-                self.__stock.append(self.__reserved_stock.pop(i)) 
-                count += 1
-                if count == quantity:
-                    break
+    # def reverse_reserve_ingredient(self, item_name: str, quantity: int):
+    #     count = 0
+    #     for i in range(len(self.__reserved_stock) - 1, -1, -1):
+    #         if self.__reserved_stock[i].name == item_name:
+    #             self.__stock.append(self.__reserved_stock.pop(i)) 
+    #             count += 1
+    #             if count == quantity:
+    #                 break
 
     def confirm(self, order:Order):
         try:
@@ -363,7 +362,7 @@ class Restaurant:
         # if order.order_type == OrderType.EVENT and staff.role != StaffRole.PartyStaff:
         #     raise HTTPException(400, "Invalid Staff Role for Event Order")
             
-        if order.status == OrderStatus.PAID: 
+        if order.status == OrderStatus.PAIDED: 
             raise HTTPException(400, "Order Already Paid")
             
         receipt = order.execute_payment(method, payment_details, coupon_code)
@@ -379,7 +378,7 @@ class Restaurant:
     
     def preview_order_bill(self, order_id: str, staff_id: str, coupon_code: Optional[str]):
         order = self.get_order(order_id)
-        if order.status == OrderStatus.PAID: raise HTTPException(400, "Order Already Paid")
+        if order.status == OrderStatus.PAIDED: raise HTTPException(400, "Order Already Paid")
         staff = self.get_staff(staff_id)
         return order.pre_calculate_totals(coupon_code)
     
