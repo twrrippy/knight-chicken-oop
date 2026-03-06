@@ -5,7 +5,6 @@ from main_system.enum import RoomStatus, RoomType, BookingStatus
 
 from shared.utils.simulate import SimulationClock
 from main_system.external_platform.payment_method import PaymentMethod
-from main_system.enum import MemberTier
 class TimeSlot:
     def __init__(self, start_time: datetime, hours: int):
         self.__start_time = start_time
@@ -109,8 +108,7 @@ class Booking:
         }
     
     @property
-    def full_price(self): 
-        return self.room.price_per_hour * self.time_slot.hours if self.member.tier != MemberTier.GOLD else self.room.price_per_hour * self.time_slot.hours * 0.8
+    def full_price(self): return self.room.price_per_hour * self.time_slot.hours if self.member.tier != "GOLD" else self.room.price_per_hour * self.time_slot.hours * 0.8
     @property
     def deposit(self): return self.full_price * 0.5
     @property

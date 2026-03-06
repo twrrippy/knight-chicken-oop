@@ -4,7 +4,6 @@ from main_system.order.order_extention.delivery import Delivery
 from actor.customer import Customer, Coupon, Member, CouponStatus
 from main_system.external_platform.payment_method import PaymentMethod
 from main_system.enum import OrderStatus, OrderType, OrderItemStatus
-from main_system.log.receipt import Receipt
 from fastapi import HTTPException
 from pydantic import BaseModel
 from datetime import datetime
@@ -70,7 +69,7 @@ class OrderItem:
     def order_item_to_dict(self):
         return {
             "id": self.__id,
-            "menu": self.__menu_item.to_dict_order(),
+            "menu": self.__menu_item.to_dict_order(restaurant),
             "quantity": self.__quantity,
             "status": self.__status
         }
@@ -185,7 +184,7 @@ class Order:
     def order_item_dict_list(self) -> list:
         dict_list = []
         for e in self.__order_item_list:
-            dict_list.append(e.order_item_to_dict())
+            dict_list.append(e.order_item_to_dict(restaurant))
         return dict_list
     
     def order_to_dict(self) -> dict:
@@ -217,20 +216,20 @@ class Order:
     def pre_calculate_totals(self, coupon_code: Optional[str] = None):
         coupon = None
         if coupon_code:
-            if isinstance(self.__customer, Member):
-                coupon = self.__customer.get_coupon_by_code(coupon_code)
+            if isinstance(self.customer, Member):
+                coupon = self.customer.get_coupon_by_code(coupon_code)
             else:
                 raise HTTPException(409, "Only members can use coupons")
         
-        subtotal = sum(item.price for item in self.__order_item_list)
+        subtotal = sum(item.price for item in self.order_item)
         deposit = 0.0
 
-        if self.__booking:
-            subtotal += self.__booking.full_price
-            deposit = self.__booking.deposit
+        if self.booking:
+            subtotal += self.booking.full_price
+            deposit = self.booking.deposit
 
-        if self.__delivery:
-            subtotal += self.__delivery.fee
+        if self.delivery:
+            subtotal += self.delivery.fee
 
         coupon_discount = 0.0
         if coupon:
@@ -239,8 +238,8 @@ class Order:
              coupon_discount = coupon.apply_coupon(subtotal)
         
         teir_discount = 0.0
-        if isinstance(self.__customer, Member):
-            teir_discount = self.__customer.get_member_discount(subtotal)
+        if isinstance(self.customer, Member):
+            teir_discount = self.customer.get_member_discount(subtotal)
 
         discount = min(teir_discount + coupon_discount, subtotal)
 
@@ -249,36 +248,33 @@ class Order:
         
         return {
             "Member": {
-                "Customer ID": self.__customer.id,
-                "Name": self.__customer.name,
-                "Tier": self.__customer.tier if isinstance(self.__customer, Member) else "None"
+                "Customer ID": self.customer.id,
+                "Name": self.customer.name
             },
-            "Order Id": self.__id,
-            "Food": [item.get_details() for item in self.__order_item_list],
-            "Booking": self.__booking.get_details() if self.__booking else "None",
-            "Delivery": self.__delivery.get_details() if self.__delivery else "None",
+            "Order Id": self.id,
+            "Food": [item.get_details() for item in self.order_item],
+            "Booking": self.booking.get_details() if self.booking else "None",
+            "Delivery": self.delivery.get_details() if self.delivery else "None",
             "Total Price Before Discount": subtotal,
             "Coupon Code": coupon.code if coupon else "None",
-            "Coupon Discount": coupon_discount,
-            "Tier Discount": teir_discount,
-            "Total Discounted": discount,
+            "Discounted": discount,
             "Final Price": final_price
         }
 
     def calculate_totals(self, coupon_code: Optional[str] = None):
         info = self.pre_calculate_totals(coupon_code)
         self.__subtotal = info.get("Total Price Before Discount")
-        self.__discount = info.get("Total Discounted")
+        self.__discount = info.get("Discounted")
         self.__final_price = info.get("Final Price")
-        if coupon_code and isinstance(self.__customer, Member):
-            self.__coupon_used = self.__customer.get_coupon_by_code(coupon_code)
+        if coupon_code and isinstance(self.customer, Member):
+            self.__coupon_used = self.customer.get_coupon_by_code(coupon_code)
         return info
     
     def execute_payment(self, method: PaymentMethod, payment_details: Dict[str, Any] = {}, coupon_code: Optional[str] = None) -> 'Receipt':
         coupon = None
         if coupon_code:
-            if isinstance(self.__customer, Member):
-                coupon = self.__customer.get_coupon_by_code(coupon_code)
+            if isinstance(self.customer, Member):
+                coupon = self.customer.get_coupon_by_code(coupon_code)
             else:
                 raise HTTPException(409, "Only members can use coupons")
             
@@ -294,18 +290,18 @@ class Order:
         if success:
             self.status = OrderStatus.PAIDED
 
-            if self.__booking:
-                self.__booking.mark_checked_in()
-                self.__booking.room.mark_room_in_use()
+            if self.booking:
+                self.booking.mark_checked_in()
+                self.booking.room.mark_room_in_use()
             
-            if self.__delivery:
-                self.__delivery.mark_as_paid()
+            if self.delivery:
+                self.delivery.mark_as_paid()
 
             if coupon: coupon.mark_as_used()
 
             receipt = Receipt(self, method)
-            if isinstance(self.__customer, Member):
-                self.__customer.add_receipt(receipt)
+            if isinstance(self.customer, Member):
+                self.customer.add_receipt(receipt)
             return receipt
         else:
             raise HTTPException(400, note)
@@ -330,7 +326,7 @@ class Order:
     @property
     def coupon_used(self): return self.__coupon_used
     @property
-    def order_item(self): return self.__order_item_list
+    def order_item(self): return self.__order_list
     @property
     def customer(self): return self.__customer
     @property

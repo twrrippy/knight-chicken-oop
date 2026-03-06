@@ -8,7 +8,6 @@ from main_system.external_platform.delivery_provider import DeliveryProvider
 from main_system.external_platform.payment_method import PaymentMethod
 from shared.utils.simulate import SimulationClock
 from actor.customer import Member, Coupon, FixedAmountCoupon, PercentCoupon
-from actor.staff import Staff
 
 from typing import TYPE_CHECKING, Optional, List, Tuple, Dict, Any
 from fastapi import FastAPI, HTTPException, Query
@@ -212,7 +211,7 @@ class Restaurant:
         return confirmed_order
     
     def check_and_issue_reward(self, order: 'Order'):
-        if not isinstance(order.customer, Member):
+        if not isinstance(order.customer, 'Member'):
             return None
 
         member = order.customer
@@ -235,7 +234,7 @@ class Restaurant:
         return None
     
     def check_and_issue_member_teir(self, order: 'Order'):
-        if not isinstance(order.customer, Member):
+        if not isinstance(order.customer, 'Member'):
             return None
 
     def get_payment_method(self, method_name: str) -> 'PaymentMethod':
@@ -245,15 +244,15 @@ class Restaurant:
     
     def booking_room(self, staff_id: str, member_id: str, room_id: str, hours: int, amount_paid: float, pay_method: str, start_time: datetime, payment_details: Dict[str, Any] = {}):
         staff = self.get_staff(staff_id)
-        if not isinstance(staff, Staff):
+        if not isinstance(staff, 'Staff'):
             raise HTTPException(status_code=403, detail="Only Staff can handle bookings")
 
         member = self.get_member_by_id(member_id)
-        if not member or not isinstance(member, Member):
+        if not member or not isinstance(member, 'Member'):
             raise HTTPException(status_code=404, detail="Member not found")
         
         room = self.get_room(room_id)
-        if not room or not isinstance(room, Room):
+        if not room or not isinstance(room, 'Room'):
             raise HTTPException(status_code=404, detail="Room not found")
 
         if not self.is_slot_avaliable(room, start_time, hours):
@@ -342,6 +341,8 @@ class Restaurant:
     def get_all_rooms(self) -> List['Room']: return self.__room_list
     def get_all_receipts(self) -> List['Receipt']: return self.__receipts
     
+    ### --------- API --------- ###
+    
     def preview_booking_details(self, booking_id: str):
         booking = self.get_booking(booking_id)
         return booking.get_details()
@@ -358,8 +359,11 @@ class Restaurant:
         method = self.get_payment_method(method_name)
         staff = self.get_staff(staff_id)
         order = self.get_order(order_id)
+        
+        # if order.order_type == OrderType.EVENT and staff.role != StaffRole.PartyStaff:
+        #     raise HTTPException(400, "Invalid Staff Role for Event Order")
             
-        if order.status == OrderStatus.PAIDED: 
+        if order.status == OrderStatus.PAID: 
             raise HTTPException(400, "Order Already Paid")
             
         receipt = order.execute_payment(method, payment_details, coupon_code)
@@ -375,7 +379,7 @@ class Restaurant:
     
     def preview_order_bill(self, order_id: str, staff_id: str, coupon_code: Optional[str]):
         order = self.get_order(order_id)
-        if order.status == OrderStatus.PAIDED: raise HTTPException(400, "Order Already Paid")
+        if order.status == OrderStatus.PAID: raise HTTPException(400, "Order Already Paid")
         staff = self.get_staff(staff_id)
         return order.pre_calculate_totals(coupon_code)
     
