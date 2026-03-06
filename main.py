@@ -23,6 +23,15 @@ app.include_router(admin_router)
 app.include_router(booking_router)
 app.include_router(simulation_router)
 
+@mcp.tool()
+@app.post("/simulate/advance-time", tags=["Simulation"])
+async def advance_time(minutes: int):
+    """
+    ขยับเวลาไปยังอนาคต โดยรับเวลามาเป็นหน่วย นาที
+    """
+    new_time = SimulationClock.get_time() + timedelta(minutes=minutes)
+    SimulationClock.set_time(new_time)
+    return {"current_simulation_time": SimulationClock.get_time()}
 
 @mcp.tool()
 @app.get("/menu", response_model=dict, tags=["Menu"])
@@ -36,5 +45,5 @@ async def get_menu():
 
 
 if __name__ == "__main__":
-    # mcp.run()
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+    mcp.run()
+    #uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)

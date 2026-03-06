@@ -8,6 +8,7 @@ from main_system.external_platform.delivery_provider import DeliveryProvider
 from main_system.external_platform.payment_method import PaymentMethod
 from shared.utils.simulate import SimulationClock
 from actor.customer import Member, Coupon, FixedAmountCoupon, PercentCoupon
+from actor.staff import Staff
 
 from typing import TYPE_CHECKING, Optional, List, Tuple, Dict, Any
 from fastapi import FastAPI, HTTPException, Query
