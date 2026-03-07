@@ -1,11 +1,11 @@
 from __future__ import annotations
 from main_system.authentication import AuthManager
 from main_system.ingredient import Item, Ingredient
-from main_system.booking import Booking, Room, BookingStatus, RoomStatus, TimeSlot
 from main_system.external_platform.delivery_provider import DeliveryProvider, Delivery
 from main_system.external_platform.payment_method import PaymentMethod
 from shared.utils.simulate import SimulationClock
 from main_system.coupon import Coupon, FixedAmountCoupon, PercentCoupon
+from main_system.enum import RoomStatus, RoomType, BookingStatus
 
 from typing import TYPE_CHECKING, Optional, List, Tuple, Dict, Any
 from fastapi import FastAPI, HTTPException, Query
@@ -33,29 +33,19 @@ class User(ABC):
         self.__password = password
     
     @property
-    def id(self):
-        return self.__id
+    def id(self): return self.__id
     @property
-    def name(self):
-        return self.__name
+    def name(self): return self.__name
     @property
-    def phone_number(self):
-        return self.__phone_number
-    @property
-    def username(self):
-        return self.__username
-    @property
-    def password(self):
-        return self.__password
+    def phone_number(self): return self.__phone_number
     
     def check_username(self, username: str) -> bool:
         return hasattr(self, "_username") and self.__username == username
-
-    def check_password(self, password: str) -> bool:
-        return hasattr(self, "_password") and self.__password == password
+    def check_identity(self, username: str, password: str) -> bool:
+        return hasattr(self, "_username") and hasattr(self, "_password") and self.__username == username and self.__password == password
     
-    def __eq__(self, other):
-        return (type(other) is type(self)) and self.__name == other.name and self.__id == other.id and self.__phone_number == other.phone_number
+    # def __eq__(self, other):
+    #     return (type(other) is type(self)) and self.__name == other.name and self.__id == other.id and self.__phone_number == other.phone_number
 class Staff(User):
     def __init__(self, id: str, name: str, phone_number: str, username: str="", password: str=""):
         super().__init__(id, name, phone_number, username, password)
@@ -66,16 +56,19 @@ class Staff(User):
 class Customer(User):
     pass
 class Guest(Customer):
-    def __init__(self, id: str, name: str, phone_number: str = ""):
-        if not User.is_valid_phone_number(phone_number):
-            raise ValueError("INVALID: Phone number")
-        self.__id = id
-        self.__name = name
-        self.__phone_number = phone_number
-    class GuestDTO(BaseModel):
-        id: str
-        name: str
-        phone_number: str
+    Guest_count = 0
+    def __init__(self, name = None):
+        if name == None:
+            self.__name = f"GUEST-{Guest.Guest_count:0{3}d}"
+            Guest.Guest_count += 1
+        else: 
+            self.__name = name
+
+    @property
+    def name(self): return self.__name
+
+    def __eq__(self, other):
+        return (type(other) is type(self)) and self.__name == other.name
 
 class Member(Customer):
     def __init__(self, id: str, name: str, tier: MemberTier, username: str, password: str, phone: str = ""):
@@ -306,10 +299,10 @@ class OrderItem:
                 success = restaurant.stock_reserve(ingredient.item.name, ingredient.quantity * self.__quantity)
                 if not success:
                     self.order_item_reverse(ingredient)
-                    self.update_status(OrderItemStatus.OUT_OF_STOCK)
+                    self.status = OrderItemStatus.OUT_OF_STOCK
                     return
             else:
-                self.update_status(OrderItemStatus.RESERVED)
+                self.status= OrderItemStatus.RESERVED
         except ValueError as e:
             raise ValueError(str(e))
     def order_item_reverse(self, ingredient: Ingredient):
@@ -337,25 +330,28 @@ class OrderItem:
         if self.__status != OrderItemStatus.RESERVED:
              return False
         
-        self.status(OrderItemStatus.COOKING)
-        ingredients = self.__menu_item.all_ingredient()
+        self.status = OrderItemStatus.COOKING
+        ingredients = self.__menu_item.all_ingredient
         
         for ingredient in ingredients:
             restaurant.consume_reserved_ingredient(ingredient.item.name, ingredient.quantity * self.__quantity)
             
-        self.status(OrderItemStatus.READY)
+        self.status = OrderItemStatus.READY
         return True
 
     def cancel_reservation(self):
         if self.__status == OrderItemStatus.RESERVED:
-            ingredients = self.__menu_item.all_ingredient()
+            ingredients = self.__menu_item.all_ingredient
             for ingredient in ingredients:
-                restaurant.reverse_reserve_ingredient(ingredient.item.name, ingredient.quantity * self.__quantity)
-            self.status(OrderItemStatus.CANCELED)
-    
+                restaurant.stock_reverse(ingredient.item.name, ingredient.quantity * self.__quantity)
+            self.status = OrderItemStatus.CANCELED
+
 class Order:
+    OrderId_count = 0
+
     def __init__(self, type: OrderType, customer: Customer):
-        self.__id = f"TXN-{uuid.uuid4().hex[:12].upper()}"
+        self.__id = f"ORD-{Order.OrderId_count:0{3}d}"
+        Order.OrderId_count += 1
         self.__type = type
         self.__customer: Customer = customer
         self.__order_item_list: List[OrderItem] = []
@@ -428,7 +424,7 @@ class Order:
             raise ValueError("Confirmed Already")
         for order_item_index in range(len(self.__order_item_list) - 1, -1, -1):
             order_item = self.__order_item_list[order_item_index]
-            if order_item.status == OrderItemStatus.OUT_OF_STOCK or order_item.status == OrderItemStatus.CANCEL:
+            if order_item.status == OrderItemStatus.OUT_OF_STOCK or order_item.status == OrderItemStatus.CANCELED:
                 del self.__order_item_list[order_item_index]
         self.status = OrderStatus.CONFIRMED
         return self
@@ -446,7 +442,7 @@ class Order:
             "order_status": self.__status,
             "customer": self.__customer.name,
             "order_item_list": self.order_item_dict_list(),
-            "total_price": self.__sub_total_price
+            "total_price": self.__subtotal
         }
         
     def cook_order(self):
@@ -756,7 +752,7 @@ class Restaurant:
     def get_menu(self):
         menu = []
         for each_menu in self.__menu:
-            menu.append(each_menu.to_dict_menu(self))
+            menu.append(each_menu.to_dict_menu())
         return {"menu": menu}
     
     def search_menu_item_from_name(self, menu_item_name: str):
@@ -773,7 +769,7 @@ class Restaurant:
     
     #reserved while ordering
     def reserve(self, order: Order):
-        return order.order_reserve(self)
+        return order.order_reserve()
     
     def stock_reserve(self, item_name: str, quantity: int):
         if quantity <= 0:
@@ -781,7 +777,7 @@ class Restaurant:
         count = 0
         for item in self.__stock:
             if item.name == item_name and item.status == ItemStatus.AVAILABLE:
-                item.update_status(ItemStatus.RESERVED)
+                item.status = ItemStatus.RESERVED
                 count += 1
             if count == quantity:
                 return True
@@ -799,36 +795,44 @@ class Restaurant:
                 return True
             item = self.__stock[item_index]
             if item.name == item_name and item.status == ItemStatus.RESERVED:
-                item.update_status(ItemStatus.AVAILABLE)
+                item.status = ItemStatus.AVAILABLE
                 count += 1
     
-    # def find_ingredient_in_stock(self, item_name: str):
-    #     return sum(1 for item in self.__stock if item.name == item_name)
+    def find_ingredient_in_stock(self, item_name: str):
+        return sum(1 for item in self.__stock if item.name == item_name and item.status == ItemStatus.AVAILABLE)
 
-    # def find_item_in_reserved(self, item_name: str):
-    #     return sum(1 for reserved_item in self.__reserved_stock if reserved_item.name == item_name)
+    def find_item_in_reserved(self, item_name: str):
+        return sum(1 for item in self.__stock if item.name == item_name and item.status == ItemStatus.RESERVED)
     
-    # def consume_reserved_ingredient(self, item_name: str, quantity: int):
-    #     if self.find_item_in_reserved(item_name) < quantity:
-    #         return False
+    def consume_reserved_ingredient(self, item_name: str, quantity: int):
+        if self.find_item_in_reserved(item_name) < quantity:
+            return False
 
-    #     count = 0
-    #     for i in range(len(self.__reserved_stock) - 1, -1, -1):
-    #         if self.__reserved_stock[i].name == item_name:
-    #             self.__reserved_stock.pop(i)
-    #             count += 1
-    #             if count == quantity:
-    #                 break
-    #     return True
+        count = 0
+        for i in range(len(self.__stock) - 1, -1, -1):
+            item = self.__stock[i]
+            if item.name == item_name and item.status == ItemStatus.RESERVED:
+                self.__stock.pop(i)
+                count += 1
+                if count == quantity:
+                    break
+        return True
 
-    # def reverse_reserve_ingredient(self, item_name: str, quantity: int):
-    #     count = 0
-    #     for i in range(len(self.__reserved_stock) - 1, -1, -1):
-    #         if self.__reserved_stock[i].name == item_name:
-    #             self.__stock.append(self.__reserved_stock.pop(i)) 
-    #             count += 1
-    #             if count == quantity:
-    #                 break
+    def stock_reverse(self, item_name: str, quantity: int):
+        if quantity < 0:
+            raise ValueError("INVALID: Quantity")
+        if self.check_stock(item_name, ItemStatus.RESERVED) < quantity:
+            raise ValueError("Reverse")
+        count = 0
+        for item_index in range(len(self.__stock) - 1, -1, -1):
+            if count == quantity:
+                return True
+            item = self.__stock[item_index ]
+            if item.name == item_name and item.status == ItemStatus.RESERVED:
+                item.status == ItemStatus.AVAILABLE 
+                count += 1
+        return count == quantity
+                    
 
     def confirm(self, order:Order):
         try:
@@ -921,8 +925,8 @@ class Restaurant:
                 b.room.status = RoomStatus.AVAILABLE
 
     def login(self, username, password):
-        member = next((m for m in self.__member_list if m.username == username and m.password == password), None)
-        staff = next((s for s in self.__staff_list if s.username == username and s.password == password), None)
+        member = next((m for m in self.__member_list if m.check_identity(username, password)), None)
+        staff = next((s for s in self.__staff_list if s.check_identity(username, password)), None)
         if member:
             return self.__auth_manager.create_session(member.id)
         
@@ -941,7 +945,7 @@ class Restaurant:
     # --- Member Registration ---
     def register_member(self, username: str, password: str, name: str, phone: str = "0000000000") -> 'Member':
         # ตรวจสอบว่า Username ซ้ำไหม
-        if any(m.username == username for m in self.__member_list) or any(s.username == username for s in self.__staff_list):
+        if any(m.check_username(username) for m in self.__member_list) or any(s.check_username(username) for s in self.__staff_list):
             raise HTTPException(400, "Username already exists")
         
         # ระบบสร้าง ID ให้อัตโนมัติ
@@ -956,7 +960,7 @@ class Restaurant:
 
     # --- Staff Registration ---
     def register_staff(self, username: str, password: str, name: str, phone: str = "0000000000") -> 'Staff':
-        if any(s.username == username for s in self.__staff_list) or any(m.username == username for m in self.__member_list):
+        if any(s.check_username(username) for s in self.__staff_list) or any(m.check_username(username) for m in self.__member_list):
             raise HTTPException(400, "Username already exists")
 
         new_id = f"S-{self.__staff_counter:03d}"

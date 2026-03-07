@@ -10,7 +10,7 @@ async def cook_order(order_id: str):
         order = restaurant.search_order_from_id(order_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=(str(e)))
-    success = order.cook_order(restaurant)
+    success = order.cook_order(  )
     if success:
         return {"message": "Cooking finished. Order is READY.", "status": order.status.value}
     else:
