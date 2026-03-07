@@ -150,6 +150,10 @@ class MenuItem(ABC):
             if ingredient.type == IngredientType.CUSTOMIZABLE:
                 custom.append(ingredient.ingredient_to_dict)
         self.update_price(original_menu)
+        custom = []
+        for ingredient in self.all_ingredient:
+            if ingredient.type == IngredientType.CUSTOMIZABLE:
+                custom.append(ingredient.ingredient_to_dict)
         return {
             "name": self.__name,
             "customizable": custom if custom else None,
@@ -189,6 +193,12 @@ class SingleMenuItem(MenuItem):
                 return find_ingredient
         raise ValueError("INVALID: Item")
     
+    def find_ingredient_in_recipe_from_name(self, item_name: str):
+        for find_ingredient in self.__recipe:
+            if find_ingredient.item.name == item_name:
+                return find_ingredient
+        raise ValueError("INVALID: Item")
+    
     def calculate_price(self, original_menu: MenuItem):
         add_price = 0
         for ingredient in self.all_ingredient:
@@ -203,19 +213,10 @@ class SingleMenuItem(MenuItem):
     def all_ingredient(self):
         return self.__recipe
     
-    def custom_add(self, item: Item):
+    def custom_ingredient(self, item_name: str, quantity: int):
         try:
-            ingredient = self.find_ingredient_in_recipe(item)
-            ingredient.custom_add
-        except ValueError as e:
-            raise ValueError(str(e))
-        except TypeError as e:
-            raise TypeError(str(e))
-        
-    def custom_sub(self, item: Item):
-        try:
-            ingredient = self.find_ingredient_in_recipe(item)
-            ingredient.custom_sub
+            ingredient = self.find_ingredient_in_recipe_from_name(item_name)
+            ingredient.custom(quantity)
         except ValueError as e:
             raise ValueError(str(e))
         except TypeError as e:
@@ -274,6 +275,12 @@ class OrderItem:
         order_id: str
         menu: str
         quantity: int
+    
+    class OrderItemCustomDTO(BaseModel):
+        order_id: str
+        order_item_id: int
+        item_name: str
+        quantity: int
 
     @staticmethod
     def is_valid_quantity(quantity: int):
@@ -300,6 +307,16 @@ class OrderItem:
     @status.setter
     def status(self, status: OrderItemStatus): self.__status = status
     
+    def custom_menu(self, item_name: str, quantity: int):
+        if not isinstance(self.__menu_item, SingleMenuItem):
+            raise TypeError("Can not custom. This is not Single Menu Item.")
+        try:
+            self.__menu_item.custom_ingredient(item_name= item_name, quantity= quantity)
+        except ValueError as e:
+            raise ValueError(str(e))
+        except TypeError as e:
+            raise TypeError(str(e))
+
     def order_item_reserve(self):
         try:
             for ingredient in self.__menu_item.all_ingredient:
@@ -389,6 +406,21 @@ class Order:
         self.__order_item_list.append(current_order_item)
         current_order_item.status = OrderItemStatus.ADDED
         self.update_price()
+    
+    def search_order_item_from_id(self, order_item_id: int):
+        for order_item in self.__order_item_list:
+            if order_item.id == order_item_id:
+                return order_item
+        raise ValueError("Order Item NOT FOUND")
+
+    def custom(self,order_item_id: int, item_name: str, quantity: int):
+        try:
+            order_item = self.search_order_item_from_id(order_item_id)
+            order_item.custom_menu(item_name, quantity)
+        except ValueError as e:
+            raise ValueError(str(e))
+        except TypeError as e:
+            raise TypeError(str(e))
 
     def add_booking(self, booking: 'Booking'):
         if self.booking: raise HTTPException(409, "Booking Already Exists")
@@ -773,13 +805,12 @@ class Restaurant:
             if find.id == order_id:
                 return find
         raise ValueError("Order NOT FOUND")
-    
     #reserved while ordering
     def reserve(self, order: Order):
         return order.order_reserve()
     
     def stock_reserve(self, item_name: str, quantity: int):
-        if quantity <= 0:
+        if quantity < 0:
             raise ValueError("INVALID: Quantity")
         count = 0
         for item in self.__stock:

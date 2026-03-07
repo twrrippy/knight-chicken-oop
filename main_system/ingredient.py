@@ -66,19 +66,9 @@ class Ingredient:
         self.__quantity = quantity
 
     @property
-    def custom_add(self):
+    def custom(self, quantity: int):
         if self.__type == IngredientType.CUSTOMIZABLE:
-            self.__quantity += 1
-        else:
-            raise TypeError("CAN NOT Custom this Item.")
-
-    @property   
-    def custom_sub(self):
-        if self.__type == IngredientType.CUSTOMIZABLE:
-            if not self.is_valid_quantity(self.__quantity - 1):
-                raise ValueError("INVALID: Quantity")
-            else:
-                self.__quantity -= 1
+            self.modify(quantity)
         else:
             raise TypeError("CAN NOT Custom this Item.")
         
