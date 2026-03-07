@@ -20,13 +20,10 @@ async def get_all_receipts(
     )]
 ):
     """
-    ดึงข้อมูลใบเสร็จทั้งหมดในระบบ เฉพาะ ADMIN เท่านั้นที่ใช้ได้
-    
-    Returns:
-        Dict[str, List[Dict]]: รายการใบเสร็จทั้งหมด
+    Retrieve all payment receipts. Requires ADMIN access.
     """
     restaurant.verify_token_and_role(token, ["Admin"])
-    return {"receipts": restaurant.get_all_receipts}
+    return [r.generate() for r in restaurant.get_all_receipts()]
 
 @mcp.tool
 @router.get("/get-all-members", tags=["Data"])
@@ -36,10 +33,7 @@ async def get_all_members(
     )]
 ):
     """
-    ดึงข้อมูลสมาชิกทั้งหมดในระบบ เฉพาะ ADMIN เท่านั้นที่ใช้ได้
-    
-    Returns:
-        List[Dict]: รายชื่อสมาชิกพร้อมข้อมูลเบื้องต้น (ID, ชื่อ, Tier)
+    Retrieve a list of all registered members. Requires ADMIN access.
     """
     restaurant.verify_token_and_role(token, ["Admin"])
     return [
@@ -58,10 +52,7 @@ async def get_all_rooms(
     )]
 ):
     """
-    ดึงข้อมูลห้องทั้งหมดในระบบ เฉพาะ ADMIN เท่านั้นที่ใช้ได้
-    
-    Returns:
-        List[Dict]: ข้อมูลห้อง (ID, ประเภท, สถานะ, ราคาต่อชั่วโมง)
+    Retrieve all rooms and their current statuses. Requires ADMIN access.
     """
     restaurant.verify_token_and_role(token, ["Admin"])
     return [
@@ -81,10 +72,7 @@ async def get_all_staff(
     )]
 ):
     """
-    ดึงข้อมูลพนักงานทั้งหมดในระบบ เฉพาะ ADMIN เท่านั้นที่ใช้ได้
-    
-    Returns:
-        List[Dict]: รายชื่อพนักงาน (ID, ชื่อ)
+    Retrieve a list of all staff members. Requires ADMIN access.
     """
     restaurant.verify_token_and_role(token, ["Admin"])
     return [
@@ -102,10 +90,7 @@ async def get_all_orders(
     )]
 ):
     """
-    ดึงข้อมูลออเดอร์ทั้งหมดในระบบ เฉพาะ ADMIN เท่านั้นที่ใช้ได้
-    
-    Returns:
-        List[Dict]: รายการออเดอร์ (ID, ชื่อลูกค้า, สถานะ)
+    Retrieve all orders in the system. Requires ADMIN access.
     """
     restaurant.verify_token_and_role(token, ["Admin"])
     return [
@@ -124,10 +109,7 @@ async def get_all_bookings(
     )]
 ):
     """
-    ดึงข้อมูลการจองห้องทั้งหมดในระบบ เฉพาะ ADMIN เท่านั้นที่ใช้ได้
-    
-    Returns:
-        List[Dict]: รายการจองห้อง (ID, ชื่อลูกค้า, ประเภทห้อง, สถานะ, เวลาเริ่มต้น)
+    Retrieve all room bookings. Requires ADMIN access.
     """
     restaurant.verify_token_and_role(token, ["Admin"])
     return [
@@ -147,10 +129,7 @@ async def login(
     password: Annotated[str, Field(description="รหัสผ่าน")]
 ):
     """
-    เข้าสู่ระบบเพื่อรับ Access Token สำหรับใช้งานฟังก์ชันอื่นๆ
-    
-    Returns:
-        Dict[str, str]: Access Token และประเภทของ Token
+    Authenticate a user or staff member and retrieve an access token.
     """
     session = restaurant.login(username, password)
     token = session.token
@@ -162,7 +141,7 @@ async def logout(
     token: Annotated[str, Field(description="Token ที่ต้องการทำลาย")]
 ):
     """
-    ออกจากระบบและยกเลิกการใช้งาน Token
+    Invalidate the current access token and log out the user.
     """
     success = restaurant.logout(token)
     if success:
@@ -178,8 +157,7 @@ async def member_sign_up(
     phone: Annotated[Optional[str], Field(description="เบอร์โทรศัพท์สำหรับติดต่อ")] = None
 ):
     """
-    ลงทะเบียนสมาชิกใหม่ของร้าน Knight Chicken
-    ระบบจะสร้าง ID สมาชิก (M-xxx) และกำหนดระดับเริ่มต้นเป็น Bronze ให้อัตโนมัติ
+    Register a new customer as a restaurant member.
     """
     member = restaurant.register_member(username, password, display_name, phone)
     return {
@@ -198,8 +176,7 @@ async def staff_sign_up(
     phone: Annotated[str, Field(description="เบอร์โทรศัพท์พนักงาน")] = "0000000000"
 ):
     """
-    ลงทะเบียนพนักงานใหม่เข้าระบบ
-    ระบบจะสร้างรหัสพนักงาน (S-xxx) ให้อัตโนมัติ 
+    Register a new staff member into the system.
     """
     staff = restaurant.register_staff(username, password, name, phone)
     return {
@@ -214,10 +191,7 @@ async def get_stock(
     item_name: Annotated[str, Field(description="ชื่อวัตถุดิบที่ต้องการตรวจสอบ (เช่น Chicken, Beef)")]
 ):
     """
-    ตรวจสอบจำนวนวัตถุดิบในสต็อกคงเหลือ 
-    
-    Returns:
-        Dict[str, int]: จำนวนวัตถุดิบที่พร้อมใช้งาน (Available) และที่ถูกจองไว้ (Reserved)
+    Check the current inventory of available and reserved ingredients.
     """
     item_available = restaurant.check_stock(item_name, ItemStatus.AVAILABLE)
     item_reserved = restaurant.check_stock(item_name, ItemStatus.RESERVED)
@@ -230,7 +204,7 @@ async def get_stock(
 @router.get("/queue/check", tags=["Queue"])
 async def check_queue():
     """
-    ตรวจสอบจำนวนคิวทั้งหมดที่กำลังดำเนินการในร้าน (ออเดอร์ที่จ่ายเงินแล้วหรือกำลังทำอาหาร)
+    Check the total number of orders currently in the kitchen queue.
     """
     return { "Queue": restaurant.check_queue}
 
@@ -240,7 +214,7 @@ async def get_queue(
     queue_order: Annotated[int, Field(description="ลำดับคิวที่ต้องการดึงข้อมูล (1, 2, 3, ...)")]
 ):
     """
-    ดึงข้อมูลรายละเอียดออเดอร์ตามลำดับคิวในปัจจุบัน
+    Retrieve detailed information about the orders currently waiting in the kitchen queue.
     """
     if queue_order > 50 or queue_order < 1:
         raise HTTPException(status_code=400, detail="Queue not Found")

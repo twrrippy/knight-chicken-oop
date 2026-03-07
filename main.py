@@ -25,10 +25,7 @@ app.include_router(simulation_router)
 @app.get("/menu", response_model=dict, tags=["Menu"])
 async def get_menu():
     """
-    ดึงรายการอาหารทั้งหมดของร้าน (เมนูเดี่ยวและเมนูเซต)
-    
-    Returns:
-        Dict[str, List[Dict]]: ข้อมูลรายการอาหารทั้งหมดพร้อมรายละเอียด (ราคา, ส่วนประกอบ, เวลาในการทำ)
+    Retrieve the complete restaurant menu including item IDs, names, and prices. Always use this to find the correct item_id or name.
     """
     return restaurant.get_menu()
 

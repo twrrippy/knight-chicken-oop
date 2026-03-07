@@ -16,11 +16,7 @@ async def advance_time(
     )]
 ):
     """
-    ขยับเวลาจำลองของระบบ (Simulation Time) ไปยังอนาคตตามจำนวนนาทีที่ระบุ
-    ใช้ประโยชน์ในการจำลองสถานการณ์ที่เวลาผ่านไป เช่น การหมดอายุของคูปอง หรือเวลาการจองห้อง
-    
-    Returns:
-        Dict[str, str]: เวลาปัจจุบันหลังจากการขยับเวลาแล้ว
+    Advance the system simulation clock by a specific number of minutes (e.g., to simulate cooking time passing or coupon expiration).
     """
     new_time = SimulationClock.get_time() + timedelta(minutes=minutes)
     SimulationClock.set_time(new_time)

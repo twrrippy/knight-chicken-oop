@@ -1,7 +1,7 @@
 from datetime import timedelta, datetime
 from main_system.coupon import PercentCoupon, FixedAmountCoupon
 from main_system.enum import MemberTier, OrderType, OrderStatus, RoomType, PlatformName, BookingStatus, IngredientType
-from main_system.restaurant import Order, Staff, Member, Food, Ingredient, Item
+from main_system.restaurant import Order, Staff, Member, Food, Ingredient, Item, Guest
 from main_system.restaurant import SingleMenuItem, SetMenuItem
 from main_system.external_platform.payment_method import Cash, QRCode
 from main_system.booking import Room, TimeSlot, Booking
@@ -217,5 +217,13 @@ def initialize_mock_data():
     order_8.add_order_item(beef_burger, 1)
     order_8.status = OrderStatus.CANCELED
     restaurant.add_order(order_8)
+
+    # O-09: User's Requested Order (ORD-008), PENDING (Guest)
+    # O-09: User's Requested Order (ORD-008), PENDING (Guest)
+    try:
+        order_9 = Order(OrderType.GENERAL, member_general)
+        restaurant.add_order(order_9)
+    except Exception:
+        pass
 
     return True

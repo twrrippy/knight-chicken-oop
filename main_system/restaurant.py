@@ -1081,9 +1081,8 @@ class Restaurant:
         
         return booking.pay_deposit(method, payment_details)
     
-    def process_order_payment(self, order_id: str, token: str, coupon_code: Optional[str], method_name: str, payment_details: Dict[str, Any]):
+    def process_order_payment(self, order_id: str, coupon_code: Optional[str], method_name: str, payment_details: Dict[str, Any]):
         method = self.get_payment_method(method_name)
-        staff = self.verify_token_and_role(token, ["Admin", "Staff"])
         order = self.get_order(order_id)
         
             
@@ -1101,10 +1100,9 @@ class Restaurant:
             
         return receipt_data
     
-    def preview_order_bill(self, order_id: str, token: str, coupon_code: Optional[str]):
+    def preview_order_bill(self, order_id: str, coupon_code: Optional[str]):
         order = self.get_order(order_id)
         if order.status == OrderStatus.PAID: raise HTTPException(400, "Order Already Paid")
-        staff = self.verify_token_and_role(token, ["Admin", "Staff"])
         return order.pre_calculate_totals(coupon_code)
     
 restaurant = Restaurant()

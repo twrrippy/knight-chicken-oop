@@ -38,33 +38,37 @@ async def book_room(
         description='ข้อมูลรายละเอียดการชำระเงินตามประเภทที่เลือก'
     )]
 ):
-    """# Description: There are 5 rooms for booking.\n
-    **R01**: VIP, Price: 2000 THB/hour\n
-    **R02**: Hall, Price: 5000 THB/hour\n
-    **R03**: Standard, Price: 500 THB/hour\n
-    **R04**: VIP, Price: 2000 THB/hour\n
-    **R05**: Standard, Price: 500 THB/hour\n
-    **room_price** = price_per_hour * hours\n
-    **deposit** = room_price * 50%\n
-    **GOLD members** get 15% discount on room price\n  ### ตอนนี้เหมือนยังไม่มี discount จาก tier ###
-    **SILVER members** get 10% discount on room price\n
-    **BRONZE members** get 5% discount on room price\n
-    - **payment_details**: ข้อมูลเพิ่มเติมตามประเภทการจ่ายเงิน เช่น 
-        - qrcode: {"account_number": "xxx"} 
-        - creditcard: {"card_number": "...", "cvv": "..."} 
-        - cash: {"cash_received": xxx}\n
-        
-    จองห้องและชำระเงินมัดจำ (Book Room & Pay Deposit)
 
-    ขั้นตอนการทำงาน:
-    1. ตรวจสอบความว่างของห้องตามช่วงเวลาที่ระบุ
-    2. คำนวณราคาสุทธิ (หักส่วนลดตาม Tier ของสมาชิก)
-    3. ตรวจสอบยอดมัดจำ (ต้องจ่ายอย่างน้อย 50%)
-    4. บันทึกข้อมูลการจองและมาร์คสถานะห้องเป็น RESERVED
-    
-    Returns:
-        Dict[str, Any]: ข้อมูลสรุปการจองและใบเสร็จมัดจำ
     """
+    Book a room and process the required 50% deposit payment. Do not calculate discounts yourself; the system handles it. Ask the user for room choice and payment details before calling.
+    """
+    # """# Description: There are 5 rooms for booking.\n
+    # **R01**: VIP, Price: 2000 THB/hour\n
+    # **R02**: Hall, Price: 5000 THB/hour\n
+    # **R03**: Standard, Price: 500 THB/hour\n
+    # **R04**: VIP, Price: 2000 THB/hour\n
+    # **R05**: Standard, Price: 500 THB/hour\n
+    # **room_price** = price_per_hour * hours\n
+    # **deposit** = room_price * 50%\n
+    # **GOLD members** get 15% discount on room price\n  ### ตอนนี้เหมือนยังไม่มี discount จาก tier ###
+    # **SILVER members** get 10% discount on room price\n
+    # **BRONZE members** get 5% discount on room price\n
+    # - **payment_details**: ข้อมูลเพิ่มเติมตามประเภทการจ่ายเงิน เช่น 
+    #     - qrcode: {"account_number": "xxx"} 
+    #     - creditcard: {"card_number": "...", "cvv": "..."} 
+    #     - cash: {"cash_received": xxx}\n
+        
+    # จองห้องและชำระเงินมัดจำ (Book Room & Pay Deposit)
+
+    # ขั้นตอนการทำงาน:
+    # 1. ตรวจสอบความว่างของห้องตามช่วงเวลาที่ระบุ
+    # 2. คำนวณราคาสุทธิ (หักส่วนลดตาม Tier ของสมาชิก)
+    # 3. ตรวจสอบยอดมัดจำ (ต้องจ่ายอย่างน้อย 50%)
+    # 4. บันทึกข้อมูลการจองและมาร์คสถานะห้องเป็น RESERVED
+    
+    # Returns:
+    #     Dict[str, Any]: ข้อมูลสรุปการจองและใบเสร็จมัดจำ
+    # """
     try:
         payload = restaurant.booking_room(token, member_id, room_id, hours, amount_paid, pay_method, start_time=start_time, payment_details=payment_details)
         return success_response_status(status= status.HTTP_200_OK,payload= jsonable_encoder(payload))
@@ -79,10 +83,7 @@ async def preview_booking(
     )]
 ):
     """
-    เรียกดูรายละเอียดข้อมูลการจองห้อง
-    
-    Returns:
-        Dict[str, Any]: ข้อมูลรายละเอียดการจอง (ห้อง, สมาชิก, ช่วงเวลา, สถานะ)
+    Retrieve the details and current status of a specific room booking.
     """
     return restaurant.preview_booking_details(booking_id)
 
@@ -109,16 +110,7 @@ async def check_in(
     )] = {}
 ):
     """
-    ทำการเช็คอิน (Check-in) และชำระเงินส่วนที่เหลือของค่าห้อง
-
-    ฟังก์ชันนี้จะ:
-    1. ตรวจสอบสถานะการจอง (ต้องเป็น DEPOSIT_PAID เท่านั้น)
-    2. คำนวณยอดคงเหลือที่ต้องจ่าย (ราคาสุทธิ - เงินมัดจำ)
-    3. ดำเนินการชำระเงินส่วนที่เหลือ
-    4. อัปเดตสถานะการจองเป็น CHECKED_IN และสถานะห้องเป็น IN_USE
-    
-    Returns:
-        Dict[str, Any]: ใบเสร็จรับเงินสำหรับยอดที่เหลือและยืนยันการเช็คอิน
+    Check-in a customer to their booked room and process the payment for the remaining balance.
     """
     try:
         payload = restaurant.check_in_booking(token=token, order_id=order_id, booking_id=booking_id, coupon_code=coupon_code, pay_method=pay_method, payment_details=payment_details)
@@ -137,14 +129,7 @@ async def check_out(
     )]
 ):
     """
-    ทำการเช็คเอาท์ (Check-out) และสิ้นสุดการจองห้อง
-
-    ฟังก์ชันนี้จะ:
-    - เปลี่ยนสถานะการจองเป็น COMPLETED
-    - เปลี่ยนสถานะห้องเป็น CLEANING เพื่อรอการทำความสะอาด
-    
-    Returns:
-        Dict[str, Any]: ข้อความยืนยันการเช็คเอาท์สำเร็จ
+    Check-out a customer from a room, finalize the booking, and set the room to cleaning status.
     """
     try:
         payload = restaurant.check_out_booking(token=token, booking_id=booking_id)

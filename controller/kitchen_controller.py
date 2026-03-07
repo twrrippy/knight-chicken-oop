@@ -15,10 +15,7 @@ async def cook_order(
     )]
 ):
     """
-    เริ่มกระบวนการทำอาหารสำหรับออเดอร์ที่ระบุ (เปลี่ยนสถานะเป็น COOKING)
-    
-    Returns:
-        Dict[str, str]: ข้อความยืนยันการทำสำเร็จและสถานะปัจจุบันของออเดอร์
+    Start cooking a specific order. Changes the order status to COOKING in the kitchen.
     """
     try:
         order = restaurant.search_order_from_id(order_id)
