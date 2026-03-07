@@ -7,4 +7,4 @@ Resource Controller Module
 - menu Management: add, update, or remove menu items
 """
 
-router = APIRouter(prefix="/resource", tags=["resource"])
+router = APIRouter(prefix="/resource", tags=["Resource"])

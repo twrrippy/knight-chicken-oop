@@ -10,7 +10,7 @@ Order Controller Module
 - dinein Management: handle table reservations and seating arrangements
 - event Management: organize special events and promotions
 """
-router = APIRouter(prefix="/order", tags=["order"])
+router = APIRouter(prefix="/order", tags=["Order"])
 
 @router.post("/guest/start/general")
 async def start_order():
