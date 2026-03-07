@@ -8,6 +8,33 @@ from shared.utils.response import success_response_status, error_response_status
 
 router = APIRouter(prefix="/booking", tags=["Booking"])
 
+@router.post("/check-booking-availability")
+async def check_booking_availability(
+    token: str,
+    room_id: str,
+    start_time: datetime = Query(..., example="2026-02-09 10:00:00"),
+    hours: int = Query(..., example=1)
+):
+    """
+    Check the availability of a room for a specific time period.
+    """
+    try:
+        # Validate the token (assuming you have a function to validate it)
+        staff = restaurant.verify_token_and_role(token, allowed_roles=["Admin", "Staff"])
+        if not staff:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token or insufficient permissions")
+        room = restaurant.get_room(room_id)
+        if not room:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Room not found")
+        is_available = restaurant.is_slot_avaliable(room, start_time, hours)
+        return {"room_id": room_id,
+                 "is_available": is_available,
+                 "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"), 
+                 "deposit_required": f"{room.price_per_hour * hours * 0.5} THB with no discount"
+                }
+    except Exception as e:
+        raise error_response_status(status=status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(e))
+
 # @mcp.tool
 @router.post("/booking-room")
 async def book_room(
@@ -15,7 +42,6 @@ async def book_room(
     member_id: str, 
     room_id: str, 
     hours: int, 
-    amount_paid: float,
     pay_method: str = Query(..., description="Payment strategy to use (e.g. QRCode, CreditCard)"),
     start_time: datetime = Query(..., example="2026-02-09 10:00:00"),
     payment_details: Dict[str, Any] = Body(
@@ -40,7 +66,7 @@ async def book_room(
         - cash: {"cash_received": xxx}\n
     """
     try:
-        payload = restaurant.booking_room(token, member_id, room_id, hours, amount_paid, pay_method, start_time=start_time, payment_details=payment_details)
+        payload = restaurant.booking_room(token, member_id, room_id, hours, pay_method, start_time=start_time, payment_details=payment_details)
         return success_response_status(status= status.HTTP_200_OK,payload= jsonable_encoder(payload))
     except Exception as e:
         raise error_response_status(status= status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(e))

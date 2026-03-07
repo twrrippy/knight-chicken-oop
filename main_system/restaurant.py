@@ -940,13 +940,10 @@ class Restaurant:
             if s.name.lower() == method_name.lower(): return s
         raise HTTPException(status_code=400, detail="Unknown Method")
     
-    def booking_room(self,token: str, member_id: str, room_id: str, hours: int, amount_paid: float, pay_method: str, start_time: datetime, payment_details: Dict[str, Any] = {}):
-        session = self.__auth_manager.get_session(token)
-        if not session:
+    def booking_room(self,token: str, member_id: str, room_id: str, hours: int, pay_method: str, start_time: datetime, payment_details: Dict[str, Any] = {}):
+        staff = self.verify_token_and_role(token, allowed_roles=["Staff", "Admin"])
+        if not staff:
             raise HTTPException(status_code=401, detail="Unauthorized token")
-        staff = self.get_staff(session.user_id)
-        if not isinstance(staff, Staff):
-            raise HTTPException(status_code=401, detail="Only Staff can handle bookings")
 
         member = self.get_member_by_id(member_id)
         if not member or not isinstance(member, Member):
@@ -963,9 +960,6 @@ class Restaurant:
         self.__booking_counter += 1
         time_slot = TimeSlot(start_time, hours)
         booking = Booking(booking_id, member, room, time_slot)
-
-        if amount_paid != booking.deposit:
-            raise HTTPException(status_code=404, detail=f"Insufficient Amount: need {booking.deposit} THB")
         
         pay_med = self.get_payment_method(pay_method)
         message = booking.pay_deposit(pay_med, payment_details)
@@ -1010,7 +1004,7 @@ class Restaurant:
         if not order or order.booking != booking:
             raise HTTPException(status_code=404, detail="Order not found or does not match booking")
 
-        receipt_data = self.process_order_payment(order_id=order.id, staff_id=staff.id, coupon_code=coupon_code, method_name=pay_method, payment_details=payment_details)
+        receipt_data = self.process_order_payment(order_id=order.id, coupon_code=coupon_code, method_name=pay_method, payment_details=payment_details)
 
         booking.mark_checked_in()
         booking.room.mark_room_in_use()
@@ -1038,7 +1032,6 @@ class Restaurant:
             raise HTTPException(status_code=400, detail="Booking is not currently checked in")
         
         booking.mark_checked_out()
-        booking.room.mark_room_available()
         return {"message": f"Booking {booking_id} checked out successfully",
                 "room_id": booking.room.id,
                 "member_name": booking.member.name,

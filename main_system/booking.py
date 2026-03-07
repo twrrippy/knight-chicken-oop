@@ -47,6 +47,9 @@ class Room:
     def mark_room_available(self):
         self.__status = RoomStatus.AVAILABLE
 
+    def mark_room_cleaning(self):
+        self.__status = RoomStatus.CLEANING
+
     @property
     def price_per_hour(self): return self.__price_per_hour
     @property
@@ -104,7 +107,7 @@ class Booking:
 
     def mark_checked_out(self):
         self.__status = BookingStatus.COMPLETED
-        self.room.status = RoomStatus.CLEANING
+        self.room.mark_room_cleaning()
 
     def mark_cancelled(self):
         self.__status = BookingStatus.CANCELLED

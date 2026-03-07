@@ -16,6 +16,8 @@ class Session:
 
     @property
     def user_id(self): return self.__user_id
+    @property
+    def token(self): return self.__token
 
     def invalidate(self):
         self.__is_active = False

@@ -12,7 +12,9 @@ from shared.utils.simulate import SimulationClock
 def initialize_mock_data():
     # 1. Staff
     mock_staff = Staff("S-001", "Alice Staff", "0801234567", "alice", "password")
+    mock_admin = Staff("S-002", "Admin User", "0807654321", "admin", "admin", is_admin=True)
     restaurant.add_staff(mock_staff)
+    restaurant.add_staff(mock_admin)
 
     # 2. Member
     mock_member = Member("M-001", "Bob Customer", MemberTier.GOLD, "bob", "password", "0812345678")
