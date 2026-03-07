@@ -14,14 +14,14 @@ from main_system.restaurant import restaurant, Order
 - System Settings: etc.
 """
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(prefix="/admin")
 
-@router.get("/get-logs")
-async def get_logs():
-    """retrieve all audit logs from the centralized logging system"""
-    return {"logs": restaurant.get_all_receipts}
+@router.get("/get-all-receipts", tags=["Data"])
+async def get_all_receipts():
+    """show all receipts in the system"""
+    return {"receipts": restaurant.get_all_receipts}
 
-@router.get("/get-all-members")
+@router.get("/get-all-members", tags=["Data"])
 async def get_all_members():
     """show all members in the system"""
     return [
@@ -32,7 +32,7 @@ async def get_all_members():
         } for m in restaurant.get_all_members()
     ]
 
-@router.get("/get-all-rooms")
+@router.get("/get-all-rooms", tags=["Data"])
 async def get_all_rooms():
     """get all rooms in the system"""
     return [
@@ -44,7 +44,7 @@ async def get_all_rooms():
         } for r in restaurant.get_all_rooms()
     ]
 
-@router.get("/get-all-staff")
+@router.get("/get-all-staff", tags=["Data"])
 async def get_all_staff():
     """get all staff"""
     return [
@@ -52,6 +52,30 @@ async def get_all_staff():
             "staff_id": s.id,
             "name": s.name,
         } for s in restaurant.get_all_staff()
+    ]
+
+@router.get("/get-all-orders", tags=["Data"])
+async def get_all_orders():
+    """get all orders in the system"""
+    return [
+        {
+            "order_id": o.id,
+            "customer": o.customer.name,
+            "status": o.status.value,
+        } for o in restaurant.get_all_orders()
+    ]
+
+@router.get("/get-all-bookings", tags=["Data"])
+async def get_all_bookings():
+    """get all bookings in the system"""
+    return [
+        {
+            "booking_id": b.id,
+            "customer": b.member.name,
+            "room": b.room.type,
+            "status": b.status.value,
+            "time_slot": b.time_slot.start_time.strftime("%Y-%m-%d %H:00:00")
+        } for b in restaurant.get_all_bookings()
     ]
 
 @router.post("/auth/login", tags=["Authentication"])

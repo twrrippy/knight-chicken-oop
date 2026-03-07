@@ -4,7 +4,7 @@ from fastapi import HTTPException, Query
 from shared.utils.response import success_response_status, error_response_status
 from main_system.restaurant import restaurant
 from mcp_core import mcp
-router = APIRouter(prefix="/payment", tags=["payment"])
+router = APIRouter(prefix="/payment", tags=["Payment"])
 
 
 @mcp.tool

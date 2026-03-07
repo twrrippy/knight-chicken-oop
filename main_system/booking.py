@@ -44,6 +44,9 @@ class Room:
     def mark_room_in_use(self):
         self.__status = RoomStatus.IN_USE
 
+    def mark_room_available(self):
+        self.__status = RoomStatus.AVAILABLE
+
     @property
     def price_per_hour(self): return self.__price_per_hour
     @property
@@ -99,6 +102,13 @@ class Booking:
     def mark_checked_in(self):
         self.__status = BookingStatus.CHECKED_IN
 
+    def mark_checked_out(self):
+        self.__status = BookingStatus.COMPLETED
+        self.room.status = RoomStatus.CLEANING
+
+    def mark_cancelled(self):
+        self.__status = BookingStatus.CANCELLED
+
     def get_details(self) -> Dict[str, Any]:
         return {
             "type": "Booking Details",
@@ -130,3 +140,5 @@ class Booking:
     def time_slot(self): return self.__time_slot
     @property
     def status(self): return self.__status
+    @status.setter
+    def status(self, new_status: BookingStatus): self.__status = new_status

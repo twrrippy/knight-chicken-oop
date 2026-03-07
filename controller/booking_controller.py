@@ -6,7 +6,7 @@ from fastapi.encoders import jsonable_encoder
 from main_system.restaurant import restaurant
 from shared.utils.response import success_response_status, error_response_status
 
-router = APIRouter(prefix="/booking", tags=["booking"])
+router = APIRouter(prefix="/booking", tags=["Booking"])
 
 # @mcp.tool
 @router.post("/booking-room")
@@ -52,3 +52,37 @@ async def preview_booking(booking_id: str):
     
     """
     return restaurant.preview_booking_details(booking_id)
+
+@router.post("/check-in/{booking_id}")
+async def check_in(token: str, order_id: str, booking_id: str, coupon_code: Optional[str] = Query(default=None), pay_method: str = Query(..., description="Payment strategy to use (e.g. QRCode, CreditCard)"), payment_details: Dict[str, Any] = Body(
+        ..., 
+        example={"account_number": "000-0-00000-0"}
+    )):
+    """
+    ## Check in a guest for their booking.
+    **order_id**: รหัสออเดอร์ที่เกี่ยวข้องกับการจองนี้ (Format: ORD-xxx-xxx)\n
+    **booking_id**: รหัสการจองที่ต้องการเช็คอิน (Format: BK-xxx)\n
+    **coupon_code**: (Optional) โค้ดคูปองที่ลูกค้าอาจมีและต้องการใช้สำหรับส่วนลด\n
+    **pay_method**: วิธีการชำระเงินที่ลูกค้าใช้สำหรับการจ่ายเงินที่เหลือ (เช่น "qrcode", "creditcard", "cash")\n
+    **payment_details**: ข้อมูลเพิ่มเติมตามประเภทการจ่ายเงิน เช่น 
+        - qrcode: {"account_number": "xxx"} 
+        - creditcard: {"card_number": "...", "cvv": "..."} 
+        - cash: {"cash_received": xxx}\n
+    """
+    try:
+        payload = restaurant.check_in_booking(token=token, order_id=order_id, booking_id=booking_id, coupon_code=coupon_code, pay_method=pay_method, payment_details=payment_details)
+        return success_response_status(status=status.HTTP_200_OK, payload=jsonable_encoder(payload))
+    except Exception as e:
+        raise error_response_status(status=status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(e))
+
+@router.post("/check-out/{booking_id}")
+async def check_out(token: str, booking_id: str):
+    """
+    ## Check out a guest from their booking.
+    **booking_id**: รหัสการจองที่ต้องการเช็คเอาท์ (Format: BK-xxx)\n
+    """
+    try:
+        payload = restaurant.check_out_booking(token=token, booking_id=booking_id)
+        return success_response_status(status=status.HTTP_200_OK, payload=jsonable_encoder(payload))
+    except Exception as e:
+        raise error_response_status(status=status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(e))
