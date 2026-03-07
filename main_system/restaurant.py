@@ -5,7 +5,7 @@ from main_system.booking import Booking, Room, BookingStatus, RoomStatus, TimeSl
 from main_system.external_platform.delivery_provider import DeliveryProvider, Delivery
 from main_system.external_platform.payment_method import PaymentMethod
 from shared.utils.simulate import SimulationClock
-from main_system.coupon import Member, Coupon, FixedAmountCoupon, PercentCoupon, Customer
+from main_system.coupon import Coupon, FixedAmountCoupon, PercentCoupon
 
 from typing import TYPE_CHECKING, Optional, List, Tuple, Dict, Any
 from fastapi import FastAPI, HTTPException, Query
@@ -103,10 +103,7 @@ class Member(Customer):
 
     @property
     def tier(self) -> MemberTier: return self.__tier
-    @property
-    def username(self): return self.__username
-    @property
-    def password(self): return self.__password
+
 
     
 
@@ -208,7 +205,7 @@ class SingleMenuItem(MenuItem):
     
     def custom_add(self, item: Item):
         try:
-            ingredient = self.__find_ingredient_in_recipe(item)
+            ingredient = self.find_ingredient_in_recipe(item)
             ingredient.custom_add
         except ValueError as e:
             raise ValueError(str(e))
@@ -217,7 +214,7 @@ class SingleMenuItem(MenuItem):
         
     def custom_sub(self, item: Item):
         try:
-            ingredient = self.__find_ingredient_in_recipe(item)
+            ingredient = self.find_ingredient_in_recipe(item)
             ingredient.custom_sub
         except ValueError as e:
             raise ValueError(str(e))
@@ -401,7 +398,7 @@ class Order:
     def update_price(self):
         count_price = 0
         for order_item in self.__order_item_list:
-            if order_item.status != OrderItemStatus.OUT_OF_STOCK and order_item.status != OrderItemStatus.CANCELED:
+            if order_item.status != OrderItemStatus.OUT_OF_STOCK and order_item.status != OrderItemStatus.CANCEL:
                 count_price += order_item.price
         self.__subtotal = count_price
 
@@ -662,6 +659,10 @@ class Restaurant:
         self.__payment_method: List[PaymentMethod] = []
         self.__room_list: List[Room] = []
         self.__delivery_providers: List[DeliveryProvider] = []
+        self.__auth_manager = AuthManager()
+        self.__member_counter = 0
+        self.__staff_counter = 0
+        self.__booking_counter = 0
 
     def add_delivery_provider(self, provider: 'DeliveryProvider'): self.__delivery_providers.append(provider)
     def get_delivery_provider(self, provider_name: str) -> 'DeliveryProvider':
@@ -669,8 +670,8 @@ class Restaurant:
             if p.platform_name.lower() == provider_name.lower(): return p
         raise HTTPException(404, "Delivery Provider Not Found")
     
-    def add_room(self, room: 'Room'): self.__room_list.append(room)
-    def get_room(self, room_id: str) -> 'Room':
+    def add_room(self, room: Room): self.__room_list.append(room)
+    def get_room(self, room_id: str) -> Room:
         for r in self.__room_list:
             if r.id == room_id: return r
         raise HTTPException(404, "Room Not Found")
@@ -868,10 +869,13 @@ class Restaurant:
             if s.name.lower() == method_name.lower(): return s
         raise HTTPException(status_code=400, detail="Unknown Method")
     
-    def booking_room(self, staff_id: str, member_id: str, room_id: str, hours: int, amount_paid: float, pay_method: str, start_time: datetime, payment_details: Dict[str, Any] = {}):
-        staff = self.get_staff(staff_id)
+    def booking_room(self,token: str, member_id: str, room_id: str, hours: int, amount_paid: float, pay_method: str, start_time: datetime, payment_details: Dict[str, Any] = {}):
+        session = self.__auth_manager.get_session(token)
+        if not session:
+            raise HTTPException(status_code=401, detail="Unauthorized token")
+        staff = self.get_staff(session.user_id)
         if not isinstance(staff, Staff):
-            raise HTTPException(status_code=403, detail="Only Staff can handle bookings")
+            raise HTTPException(status_code=401, detail="Only Staff can handle bookings")
 
         member = self.get_member_by_id(member_id)
         if not member or not isinstance(member, Member):
@@ -884,8 +888,10 @@ class Restaurant:
         if not self.is_slot_avaliable(room, start_time, hours):
             raise HTTPException(status_code=400, detail="Time slot already occupied")
         
+        booking_id = f"BK-{self.__booking_counter:03d}"
+        self.__booking_counter += 1
         time_slot = TimeSlot(start_time, hours)
-        booking = Booking(member, room, time_slot)
+        booking = Booking(booking_id, member, room, time_slot)
 
         if amount_paid != booking.deposit:
             raise HTTPException(status_code=404, detail=f"Insufficient Amount: need {booking.deposit} THB")
@@ -899,7 +905,7 @@ class Restaurant:
     def is_slot_avaliable(self, room, start, hours):
         end = start + timedelta(hours=hours)
         for b in self.__booking_list:
-            if b.room.room_id == room.room_id: 
+            if b.room.id == room.id: 
                 if b.status not in [BookingStatus.CANCELLED, BookingStatus.COMPLETED]:
                     if start < b.time_slot.end_time and end > b.time_slot.start_time:
                         return False
@@ -915,7 +921,7 @@ class Restaurant:
                 b.room.status = RoomStatus.AVAILABLE
 
     def login(self, username, password):
-        member = next((m for m in self.__members if m.username == username and m.password == password), None)
+        member = next((m for m in self.__member_list if m.username == username and m.password == password), None)
         staff = next((s for s in self.__staff_list if s.username == username and s.password == password), None)
         if member:
             return self.__auth_manager.create_session(member.id)
@@ -935,7 +941,7 @@ class Restaurant:
     # --- Member Registration ---
     def register_member(self, username: str, password: str, name: str, phone: str = "0000000000") -> 'Member':
         # ตรวจสอบว่า Username ซ้ำไหม
-        if any(m.username == username for m in self.__members) or any(s.username == username for s in self.__staff_list):
+        if any(m.username == username for m in self.__member_list) or any(s.username == username for s in self.__staff_list):
             raise HTTPException(400, "Username already exists")
         
         # ระบบสร้าง ID ให้อัตโนมัติ
@@ -944,13 +950,13 @@ class Restaurant:
         # สร้าง Member (Tier เริ่มต้นเป็น Bronze อัตโนมัติใน __init__)
         new_member = Member(new_id, name, MemberTier.BRONZE, username, password, phone)
         
-        self.__members.append(new_member)
+        self.__member_list.append(new_member)
         self.__member_counter += 1
         return new_member
 
     # --- Staff Registration ---
     def register_staff(self, username: str, password: str, name: str, phone: str = "0000000000") -> 'Staff':
-        if any(s.username == username for s in self.__staff_list) or any(m.username == username for m in self.__members):
+        if any(s.username == username for s in self.__staff_list) or any(m.username == username for m in self.__member_list):
             raise HTTPException(400, "Username already exists")
 
         new_id = f"S-{self.__staff_counter:03d}"
@@ -961,10 +967,10 @@ class Restaurant:
         self.__staff_counter += 1
         return new_staff
     
-    def get_all_members(self) -> List['Member']: return self.__members
+    def get_all_members(self) -> List['Member']: return self.__member_list
     def get_all_staff(self) -> List['Staff']: return self.__staff_list
     def get_all_rooms(self) -> List['Room']: return self.__room_list
-    def get_all_receipts(self) -> List['Receipt']: return self.__receipts
+    def get_all_receipts(self) -> List['Receipt']: return self.__receipt_list
     
     ### --------- API --------- ###
     

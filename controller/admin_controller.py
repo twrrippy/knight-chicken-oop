@@ -3,10 +3,9 @@ from typing import Optional
 from fastapi import APIRouter, Query, status, HTTPException
 from shared.utils.response import success_response_status, error_response_status
 from main_system.enum import ItemStatus
-from main_system.order.order import Order
 from typing import Union
 # from main import restaurant_system, 
-from main_system.restaurant import restaurant
+from main_system.restaurant import restaurant, Order
 """Admin Controller Routes include:
 - Log Management: (Manager) call Central Log or Audit Trail
 - Simulation Management: controlling the simulation speed (time acceleration) Expired or Booking

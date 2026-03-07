@@ -1,8 +1,7 @@
 from datetime import timedelta, datetime
 from main_system.coupon import PercentCoupon, FixedAmountCoupon
 from main_system.enum import MemberTier, OrderType, OrderStatus, RoomType, PlatformName, BookingStatus
-from main_system.restaurant import Order, Staff, Member
-from main_system.ingredient import SingleMenuItem
+from main_system.restaurant import Order, Staff, Member, SingleMenuItem
 from main_system.external_platform.payment_method import Cash, QRCode
 from main_system.booking import Room, TimeSlot, Booking
 from main_system.external_platform.delivery_provider import Delivery, GrabDeliveryProvider, LineManDeliveryProvider, ShopeeFoodDeliveryProvider
@@ -53,7 +52,7 @@ def initialize_mock_data():
     # ==========================================
     # ORDER SCENARIO 1: General Order (Dine-in)
     # ==========================================
-    order_1 = Order("ORD-001", OrderType.GENERAL, mock_member)
+    order_1 = Order(OrderType.GENERAL, mock_member)
     if not hasattr(order_1, "_Order__order_item_list"):
         order_1._Order__order_item_list = []
     order_1.add_order_item(mock_menu_1, 2) # 300
@@ -64,7 +63,7 @@ def initialize_mock_data():
     # ==========================================
     # ORDER SCENARIO 2: Delivery Order
     # ==========================================
-    order_2 = Order("ORD-002", OrderType.DELIVERY, mock_member)
+    order_2 = Order(OrderType.DELIVERY, mock_member)
     if not hasattr(order_2, "_Order__order_item_list"):
         order_2._Order__order_item_list = []
     order_2.add_order_item(mock_menu_1, 1) # 150
@@ -83,14 +82,14 @@ def initialize_mock_data():
     # First, create and pay deposit for the booking
     start_time = SimulationClock.get_time() + timedelta(days=1)
     time_slot = TimeSlot(start_time, 3) # 3 hours
-    booking = Booking(mock_member, room_vip, time_slot)
+    booking = Booking("BK-100", mock_member, room_vip, time_slot)
     
     # Mocking that booking deposit was already paid
     booking._Booking__status = BookingStatus.DEPOSIT_PAID
     restaurant.add_booking(booking)
 
     # Now create the order associated with this booking
-    order_3 = Order("ORD-003", OrderType.EVENT, mock_member)
+    order_3 = Order(OrderType.EVENT, mock_member)
     if not hasattr(order_3, "_Order__order_item_list"):
         order_3._Order__order_item_list = []
     order_3.add_order_item(mock_menu_1, 10) # 1500

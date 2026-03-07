@@ -1,11 +1,16 @@
 from datetime import datetime, timedelta
+import uuid
 from fastapi import HTTPException
-from typing import Dict, Any
+from typing import TYPE_CHECKING, Dict, Any
 from main_system.enum import RoomStatus, RoomType, BookingStatus
 
 from shared.utils.simulate import SimulationClock
 from main_system.external_platform.payment_method import PaymentMethod
 from main_system.enum import MemberTier
+
+if TYPE_CHECKING:
+    from main_system.restaurant import Member
+    
 class TimeSlot:
     def __init__(self, start_time: datetime, hours: int):
         self.__start_time = start_time
@@ -53,9 +58,8 @@ class Room:
     def capacity(self): return self.__capacity
 
 class Booking:
-    from main_system.coupon import Member
-    def __init__(self, member: 'Member', room: 'Room', time_slot: 'TimeSlot'):
-        self.__id = f"BK-{int(SimulationClock.get_time().timestamp())}"
+    def __init__(self, id: str, member: 'Member', room: 'Room', time_slot: 'TimeSlot'):
+        self.__id = id
         self.__member = member
         self.__room = room
         self.__time_slot = time_slot
@@ -102,7 +106,7 @@ class Booking:
             "booking_id": self.id,
             "room_id": self.room.id,
             "room_type": self.room.type,
-            "time_slot": self.time_slot.start_time,
+            "time_slot": self.time_slot.start_time.strftime("%Y-%m-%d %H:00:00"),
             "full_price": self.full_price,
             "deposit": self.deposit,
             "amount_due": self.amount_due
@@ -110,7 +114,7 @@ class Booking:
     
     @property
     def full_price(self): 
-        return self.room.price_per_hour * self.time_slot.hours if self.member.tier != MemberTier.GOLD else self.room.price_per_hour * self.time_slot.hours * 0.8
+        return self.room.price_per_hour * self.time_slot.hours - self.member.get_member_discount(self.room.price_per_hour * self.time_slot.hours)
     @property
     def deposit(self): return self.full_price * 0.5
     @property
