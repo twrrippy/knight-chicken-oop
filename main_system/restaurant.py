@@ -57,26 +57,19 @@ class Staff(User):
 class Customer(User):
     pass
 class Guest(Customer):
-    def __init__(self, id: str, name: str, phone_number: str = ""):
-        if not User.is_valid_phone_number(phone_number):
-            raise ValueError("INVALID: Phone number")
-        self.__id = id
-        self.__name = name
-        self.__phone_number = phone_number
-    class GuestDTO(BaseModel):
-        id: str
-        name: str
-        phone_number: str
+    Guest_count = 0
+    def __init__(self, name = None):
+        if name == None:
+            self.__name = f"GUEST-{Guest.Guest_count:0{3}d}"
+            Guest.Guest_count += 1
+        else: 
+            self.__name = name
 
-    @property
-    def id(self): return self.__id
     @property
     def name(self): return self.__name
-    @property
-    def phone_number(self): return self.__phone_number
 
     def __eq__(self, other):
-        return (type(other) is type(self)) and self.__name == other.name and self.__id == other.id and self.__phone_number == other.phone_number
+        return (type(other) is type(self)) and self.__name == other.name
 
 class Member(Customer):
     def __init__(self, id: str, name: str, tier: MemberTier, username: str, password: str, phone: str = ""):
