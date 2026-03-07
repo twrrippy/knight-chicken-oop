@@ -453,7 +453,7 @@ class Order:
         }
         
     def cook_order(self):
-        if self.__status not in [OrderStatus.RESERVED, OrderStatus.PAIDED]:
+        if self.__status not in [OrderStatus.RESERVED, OrderStatus.PAID]:
             return False
             
         self.status = OrderStatus.COOKING
@@ -546,10 +546,10 @@ class Order:
             note = "Payment Done"
 
         if success:
-            self.status = OrderStatus.PAIDED
+            self.status = OrderStatus.PAID
 
             if self.__booking:
-                self.__booking.status = BookingStatus.PAIDED
+                self.__booking.status = BookingStatus.PAID
             
             if self.__delivery:
                 self.__delivery.mark_as_paid()
@@ -726,12 +726,12 @@ class Restaurant:
     
     @property
     def count_order(self): return len(self.__order_list)
-
+    
     @property
     def check_queue(self):
         count_queue = 0
         for order in self.__order_list:
-            if order.status == OrderStatus.PAIDED or order.status == OrderStatus.COOKING:
+            if order.status == OrderStatus.PAID or order.status == OrderStatus.COOKING:
                 count_queue += 1
         return count_queue
     
@@ -742,7 +742,7 @@ class Restaurant:
     def get_queue(self, queue_order: int):
         count_queue = 0
         for order in self.__order_list:
-            if order.status == OrderStatus.PAIDED or order.status == OrderStatus.COOKING:
+            if order.status == OrderStatus.PAID or order.status == OrderStatus.COOKING:
                 count_queue += 1
             if count_queue == queue_order:
                 return order
@@ -1060,7 +1060,7 @@ class Restaurant:
         # if order.order_type == OrderType.EVENT and staff.role != StaffRole.PartyStaff:
         #     raise HTTPException(400, "Invalid Staff Role for Event Order")
             
-        if order.status == OrderStatus.PAIDED: 
+        if order.status == OrderStatus.PAID: 
             raise HTTPException(400, "Order Already Paid")
             
         receipt = order.execute_payment(method, payment_details, coupon_code)
@@ -1076,7 +1076,7 @@ class Restaurant:
     
     def preview_order_bill(self, order_id: str, staff_id: str, coupon_code: Optional[str]):
         order = self.get_order(order_id)
-        if order.status == OrderStatus.PAIDED: raise HTTPException(400, "Order Already Paid")
+        if order.status == OrderStatus.PAID: raise HTTPException(400, "Order Already Paid")
         staff = self.get_staff(staff_id)
         return order.pre_calculate_totals(coupon_code)
     

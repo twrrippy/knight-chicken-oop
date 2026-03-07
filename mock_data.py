@@ -174,7 +174,7 @@ def initialize_mock_data():
     deliv_grab = Delivery("DEL-GRB-01", grab, 8.5) 
     deliv_grab.request_rider()
     order_5.add_delivery(deliv_grab)
-    order_5.status = OrderStatus.PAIDED
+    order_5.status = OrderStatus.PAID
     restaurant.add_order(order_5)
 
     # O-06: Event Order (VIP Room) - Deposit Paid, PENDING
