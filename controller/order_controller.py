@@ -2,8 +2,11 @@ from fastapi import APIRouter, HTTPException
 from shared.utils.response import success_response_status, error_response_status
 from main_system.restaurant import restaurant, Order, OrderItem, Guest
 from main_system.enum import OrderType
-from typing import Union
+from typing import Union, Annotated
+from pydantic import Field
+from mcp_core import mcp
 import uuid
+from fastapi import APIRouter
 """
 Order Controller Module
 - delivery Management: track and update delivery statuses
@@ -12,8 +15,15 @@ Order Controller Module
 """
 router = APIRouter(prefix="/order", tags=["Order"])
 
+@mcp.tool
 @router.post("/guest/start/general")
 async def start_order():
+    """
+    เริ่มต้นออเดอร์ใหม่สำหรับลูกค้าทั่วไป (Guest)
+
+    Returns:
+        Dict[str, str]: ข้อมูล Order ID และชื่อลูกค้า
+    """
     try:
         current_customer = Guest()
         order = Order(OrderType.GENERAL, current_customer)

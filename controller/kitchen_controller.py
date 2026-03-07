@@ -1,11 +1,25 @@
 from fastapi import APIRouter, HTTPException
 from shared.utils.response import success_response_status, error_response_status
 from main_system.restaurant import restaurant
+from typing import Annotated
+from pydantic import Field
+from mcp_core import mcp
+
 router = APIRouter(prefix="/kitchen", tags=["Kitchen"])
 
-# Example endpoint for kitchen status
+@mcp.tool
 @router.post("/cook/{order_id}")
-async def cook_order(order_id: str):
+async def cook_order(
+    order_id: Annotated[str, Field(
+        description="รหัสออเดอร์ที่ต้องการเริ่มทำอาหาร (Format: ORD-xxx-xxx)"
+    )]
+):
+    """
+    เริ่มกระบวนการทำอาหารสำหรับออเดอร์ที่ระบุ (เปลี่ยนสถานะเป็น COOKING)
+    
+    Returns:
+        Dict[str, str]: ข้อความยืนยันการทำสำเร็จและสถานะปัจจุบันของออเดอร์
+    """
     try:
         order = restaurant.search_order_from_id(order_id)
     except ValueError as e:

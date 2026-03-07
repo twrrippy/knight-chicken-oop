@@ -1,6 +1,8 @@
-from fastapi import APIRouter, HTTPException, Query, status, Body
-from typing import Optional, List, Tuple, Dict, Any
+from typing import Optional, List, Tuple, Dict, Any, Annotated
+from fastapi import APIRouter
 from datetime import datetime, timedelta
+from pydantic import Field
+from mcp_core import mcp
 
 from fastapi.encoders import jsonable_encoder
 from main_system.restaurant import restaurant
@@ -8,20 +10,33 @@ from shared.utils.response import success_response_status, error_response_status
 
 router = APIRouter(prefix="/booking", tags=["Booking"])
 
-# @mcp.tool
+@mcp.tool
 @router.post("/booking-room") # เพิ่ม api อีกเส้นไหม ให้สามารถเช็คราคาห้อง วัน เวลาที่จะจอง ก่อนได้ แล้วค่อย ให้ อันนี้เป็น confirm booking + pay deposit
 async def book_room(
-    token: str,
-    member_id: str, 
-    room_id: str, 
-    hours: int, 
-    amount_paid: float, # amount_paid ไม่จำเป็นต้องมีก็ได้ไหม
-    pay_method: str = Query(..., description="Payment strategy to use (e.g. QRCode, CreditCard)"),
-    start_time: datetime = Query(..., example="2026-02-09 10:00:00"),
-    payment_details: Dict[str, Any] = Body(
-        ..., 
-        example={"account_number": "000-0-00000-0"}
-    )
+    token: Annotated[str, Field(
+        description="Token ของสมาชิกที่เข้าสู่ระบบ"
+    )],
+    member_id: Annotated[str, Field(
+        description="รหัสสมาชิกผู้ทำการจอง"
+    )], 
+    room_id: Annotated[str, Field(
+        description="รหัสห้องที่ต้องการจอง (เช่น R-VIP-01)"
+    )], 
+    hours: Annotated[int, Field(
+        description="จำนวนชั่วโมงที่ต้องการใช้งาน"
+    )], 
+    amount_paid: Annotated[float, Field(
+        description="จำนวนเงินมัดจำที่ชำระ (ต้องไม่น้อยกว่า 50% ของราคาห้อง)" ## amount_paid ไม่จำเป็นต้องมีก็ได้ไหม
+    )],
+    pay_method: Annotated[str, Field(
+        description='วิธีการชำระเงินมัดจำ ("qrcode", "creditcard", "cash")'
+    )],
+    start_time: Annotated[datetime, Field(
+        description="วันและเวลาที่ต้องการเริ่มใช้งาน (รูปแบบ: YYYY-MM-DD HH:MM:SS)"
+    )],
+    payment_details: Annotated[Dict[str, Any], Field(
+        description='ข้อมูลรายละเอียดการชำระเงินตามประเภทที่เลือก'
+    )]
 ):
     """# Description: There are 5 rooms for booking.\n
     **R01**: VIP, Price: 2000 THB/hour\n
@@ -38,6 +53,17 @@ async def book_room(
         - qrcode: {"account_number": "xxx"} 
         - creditcard: {"card_number": "...", "cvv": "..."} 
         - cash: {"cash_received": xxx}\n
+        
+    จองห้องและชำระเงินมัดจำ (Book Room & Pay Deposit)
+
+    ขั้นตอนการทำงาน:
+    1. ตรวจสอบความว่างของห้องตามช่วงเวลาที่ระบุ
+    2. คำนวณราคาสุทธิ (หักส่วนลดตาม Tier ของสมาชิก)
+    3. ตรวจสอบยอดมัดจำ (ต้องจ่ายอย่างน้อย 50%)
+    4. บันทึกข้อมูลการจองและมาร์คสถานะห้องเป็น RESERVED
+    
+    Returns:
+        Dict[str, Any]: ข้อมูลสรุปการจองและใบเสร็จมัดจำ
     """
     try:
         payload = restaurant.booking_room(token, member_id, room_id, hours, amount_paid, pay_method, start_time=start_time, payment_details=payment_details)
@@ -45,29 +71,54 @@ async def book_room(
     except Exception as e:
         raise error_response_status(status= status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(e))
 
-# @mcp.tool
+@mcp.tool
 @router.get("/preview_booking/{booking_id}")
-async def preview_booking(booking_id: str):
+async def preview_booking(
+    booking_id: Annotated[str, Field(
+        description="รหัสการจองที่ต้องการดูรายละเอียด (Format: BK-xxx)"
+    )]
+):
     """
+    เรียกดูรายละเอียดข้อมูลการจองห้อง
     
+    Returns:
+        Dict[str, Any]: ข้อมูลรายละเอียดการจอง (ห้อง, สมาชิก, ช่วงเวลา, สถานะ)
     """
     return restaurant.preview_booking_details(booking_id)
 
+@mcp.tool
 @router.post("/check-in/{booking_id}")
-async def check_in(token: str, order_id: str, booking_id: str, coupon_code: Optional[str] = Query(default=None), pay_method: str = Query(..., description="Payment strategy to use (e.g. QRCode, CreditCard)"), payment_details: Dict[str, Any] = Body(
-        ..., 
-        example={"account_number": "000-0-00000-0"}
-    )):
+async def check_in(
+    token: Annotated[str, Field(
+        description="Token ของพนักงานผู้ทำรายการ"
+    )], 
+    order_id: Annotated[str, Field(
+        description="รหัสออเดอร์ที่เกี่ยวข้องกับการจองห้องนี้ (Format: ORD-xxx-xxx)"
+    )], 
+    booking_id: Annotated[str, Field(
+        description="รหัสการจองที่ต้องการเช็คอิน (Format: BK-xxx)"
+    )], 
+    coupon_code: Annotated[Optional[str], Field(
+        description="โค้ดคูปองส่วนลดสำหรับยอดชำระที่เหลือ (ถ้ามี)"
+    )] = None, 
+    pay_method: Annotated[str, Field(
+        description='วิธีการชำระเงินส่วนที่เหลือ ("qrcode", "creditcard", "cash")'
+    )] = "cash", 
+    payment_details: Annotated[Dict[str, Any], Field(
+        description="ข้อมูลรายละเอียดการชำระเงิน"
+    )] = {}
+):
     """
-    ## Check in a guest for their booking.
-    **order_id**: รหัสออเดอร์ที่เกี่ยวข้องกับการจองนี้ (Format: ORD-xxx-xxx)\n
-    **booking_id**: รหัสการจองที่ต้องการเช็คอิน (Format: BK-xxx)\n
-    **coupon_code**: (Optional) โค้ดคูปองที่ลูกค้าอาจมีและต้องการใช้สำหรับส่วนลด\n
-    **pay_method**: วิธีการชำระเงินที่ลูกค้าใช้สำหรับการจ่ายเงินที่เหลือ (เช่น "qrcode", "creditcard", "cash")\n
-    **payment_details**: ข้อมูลเพิ่มเติมตามประเภทการจ่ายเงิน เช่น 
-        - qrcode: {"account_number": "xxx"} 
-        - creditcard: {"card_number": "...", "cvv": "..."} 
-        - cash: {"cash_received": xxx}\n
+    ทำการเช็คอิน (Check-in) และชำระเงินส่วนที่เหลือของค่าห้อง
+
+    ฟังก์ชันนี้จะ:
+    1. ตรวจสอบสถานะการจอง (ต้องเป็น DEPOSIT_PAID เท่านั้น)
+    2. คำนวณยอดคงเหลือที่ต้องจ่าย (ราคาสุทธิ - เงินมัดจำ)
+    3. ดำเนินการชำระเงินส่วนที่เหลือ
+    4. อัปเดตสถานะการจองเป็น CHECKED_IN และสถานะห้องเป็น IN_USE
+    
+    Returns:
+        Dict[str, Any]: ใบเสร็จรับเงินสำหรับยอดที่เหลือและยืนยันการเช็คอิน
     """
     try:
         payload = restaurant.check_in_booking(token=token, order_id=order_id, booking_id=booking_id, coupon_code=coupon_code, pay_method=pay_method, payment_details=payment_details)
@@ -75,11 +126,25 @@ async def check_in(token: str, order_id: str, booking_id: str, coupon_code: Opti
     except Exception as e:
         raise error_response_status(status=status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(e))
 
+@mcp.tool
 @router.post("/check-out/{booking_id}")
-async def check_out(token: str, booking_id: str):
+async def check_out(
+    token: Annotated[str, Field(
+        description="Token ของพนักงานผู้ทำรายการ"
+    )], 
+    booking_id: Annotated[str, Field(
+        description="รหัสการจองที่ต้องการเช็คเอาท์ (Format: BK-xxx)"
+    )]
+):
     """
-    ## Check out a guest from their booking.
-    **booking_id**: รหัสการจองที่ต้องการเช็คเอาท์ (Format: BK-xxx)\n
+    ทำการเช็คเอาท์ (Check-out) และสิ้นสุดการจองห้อง
+
+    ฟังก์ชันนี้จะ:
+    - เปลี่ยนสถานะการจองเป็น COMPLETED
+    - เปลี่ยนสถานะห้องเป็น CLEANING เพื่อรอการทำความสะอาด
+    
+    Returns:
+        Dict[str, Any]: ข้อความยืนยันการเช็คเอาท์สำเร็จ
     """
     try:
         payload = restaurant.check_out_booking(token=token, booking_id=booking_id)

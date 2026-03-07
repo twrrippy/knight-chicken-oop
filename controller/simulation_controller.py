@@ -3,14 +3,24 @@ from shared.utils.response import success_response_status, error_response_status
 from datetime import timedelta
 from mcp_core import mcp
 from shared.utils.simulate import SimulationClock
+from typing import Annotated
+from pydantic import Field
 
 router = APIRouter(prefix="/simulate", tags=["Simulation"])
 
 @mcp.tool()
-@router.post("/simulate/advance-time", tags=["Simulation"])
-async def advance_time(minutes: int):
+@router.post("/advance-time", tags=["Simulation"])
+async def advance_time(
+    minutes: Annotated[int, Field(
+        description="จำนวนนาทีที่ต้องการให้เวลาในระบบขยับไปข้างหน้า"
+    )]
+):
     """
-    ขยับเวลาไปยังอนาคต โดยรับเวลามาเป็นหน่วย นาที
+    ขยับเวลาจำลองของระบบ (Simulation Time) ไปยังอนาคตตามจำนวนนาทีที่ระบุ
+    ใช้ประโยชน์ในการจำลองสถานการณ์ที่เวลาผ่านไป เช่น การหมดอายุของคูปอง หรือเวลาการจองห้อง
+    
+    Returns:
+        Dict[str, str]: เวลาปัจจุบันหลังจากการขยับเวลาแล้ว
     """
     new_time = SimulationClock.get_time() + timedelta(minutes=minutes)
     SimulationClock.set_time(new_time)

@@ -25,7 +25,10 @@ app.include_router(simulation_router)
 @app.get("/menu", response_model=dict, tags=["Menu"])
 async def get_menu():
     """
-    ดึงรายการอาหารทั้งหมด
+    ดึงรายการอาหารทั้งหมดของร้าน (เมนูเดี่ยวและเมนูเซต)
+    
+    Returns:
+        Dict[str, List[Dict]]: ข้อมูลรายการอาหารทั้งหมดพร้อมรายละเอียด (ราคา, ส่วนประกอบ, เวลาในการทำ)
     """
     return restaurant.get_menu()
 
@@ -40,5 +43,5 @@ print("Mock Data Initialized comprehensively from mock_data.py")
 # # ==========================================
 
 if __name__ == "__main__":
-    # mcp.run()
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+    mcp.run()
+    #uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)

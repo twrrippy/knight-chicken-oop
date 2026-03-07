@@ -1,12 +1,8 @@
-from typing import Optional
-
-from fastapi import APIRouter, Query, status, HTTPException
-from shared.utils.response import success_response_status, error_response_status
-from main_system.enum import ItemStatus
-from main_system.restaurant import Order
-from typing import Union
-# from main import restaurant_system, 
+from typing import Union, Annotated, Optional
+from pydantic import Field
+from mcp_core import mcp
 from main_system.restaurant import restaurant, Order
+from fastapi import APIRouter
 """Admin Controller Routes include:
 - Log Management: (Manager) call Central Log or Audit Trail
 - Simulation Management: controlling the simulation speed (time acceleration) Expired or Booking
@@ -16,14 +12,26 @@ from main_system.restaurant import restaurant, Order
 
 router = APIRouter(prefix="/admin")
 
+@mcp.tool
 @router.get("/get-all-receipts", tags=["Data"])
 async def get_all_receipts():
-    """show all receipts in the system"""
+    """
+    ดึงข้อมูลใบเสร็จทั้งหมดในระบบ
+    
+    Returns:
+        Dict[str, List[Dict]]: รายการใบเสร็จทั้งหมด
+    """
     return {"receipts": restaurant.get_all_receipts}
 
+@mcp.tool
 @router.get("/get-all-members", tags=["Data"])
 async def get_all_members():
-    """show all members in the system"""
+    """
+    ดึงข้อมูลสมาชิกทั้งหมดในระบบ
+    
+    Returns:
+        List[Dict]: รายชื่อสมาชิกพร้อมข้อมูลเบื้องต้น (ID, ชื่อ, Tier)
+    """
     return [
         {
             "member_id": m.id,
@@ -32,9 +40,15 @@ async def get_all_members():
         } for m in restaurant.get_all_members()
     ]
 
+@mcp.tool
 @router.get("/get-all-rooms", tags=["Data"])
 async def get_all_rooms():
-    """get all rooms in the system"""
+    """
+    ดึงข้อมูลห้องทั้งหมดในระบบ
+    
+    Returns:
+        List[Dict]: ข้อมูลห้อง (ID, ประเภท, สถานะ, ราคาต่อชั่วโมง)
+    """
     return [
         {
             "room_id": r.id,
@@ -44,9 +58,15 @@ async def get_all_rooms():
         } for r in restaurant.get_all_rooms()
     ]
 
+@mcp.tool
 @router.get("/get-all-staff", tags=["Data"])
 async def get_all_staff():
-    """get all staff"""
+    """
+    ดึงข้อมูลพนักงานทั้งหมดในระบบ
+    
+    Returns:
+        List[Dict]: รายชื่อพนักงาน (ID, ชื่อ)
+    """
     return [
         {
             "staff_id": s.id,
@@ -54,9 +74,15 @@ async def get_all_staff():
         } for s in restaurant.get_all_staff()
     ]
 
+@mcp.tool
 @router.get("/get-all-orders", tags=["Data"])
 async def get_all_orders():
-    """get all orders in the system"""
+    """
+    ดึงข้อมูลออเดอร์ทั้งหมดในระบบ
+    
+    Returns:
+        List[Dict]: รายการออเดอร์ (ID, ชื่อลูกค้า, สถานะ)
+    """
     return [
         {
             "order_id": o.id,
@@ -65,9 +91,15 @@ async def get_all_orders():
         } for o in restaurant.get_all_orders()
     ]
 
+@mcp.tool
 @router.get("/get-all-bookings", tags=["Data"])
 async def get_all_bookings():
-    """get all bookings in the system"""
+    """
+    ดึงข้อมูลการจองห้องทั้งหมดในระบบ
+    
+    Returns:
+        List[Dict]: รายการจองห้อง (ID, ชื่อลูกค้า, ประเภทห้อง, สถานะ, เวลาเริ่มต้น)
+    """
     return [
         {
             "booking_id": b.id,
@@ -78,28 +110,46 @@ async def get_all_bookings():
         } for b in restaurant.get_all_bookings()
     ]
 
+@mcp.tool
 @router.post("/auth/login", tags=["Authentication"])
-async def login(username: str, password: str):
-    """เข้าสู่ระบบด้วย username และ password เพื่อรับ Token"""
+async def login(
+    username: Annotated[str, Field(description="ชื่อผู้ใช้งาน")], 
+    password: Annotated[str, Field(description="รหัสผ่าน")]
+):
+    """
+    เข้าสู่ระบบเพื่อรับ Access Token สำหรับใช้งานฟังก์ชันอื่นๆ
+    
+    Returns:
+        Dict[str, str]: Access Token และประเภทของ Token
+    """
     token = restaurant.login(username, password)
     return {"access_token": token, "token_type": "bearer"}
 
+@mcp.tool
 @router.post("/auth/logout", tags=["Authentication"])
-async def logout(token: str = Query(...)):
-    """ออกจากระบบและทำลาย Token"""
+async def logout(
+    token: Annotated[str, Field(description="Token ที่ต้องการทำลาย")]
+):
+    """
+    ออกจากระบบและยกเลิกการใช้งาน Token
+    """
     success = restaurant.logout(token)
     if success:
         return {"message": "Logged out successfully"}
     raise HTTPException(status_code=400, detail="Invalid Token")
 
+@mcp.tool
 @router.post("/register/member", tags=["Registration"])
 async def member_sign_up(
-    username: str, 
-    password: str, 
-    display_name: str, 
-    phone: Optional[str] = None
+    username: Annotated[str, Field(description="ชื่อผู้ใช้งานที่ต้องการลงทะเบียน")], 
+    password: Annotated[str, Field(description="รหัสผ่านที่ต้องการใช้")], 
+    display_name: Annotated[str, Field(description="ชื่อที่ต้องการให้แสดงในระบบ")], 
+    phone: Annotated[Optional[str], Field(description="เบอร์โทรศัพท์สำหรับติดต่อ")] = None
 ):
-    """ลงทะเบียนลูกค้าใหม่: ระบบจะ Generate ID และตั้ง Tier เป็น Bronze ให้เอง"""
+    """
+    ลงทะเบียนสมาชิกใหม่ของร้าน Knight Chicken
+    ระบบจะสร้าง ID สมาชิก (M-xxx) และกำหนดระดับเริ่มต้นเป็น Bronze ให้อัตโนมัติ
+    """
     member = restaurant.register_member(username, password, display_name, phone)
     return {
         "message": "Welcome to Party Hub!",
@@ -108,9 +158,18 @@ async def member_sign_up(
         "tier": member.tier
     }
 
+@mcp.tool
 @router.post("/register/staff", tags=["Registration"])
-async def staff_sign_up(username: str, password: str, name: str, phone: str = "0000000000"):
-    """ลงทะเบียนพนักงานใหม่: ระบบจะ Generate ID (S-xxx) ให้อัตโนมัติ"""
+async def staff_sign_up(
+    username: Annotated[str, Field(description="ชื่อผู้ใช้งานสำหรับพนักงาน")], 
+    password: Annotated[str, Field(description="รหัสผ่านสำหรับพนักงาน")], 
+    name: Annotated[str, Field(description="ชื่อ-นามสกุล ของพนักงาน")], 
+    phone: Annotated[str, Field(description="เบอร์โทรศัพท์พนักงาน")] = "0000000000"
+):
+    """
+    ลงทะเบียนพนักงานใหม่เข้าระบบ
+    ระบบจะสร้างรหัสพนักงาน (S-xxx) ให้อัตโนมัติ
+    """
     staff = restaurant.register_staff(username, password, name, phone)
     return {
         "message": "Staff registered successfully",
@@ -118,8 +177,17 @@ async def staff_sign_up(username: str, password: str, name: str, phone: str = "0
         "name": staff.name
     }
 
+@mcp.tool
 @router.get("/stock/check/{item_name}", tags=["Stock"])
-async def get_stock(item_name: str):
+async def get_stock(
+    item_name: Annotated[str, Field(description="ชื่อวัตถุดิบที่ต้องการตรวจสอบ (เช่น Chicken, Beef)")]
+):
+    """
+    ตรวจสอบจำนวนวัตถุดิบในสต็อกคงเหลือ
+    
+    Returns:
+        Dict[str, int]: จำนวนวัตถุดิบที่พร้อมใช้งาน (Available) และที่ถูกจองไว้ (Reserved)
+    """
     item_available = restaurant.check_stock(item_name, ItemStatus.AVAILABLE)
     item_reserved = restaurant.check_stock(item_name, ItemStatus.RESERVED)
     return {
@@ -127,12 +195,22 @@ async def get_stock(item_name: str):
         "Reserved": item_reserved
     }
 
+@mcp.tool
 @router.get("/queue/check", tags=["Queue"])
 async def check_queue():
+    """
+    ตรวจสอบจำนวนคิวทั้งหมดที่กำลังดำเนินการในร้าน (ออเดอร์ที่จ่ายเงินแล้วหรือกำลังทำอาหาร)
+    """
     return { "Queue": restaurant.check_queue}
 
+@mcp.tool
 @router.get("/queue/get/{queue_order}", response_model=Union[Order.OrderDTO, dict], tags=["Queue"])
-async def get_queue(queue_order: int):
+async def get_queue(
+    queue_order: Annotated[int, Field(description="ลำดับคิวที่ต้องการดึงข้อมูล (1, 2, 3, ...)")]
+):
+    """
+    ดึงข้อมูลรายละเอียดออเดอร์ตามลำดับคิวในปัจจุบัน
+    """
     if queue_order > 50 or queue_order < 1:
         raise HTTPException(status_code=400, detail="Queue not Found")
     order = restaurant.get_queue(queue_order)
