@@ -41,12 +41,11 @@ class User(ABC):
     
     def check_username(self, username: str) -> bool:
         return hasattr(self, "_username") and self.__username == username
-
-    def check_password(self, password: str) -> bool:
-        return hasattr(self, "_password") and self.__password == password
+    def check_identity(self, username: str, password: str) -> bool:
+        return hasattr(self, "_username") and hasattr(self, "_password") and self.__username == username and self.__password == password
     
-    def __eq__(self, other):
-        return (type(other) is type(self)) and self.__name == other.name and self.__id == other.id and self.__phone_number == other.phone_number
+    # def __eq__(self, other):
+    #     return (type(other) is type(self)) and self.__name == other.name and self.__id == other.id and self.__phone_number == other.phone_number
 class Staff(User):
     def __init__(self, id: str, name: str, phone_number: str, username: str="", password: str=""):
         super().__init__(id, name, phone_number, username, password)
@@ -913,7 +912,7 @@ class Restaurant:
                 return True
             item = self.__stock[item_index]
             if item.name == item_name and item.status == ItemStatus.RESERVED:
-                item.update_status = ItemStatus.AVAILABLE
+                item.status = ItemStatus.AVAILABLE
                 count += 1
     
     def find_ingredient_in_stock(self, item_name: str):
@@ -1038,8 +1037,8 @@ class Restaurant:
                 b.room.status = RoomStatus.AVAILABLE
 
     def login(self, username, password):
-        member = next((m for m in self.__members if m.username == username and m.password == password), None)
-        staff = next((s for s in self.__staff_list if s.username == username and s.password == password), None)
+        member = next((m for m in self.__member_list if m.check_identity(username, password)), None)
+        staff = next((s for s in self.__staff_list if s.check_identity(username, password)), None)
         if member:
             return self.__auth_manager.create_session(member.id)
         
@@ -1058,7 +1057,7 @@ class Restaurant:
     # --- Member Registration ---
     def register_member(self, username: str, password: str, name: str, phone: str = "0000000000") -> 'Member':
         # ตรวจสอบว่า Username ซ้ำไหม
-        if any(m.username == username for m in self.__members) or any(s.username == username for s in self.__staff_list):
+        if any(m.check_username(username) for m in self.__member_list) or any(s.check_username(username) for s in self.__staff_list):
             raise HTTPException(400, "Username already exists")
         
         # ระบบสร้าง ID ให้อัตโนมัติ
@@ -1067,13 +1066,13 @@ class Restaurant:
         # สร้าง Member (Tier เริ่มต้นเป็น Bronze อัตโนมัติใน __init__)
         new_member = Member(new_id, name, MemberTier.BRONZE, username, password, phone)
         
-        self.__members.append(new_member)
+        self.__member_list.append(new_member)
         self.__member_counter += 1
         return new_member
 
     # --- Staff Registration ---
     def register_staff(self, username: str, password: str, name: str, phone: str = "0000000000") -> 'Staff':
-        if any(s.username == username for s in self.__staff_list) or any(m.username == username for m in self.__members):
+        if any(s.check_username(username) for s in self.__staff_list) or any(m.check_username(username) for m in self.__member_list):
             raise HTTPException(400, "Username already exists")
 
         new_id = f"S-{self.__staff_counter:03d}"
@@ -1084,10 +1083,10 @@ class Restaurant:
         self.__staff_counter += 1
         return new_staff
     
-    def get_all_members(self) -> List['Member']: return self.__members
+    def get_all_members(self) -> List['Member']: return self.__member_list
     def get_all_staff(self) -> List['Staff']: return self.__staff_list
     def get_all_rooms(self) -> List['Room']: return self.__room_list
-    def get_all_receipts(self) -> List['Receipt']: return self.__receipts
+    def get_all_receipts(self) -> List['Receipt']: return self.__receipt_list
     
     ### --------- API --------- ###
     
