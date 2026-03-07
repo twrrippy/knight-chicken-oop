@@ -79,3 +79,7 @@ class ItemStatus(Enum):
 class IngredientType(Enum):
     STRICT = "Strict"
     CUSTOMIZABLE = "Customizable"
+
+class CustomType(Enum):
+    ADD = "Add"
+    RM = "Remove"

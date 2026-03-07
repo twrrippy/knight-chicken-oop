@@ -48,12 +48,11 @@ async def add_order(orderitem: OrderItem.OrderItemDTO):
         raise HTTPException(status_code=400, detail=(str(e)))
     return current_order.order_to_dict()
 
-@router.put("/orderitem/custom/add", response_model=Union[Order.OrderDTO, dict])
-async def custom_add_orderitem(custom: OrderItem.OrderItemCustomDTO):
+@router.put("/orderitem/custom", response_model=Union[Order.OrderDTO, dict])
+async def custom_orderitem(custom: OrderItem.OrderItemCustomDTO):
     try:
         current_order = restaurant.search_order_from_id(custom.order_id)
-        menu = restaurant.search_menu_item_from_name(custom.menu)
-        current_order.add_order_item(menu, custom.quantity)
+        current_order.custom(custom.order_item_id, custom.item_name, custom.quantity)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=(str(e)))
     return current_order.order_to_dict()
@@ -68,10 +67,10 @@ async def ordering(order_id: str, guest_id: str):
         current_customer = Guest(guest_id)
         order = restaurant.search_order_from_id(order_id)
         order.check_customer(current_customer)
+        reserved_order = restaurant.reserve(order)
+        reserved_order.update_price
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    reserved_order = restaurant.reserve(order)
-    reserved_order.update_price
     return reserved_order.order_to_dict()
 
 @router.put("/confirm/guest", response_model=Union[Order.OrderDTO, dict])
