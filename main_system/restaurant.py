@@ -210,7 +210,7 @@ class SingleMenuItem(MenuItem):
     def custom_ingredient(self, item_name: str, quantity: int):
         try:
             ingredient = self.find_ingredient_in_recipe_from_name(item_name)
-            ingredient.modify(quantity)
+            ingredient.custom(quantity)
         except ValueError as e:
             raise ValueError(str(e))
         except TypeError as e:
