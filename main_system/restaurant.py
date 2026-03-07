@@ -33,20 +33,11 @@ class User(ABC):
         self.__password = password
     
     @property
-    def id(self):
-        return self.__id
+    def id(self): return self.__id
     @property
-    def name(self):
-        return self.__name
+    def name(self): return self.__name
     @property
-    def phone_number(self):
-        return self.__phone_number
-    @property
-    def username(self):
-        return self.__username
-    @property
-    def password(self):
-        return self.__password
+    def phone_number(self): return self.__phone_number
     
     def check_username(self, username: str) -> bool:
         return hasattr(self, "_username") and self.__username == username
@@ -76,6 +67,16 @@ class Guest(Customer):
         id: str
         name: str
         phone_number: str
+
+    @property
+    def id(self): return self.__id
+    @property
+    def name(self): return self.__name
+    @property
+    def phone_number(self): return self.__phone_number
+
+    def __eq__(self, other):
+        return (type(other) is type(self)) and self.__name == other.name and self.__id == other.id and self.__phone_number == other.phone_number
 
 class Member(Customer):
     def __init__(self, id: str, name: str, tier: MemberTier, username: str, password: str, phone: str = ""):
@@ -309,10 +310,10 @@ class OrderItem:
                 success = restaurant.stock_reserve(ingredient.item.name, ingredient.quantity * self.__quantity)
                 if not success:
                     self.order_item_reverse(ingredient)
-                    self.update_status(OrderItemStatus.OUT_OF_STOCK)
+                    self.status = OrderItemStatus.OUT_OF_STOCK
                     return
             else:
-                self.update_status(OrderItemStatus.RESERVED)
+                self.status= OrderItemStatus.RESERVED
         except ValueError as e:
             raise ValueError(str(e))
     def order_item_reverse(self, ingredient: Ingredient):
@@ -549,7 +550,7 @@ class Order:
             raise ValueError("Confirmed Already")
         for order_item_index in range(len(self.__order_item_list) - 1, -1, -1):
             order_item = self.__order_item_list[order_item_index]
-            if order_item.status == OrderItemStatus.OUT_OF_STOCK or order_item.status == OrderItemStatus.CANCEL:
+            if order_item.status == OrderItemStatus.OUT_OF_STOCK or order_item.status == OrderItemStatus.CANCELED:
                 del self.__order_item_list[order_item_index]
         self.status = OrderStatus.CONFIRMED
         return self
@@ -567,7 +568,7 @@ class Order:
             "order_status": self.__status,
             "customer": self.__customer.name,
             "order_item_list": self.order_item_dict_list(),
-            "total_price": self.__sub_total_price
+            "total_price": self.__subtotal
         }
         
     def cook_order(self):
@@ -873,7 +874,7 @@ class Restaurant:
     def get_menu(self):
         menu = []
         for each_menu in self.__menu:
-            menu.append(each_menu.to_dict_menu(self))
+            menu.append(each_menu.to_dict_menu())
         return {"menu": menu}
     
     def search_menu_item_from_name(self, menu_item_name: str):
@@ -890,7 +891,7 @@ class Restaurant:
     
     #reserved while ordering
     def reserve(self, order: Order):
-        return order.order_reserve(self)
+        return order.order_reserve()
     
     def stock_reserve(self, item_name: str, quantity: int):
         if quantity <= 0:
@@ -898,7 +899,7 @@ class Restaurant:
         count = 0
         for item in self.__stock:
             if item.name == item_name and item.status == ItemStatus.AVAILABLE:
-                item.update_status(ItemStatus.RESERVED)
+                item.status = ItemStatus.RESERVED
                 count += 1
             if count == quantity:
                 return True
@@ -916,7 +917,7 @@ class Restaurant:
                 return True
             item = self.__stock[item_index]
             if item.name == item_name and item.status == ItemStatus.RESERVED:
-                item.update_status(ItemStatus.AVAILABLE)
+                item.update_status = ItemStatus.AVAILABLE
                 count += 1
     
     # def find_ingredient_in_stock(self, item_name: str):

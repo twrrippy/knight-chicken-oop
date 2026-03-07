@@ -31,8 +31,8 @@ class Item:
     def status(self):
         return self.__status
     
-    def update_status(self, status: ItemStatus):
-        self.__status = status
+    @status.setter
+    def status(self, status: ItemStatus): self.__status = status
     
     def __eq__(self, other):
         return (type(other) is type(self)) and self.__name == other.name and self.__price == other.price

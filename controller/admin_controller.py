@@ -97,7 +97,7 @@ async def staff_sign_up(username: str, password: str, name: str, phone: str = "0
 @router.get("/stock/check/{item_name}", tags=["Stock"])
 async def get_stock(item_name: str):
     item_available = restaurant.check_stock(item_name, ItemStatus.AVAILABLE)
-    item_reserved = restaurant.check_stock(item_name, ItemStatus.UNAVS)
+    item_reserved = restaurant.check_stock(item_name, ItemStatus.RESERVED)
     return {
         "Available": item_available,
         "Reserved": item_reserved
