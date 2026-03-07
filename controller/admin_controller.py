@@ -3,7 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, Query, status, HTTPException
 from shared.utils.response import success_response_status, error_response_status
 from main_system.enum import ItemStatus
-from main_system.order.order import Order
+from main_system.restaurant import Order
 from typing import Union
 # from main import restaurant_system, 
 from main_system.restaurant import restaurant

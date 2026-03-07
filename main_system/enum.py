@@ -26,7 +26,7 @@ class OrderItemStatus(Enum):
     OUT_OF_STOCK = "Out of Stock"
     COOKING = "Cooking"
     READY = "Ready"
-    CANCEL = "Cancel"
+    CANCELED = "Canceled"
 
 class DeliveryStatus(str, Enum):
     PENDING = "Pending"

@@ -2,9 +2,9 @@ from datetime import timedelta, datetime
 from main_system.coupon import PercentCoupon, FixedAmountCoupon
 from main_system.enum import MemberTier, OrderType, OrderStatus, RoomType, PlatformName, BookingStatus
 from main_system.restaurant import Order, Staff, Member
-from main_system.ingredient import SingleMenuItem
+from main_system.restaurant import SingleMenuItem
 from main_system.external_platform.payment_method import Cash, QRCode
-from main_system.booking import Room, TimeSlot, Booking
+from main_system.restaurant import Room, TimeSlot, Booking
 from main_system.external_platform.delivery_provider import Delivery, GrabDeliveryProvider, LineManDeliveryProvider, ShopeeFoodDeliveryProvider
 from main_system.restaurant import restaurant
 from shared.utils.simulate import SimulationClock
