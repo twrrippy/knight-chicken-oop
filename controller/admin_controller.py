@@ -54,6 +54,30 @@ async def get_all_staff():
         } for s in restaurant.get_all_staff()
     ]
 
+@router.get("/get-all-orders", tags=["Data"])
+async def get_all_orders():
+    """get all orders in the system"""
+    return [
+        {
+            "order_id": o.id,
+            "customer": o.customer.name,
+            "status": o.status.value,
+        } for o in restaurant.get_all_orders()
+    ]
+
+@router.get("/get-all-bookings", tags=["Data"])
+async def get_all_bookings():
+    """get all bookings in the system"""
+    return [
+        {
+            "booking_id": b.id,
+            "customer": b.member.name,
+            "room": b.room.type,
+            "status": b.status.value,
+            "time_slot": b.time_slot.start_time.strftime("%Y-%m-%d %H:00:00")
+        } for b in restaurant.get_all_bookings()
+    ]
+
 @router.post("/auth/login", tags=["Authentication"])
 async def login(username: str, password: str):
     """เข้าสู่ระบบด้วย username และ password เพื่อรับ Token"""

@@ -15,4 +15,4 @@ async def advance_time(minutes: int):
     """
     new_time = SimulationClock.get_time() + timedelta(minutes=minutes)
     SimulationClock.set_time(new_time)
-    return {"current_simulation_time": SimulationClock.get_time()}
+    return {"current_simulation_time": SimulationClock.get_time().strftime("%Y-%m-%d %H:%M:%S")}

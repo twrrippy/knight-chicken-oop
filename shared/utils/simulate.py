@@ -8,9 +8,10 @@ class SimulationClock:
 
     @classmethod
     def set_time(cls, new_time: datetime):
+        from main_system.restaurant import restaurant
         cls._current_time = new_time
         # Trigger time-dependent checks
-        main_system.restaurant.Restaurant.auto_check_no_show()
+        restaurant.auto_check_no_show()
 
     @classmethod
     def get_time(cls):
