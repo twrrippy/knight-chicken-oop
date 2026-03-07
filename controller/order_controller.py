@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from shared.utils.response import success_response_status, error_response_status
 from main_system.restaurant import restaurant
-from actor.customer import Guest
+from main_system.coupon import Guest
 from main_system.order.order import Order, OrderItem
 from main_system.enum import OrderType
 from typing import Union
