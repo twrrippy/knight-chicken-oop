@@ -11,56 +11,106 @@ from shared.utils.simulate import SimulationClock
 
 def initialize_mock_data():
     # 1. Staff
-    mock_staff = Staff("S-001", "Alice Staff", "0801234567", "alice", "password")
-    restaurant.add_staff(mock_staff)
+    staff1 = Staff("S-001", "Alice Manager", "0801111111", "alice", "password")
+    staff2 = Staff("S-002", "Bob Cashier", "0802222222", "bob", "password")
+    staff3 = Staff("S-003", "Charlie Kitchen", "0803333333", "charlie", "password")
+    restaurant.add_staff(staff1)
+    restaurant.add_staff(staff2)
+    restaurant.add_staff(staff3)
 
-    # 2. Member
-    mock_member = Member("M-001", "Bob Customer", MemberTier.GOLD, "bob", "password", "0812345678")
-    restaurant.add_member(mock_member)
+    # 2. Member & Guest
+    member_general = Member("M-001", "Dave Gen", MemberTier.GENERAL, "dave", "password", "0811111111")
+    member_bronze = Member("M-002", "Eve Bronze", MemberTier.BRONZE, "eve", "password", "0812222222")
+    member_silver = Member("M-003", "Frank Silver", MemberTier.SILVER, "frank", "password", "0813333333")
+    member_gold = Member("M-004", "Grace Gold", MemberTier.GOLD, "grace", "password", "0814444444")
+    restaurant.add_member(member_general)
+    restaurant.add_member(member_bronze)
+    restaurant.add_member(member_silver)
+    restaurant.add_member(member_gold)
 
-    # 3. Menu Item
-    mock_menu_2 = SingleMenuItem("French Fries", 80.0, timedelta(minutes=10), [])
-    mock_menu_3 = SingleMenuItem("Cola", 40.0, timedelta(minutes=2), [])
-    restaurant.add_menu(mock_menu_2)
-    restaurant.add_menu(mock_menu_3)
-    
+    # Guest isn't added to a specific list in restaurant normally, but we can use guest for orders
+    # We will just instantiate it when needed.
+
+    # 3. Inventory Stock
     chicken = Item("Chicken", 30)
     bread = Item("Bread", 5)
     cheese = Item("Cheese", 20)
-    restaurant.add_stock(chicken, 20)
-    restaurant.add_stock(bread, 10)
-    restaurant.add_stock(cheese, 10)
+    beef = Item("Beef", 40)
+    lettuce = Item("Lettuce", 10)
+    tomato = Item("Tomato", 10)
+    potato = Item("Potato", 15)
+    oil = Item("Oil", 5)
+    soda_syrup = Item("Soda Syrup", 10)
 
+    restaurant.add_stock(chicken, 100)
+    restaurant.add_stock(bread, 50)
+    restaurant.add_stock(cheese, 50)
+    restaurant.add_stock(beef, 50)
+    restaurant.add_stock(lettuce, 50)
+    restaurant.add_stock(tomato, 50)
+    restaurant.add_stock(potato, 100)
+    restaurant.add_stock(oil, 50)
+    restaurant.add_stock(soda_syrup, 100)
 
-    chicken_recipe = []
-    chicken_recipe.append(Ingredient(chicken, 1, IngredientType.STRICT))
-    fried_chicken= SingleMenuItem("Fried Chicken", 20, timedelta(minutes=10), chicken_recipe)
+    # 4. Single Menu Items
+    # Fried Chicken
+    fk_recipe = [Ingredient(chicken, 1, IngredientType.STRICT), Ingredient(oil, 1, IngredientType.STRICT)]
+    fried_chicken = SingleMenuItem("Fried Chicken", 45, timedelta(minutes=10), fk_recipe)
     restaurant.add_menu(fried_chicken)
 
-    burger_recipe = []
-    burger_recipe.append(Ingredient(bread, 1, IngredientType.STRICT))
-    burger_recipe.append(Ingredient(chicken, 1, IngredientType.STRICT))
-    burger_recipe.append(Ingredient(cheese, 1, IngredientType.CUSTOMIZABLE))
-    burger = SingleMenuItem("Hamburger", 60, timedelta(minutes=15), burger_recipe)
-    restaurant.add_menu(burger)
+    # Hamburger (Chicken)
+    chk_burger_recipe = [
+        Ingredient(bread, 1, IngredientType.STRICT),
+        Ingredient(chicken, 1, IngredientType.STRICT),
+        Ingredient(cheese, 1, IngredientType.CUSTOMIZABLE),
+        Ingredient(lettuce, 1, IngredientType.CUSTOMIZABLE)
+    ]
+    chk_burger = SingleMenuItem("Chicken Burger", 80, timedelta(minutes=15), chk_burger_recipe)
+    restaurant.add_menu(chk_burger)
+
+    # Hamburger (Beef)
+    beef_burger_recipe = [
+        Ingredient(bread, 1, IngredientType.STRICT),
+        Ingredient(beef, 1, IngredientType.STRICT),
+        Ingredient(cheese, 1, IngredientType.CUSTOMIZABLE),
+        Ingredient(tomato, 1, IngredientType.CUSTOMIZABLE)
+    ]
+    beef_burger = SingleMenuItem("Beef Burger", 100, timedelta(minutes=15), beef_burger_recipe)
+    restaurant.add_menu(beef_burger)
+
+    # French Fries
+    fries_recipe = [Ingredient(potato, 1, IngredientType.STRICT), Ingredient(oil, 1, IngredientType.STRICT)]
+    fries = SingleMenuItem("French Fries", 40, timedelta(minutes=8), fries_recipe)
+    restaurant.add_menu(fries)
+
+    # Cola
+    cola_recipe = [Ingredient(soda_syrup, 1, IngredientType.STRICT)]
+    cola = SingleMenuItem("Cola", 25, timedelta(minutes=2), cola_recipe)
+    restaurant.add_menu(cola)
+
+    # 5. Set Menu Items
+    party_set_recipe = [Food(fried_chicken, 5), Food(fries, 2), Food(cola, 2)]
+    party_set = SetMenuItem("Party Set", 280, party_set_recipe) # Discounted from 5*45+2*40+2*25 = 355
+    restaurant.add_menu(party_set)
+
+    burger_set_recipe = [Food(beef_burger, 1), Food(fries, 1), Food(cola, 1)]
+    burger_set = SetMenuItem("Beef Burger Combo", 150, burger_set_recipe) # Discounted from 100+40+25 = 165
+    restaurant.add_menu(burger_set)
 
 
-    party_chicken_recipe = []
-    party_chicken_recipe.append(Food(fried_chicken, 60))
-    party_chicken= SetMenuItem("Party Set", 1000, party_chicken_recipe)
-    restaurant.add_menu(party_chicken)
+    # 6. Coupons
+    coupon_20pct = PercentCoupon("CPN-PCT-20", "DISCOUNT20", 200.0, 20.0)
+    coupon_minus50 = FixedAmountCoupon("CPN-FIX-50", "MINUS50", 150.0, 50.0)
+    member_gold.add_coupon(coupon_20pct)
+    member_silver.add_coupon(coupon_minus50)
 
-    # 4. Coupons
-    mock_coupon1 = PercentCoupon("CPN-01", "DISCOUNT20", 200.0, 20.0) # 20% off
-    mock_coupon2 = FixedAmountCoupon("CPN-02", "MINUS50", 100.0, 50.0) # 50 THB off
-    mock_member.add_coupon(mock_coupon1)
-    mock_member.add_coupon(mock_coupon2)
+    # 7. Payment Methods
+    cash = Cash("PAY-CASH-01", "cash")
+    qrcode = QRCode("PAY-QR-01", "qrcode")
+    restaurant.add_payment_method(cash)
+    restaurant.add_payment_method(qrcode)
 
-    # 5. Payment Methods
-    restaurant.add_payment_method(Cash("PAY-01", "cash"))
-    restaurant.add_payment_method(QRCode("PAY-02", "qrcode"))
-
-    # 6. Delivery Providers
+    # 8. Delivery Providers
     grab = GrabDeliveryProvider()
     lineman = LineManDeliveryProvider()
     shopee = ShopeeFoodDeliveryProvider()
@@ -68,61 +118,102 @@ def initialize_mock_data():
     restaurant.add_delivery_provider(lineman)
     restaurant.add_delivery_provider(shopee)
 
-    # 7. Rooms
-    room_vip = Room("R-VIP-01", RoomType.VIP)
-    room_hall = Room("R-HALL-01", RoomType.HALL)
-    restaurant.add_room(room_vip)
-    restaurant.add_room(room_hall)
+    # 9. Rooms
+    room_vip1 = Room("R-VIP-01", RoomType.VIP)
+    room_vip2 = Room("R-VIP-02", RoomType.VIP)
+    room_standard1 = Room("R-STD-01", RoomType.STANDARD)
+    room_hall1 = Room("R-HALL-01", RoomType.HALL)
+    restaurant.add_room(room_vip1)
+    restaurant.add_room(room_vip2)
+    restaurant.add_room(room_standard1)
+    restaurant.add_room(room_hall1)
+
 
     # ==========================================
-    # ORDER SCENARIO 1: General Order (Dine-in)
+    # ORDERS
     # ==========================================
-    order_1 = Order(OrderType.GENERAL, mock_member)
-    if not hasattr(order_1, "_Order__order_item_list"):
-        order_1._Order__order_item_list = []
-    order_1.add_order_item(fried_chicken, 2) # 300
-    order_1.add_order_item(mock_menu_3, 2) # 80
+
+    # O-01: General Order, PENDING (Guest)
+    order_1 = Order(OrderType.GENERAL, member_general)
+    if not hasattr(order_1, "_Order__order_item_list"): order_1._Order__order_item_list = []
+    order_1.add_order_item(chk_burger, 2)
+    order_1.add_order_item(cola, 2)
     order_1.status = OrderStatus.PENDING
     restaurant.add_order(order_1)
 
-    # ==========================================
-    # ORDER SCENARIO 2: Delivery Order
-    # ==========================================
-    order_2 = Order(OrderType.DELIVERY, mock_member)
-    if not hasattr(order_2, "_Order__order_item_list"):
-        order_2._Order__order_item_list = []
-    order_2.add_order_item(fried_chicken, 1) # 150
-    order_2.add_order_item(mock_menu_2, 1) # 80
-    
-    # Add Delivery
-    delivery = Delivery("DEL-001", grab, 5.5) # distance 5.5 km
-    delivery.request_rider()
-    order_2.add_delivery(delivery)
-    order_2.status = OrderStatus.PENDING
+    # O-02: General Order, COOKING (Gold Member)
+    order_2 = Order(OrderType.GENERAL, member_gold)
+    if not hasattr(order_2, "_Order__order_item_list"): order_2._Order__order_item_list = []
+    order_2.add_order_item(party_set, 1)
+    order_2.add_order_item(beef_burger, 1)
+    order_2.status = OrderStatus.COOKING
     restaurant.add_order(order_2)
 
-    # ==========================================
-    # ORDER SCENARIO 3: Booking Event Order
-    # ==========================================
-    # First, create and pay deposit for the booking
-    start_time = SimulationClock.get_time() + timedelta(days=1)
-    time_slot = TimeSlot(start_time, 3) # 3 hours
-    booking = Booking("BK-100", mock_member, room_vip, time_slot)
-    
-    # Mocking that booking deposit was already paid
-    booking._Booking__status = BookingStatus.DEPOSIT_PAID
-    restaurant.add_booking(booking)
-
-    # Now create the order associated with this booking
-    order_3 = Order(OrderType.EVENT, mock_member)
-    if not hasattr(order_3, "_Order__order_item_list"):
-        order_3._Order__order_item_list = []
-    order_3.add_order_item(fried_chicken, 10) # 1500
-    order_3.add_order_item(mock_menu_2, 5)  # 400
-    order_3.add_order_item(mock_menu_3, 10) # 400
-    
-    order_3.add_booking(booking)
-    order_3.status = OrderStatus.PENDING
+    # O-03: General Order, READY (Bronze Member)
+    order_3 = Order(OrderType.GENERAL, member_bronze)
+    if not hasattr(order_3, "_Order__order_item_list"): order_3._Order__order_item_list = []
+    order_3.add_order_item(fried_chicken, 3)
+    order_3.status = OrderStatus.READY
     restaurant.add_order(order_3)
+
+    # O-04: Delivery Order (ShopeeFood), PENDING (Silver Member)
+    order_4 = Order(OrderType.DELIVERY, member_silver)
+    if not hasattr(order_4, "_Order__order_item_list"): order_4._Order__order_item_list = []
+    order_4.add_order_item(burger_set, 1)
+    order_4.add_order_item(fried_chicken, 2)
+    deliv_shopee = Delivery("DEL-SHP-01", shopee, 3.0) 
+    deliv_shopee.request_rider()
+    order_4.add_delivery(deliv_shopee)
+    order_4.status = OrderStatus.PENDING
+    restaurant.add_order(order_4)
+
+    # O-05: Delivery Order (Grab), PAIDED (General Member)
+    order_5 = Order(OrderType.DELIVERY, member_general)
+    if not hasattr(order_5, "_Order__order_item_list"): order_5._Order__order_item_list = []
+    order_5.add_order_item(party_set, 2)
+    deliv_grab = Delivery("DEL-GRB-01", grab, 8.5) 
+    deliv_grab.request_rider()
+    order_5.add_delivery(deliv_grab)
+    order_5.status = OrderStatus.PAIDED
+    restaurant.add_order(order_5)
+
+    # O-06: Event Order (VIP Room) - Deposit Paid, PENDING
+    start_time_evt = SimulationClock.get_time() + timedelta(days=2)
+    time_slot_evt = TimeSlot(start_time_evt, 4)
+    booking_evt = Booking("BK-001", member_gold, room_vip1, time_slot_evt)
+    booking_evt.status = BookingStatus.DEPOSIT_PAID
+    restaurant.add_booking(booking_evt)
+
+    order_6 = Order(OrderType.EVENT, member_gold)
+    if not hasattr(order_6, "_Order__order_item_list"): order_6._Order__order_item_list = []
+    order_6.add_order_item(party_set, 3)
+    order_6.add_order_item(burger_set, 5)
+    order_6.add_booking(booking_evt)
+    order_6.status = OrderStatus.PENDING
+    restaurant.add_order(order_6)
+    
+    # O-07: Event Order (HALL Room) - Checked In, COOKING
+    start_time_hall = SimulationClock.get_time() - timedelta(hours=1)
+    time_slot_hall = TimeSlot(start_time_hall, 5)
+    booking_hall = Booking("BK-002", member_silver, room_hall1, time_slot_hall)
+    booking_hall.status = BookingStatus.CHECKED_IN
+    restaurant.add_booking(booking_hall)
+    room_hall1.mark_room_in_use()
+
+    order_7 = Order(OrderType.EVENT, member_silver)
+    if not hasattr(order_7, "_Order__order_item_list"): order_7._Order__order_item_list = []
+    order_7.add_order_item(fried_chicken, 20)
+    order_7.add_order_item(fries, 10)
+    order_7.add_order_item(cola, 10)
+    order_7.add_booking(booking_hall)
+    order_7.status = OrderStatus.COOKING
+    restaurant.add_order(order_7)
+
+    # O-08: General Order, CANCELED
+    order_8 = Order(OrderType.GENERAL, member_general)
+    if not hasattr(order_8, "_Order__order_item_list"): order_8._Order__order_item_list = []
+    order_8.add_order_item(beef_burger, 1)
+    order_8.status = OrderStatus.CANCELED
+    restaurant.add_order(order_8)
 
     return True
