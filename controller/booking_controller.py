@@ -74,3 +74,15 @@ async def check_in(token: str, order_id: str, booking_id: str, coupon_code: Opti
         return success_response_status(status=status.HTTP_200_OK, payload=jsonable_encoder(payload))
     except Exception as e:
         raise error_response_status(status=status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(e))
+
+@router.post("/check-out/{booking_id}")
+async def check_out(token: str, booking_id: str):
+    """
+    ## Check out a guest from their booking.
+    **booking_id**: รหัสการจองที่ต้องการเช็คเอาท์ (Format: BK-xxx)\n
+    """
+    try:
+        payload = restaurant.check_out_booking(token=token, booking_id=booking_id)
+        return success_response_status(status=status.HTTP_200_OK, payload=jsonable_encoder(payload))
+    except Exception as e:
+        raise error_response_status(status=status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(e))

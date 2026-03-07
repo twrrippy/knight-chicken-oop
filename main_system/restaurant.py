@@ -922,8 +922,8 @@ class Restaurant:
         for b in self.__booking_list:
             deadline = b.time_slot.start_time + timedelta(minutes=30)
             if b.status == BookingStatus.DEPOSIT_PAID and now > deadline:
-                b.status = BookingStatus.CANCELLED
-                b.room.status = RoomStatus.AVAILABLE
+                b.mark_cancelled()
+                b.room.mark_room_available()
 
     def check_in_booking(self, token: str, order_id: str, booking_id: str, coupon_code: str, pay_method: str, payment_details: Dict[str, Any] = {}):
         session = self.__auth_manager.get_session(token)
@@ -944,9 +944,6 @@ class Restaurant:
         order = self.get_order(order_id)
         if not order or order.booking != booking:
             raise HTTPException(status_code=404, detail="Order not found or does not match booking")
-        
-        # if amount_paid  != order.total_payable_amount:
-        #     raise HTTPException(status_code=400, detail=f"Invalid amount paid. Expected: {order.total_payable_amount}")
 
         receipt_data = self.process_order_payment(order_id=order.id, staff_id=staff.id, coupon_code=coupon_code, method_name=pay_method, payment_details=payment_details)
 
@@ -959,6 +956,28 @@ class Restaurant:
                 "receipt_data": receipt_data,
                 "full_amount_paid": order.total_payable_amount
                 }
+
+    def check_out_booking(self, token: str, booking_id: str):
+        # แบบที่ยังไม่เช็คเกินเวลา
+        session = self.__auth_manager.get_session(token)
+        if not session:
+            raise HTTPException(status_code=401, detail="Unauthorized token")
+        staff = self.get_staff(session.user_id)
+        if not isinstance(staff, Staff):
+            raise HTTPException(status_code=401, detail="Only Staff can handle check-out")
+
+        booking = self.get_booking(booking_id)
+        if not booking:
+            raise HTTPException(status_code=404, detail="Booking not found")
+        if booking.status != BookingStatus.CHECKED_IN:
+            raise HTTPException(status_code=400, detail="Booking is not currently checked in")
+        
+        booking.mark_checked_out()
+        booking.room.mark_room_available()
+        return {"message": f"Booking {booking_id} checked out successfully",
+                "room_id": booking.room.id,
+                "member_name": booking.member.name,
+                "check_out_time": SimulationClock.get_time().strftime("%Y-%m-%d %H:%M:%S")}
 
     def login(self, username, password):
         member = next((m for m in self.__member_list if m.check_identity(username, password)), None)
