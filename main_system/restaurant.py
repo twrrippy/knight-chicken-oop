@@ -47,12 +47,16 @@ class User(ABC):
     # def __eq__(self, other):
     #     return (type(other) is type(self)) and self.__name == other.name and self.__id == other.id and self.__phone_number == other.phone_number
 class Staff(User):
-    def __init__(self, id: str, name: str, phone_number: str, username: str="", password: str=""):
+    def __init__(self, id: str, name: str, phone_number: str, username: str="", password: str="", is_admin: Optional[bool] = False):
         super().__init__(id, name, phone_number, username, password)
+        self.__is_admin = is_admin
 
     def check_room_availability(self, room, start_time: datetime, hours: int) -> bool:
         return restaurant.is_slot_available(room, start_time, hours)
     
+    @property
+    def is_admin(self) -> bool: return self.__is_admin
+
 class Customer(User):
     pass
 class Guest(Customer):
@@ -722,6 +726,31 @@ class Restaurant:
             if s.id == id: return s
         raise HTTPException(404, "Staff Not Found")    
     
+    def get_user_by_id(self, id: str) -> User:
+        for m in self.__member_list:
+            if m.id == id: return m
+        for s in self.__staff_list:
+            if s.id == id: return s
+        raise HTTPException(404, "User Not Found")
+
+    def verify_token_and_role(self, token: str, allowed_roles: List[str]) -> User:
+        session = self.__auth_manager.get_session(token)
+        if not session:
+            raise HTTPException(status_code=401, detail="Invalid or expired token")
+        
+        user = self.get_user_by_id(session.user_id)
+        if isinstance(user, Staff):
+            if user.is_admin:
+                user_role = "Admin"
+            else:
+                user_role = "Staff"
+        else:
+            user_role = "Member"
+        if user_role not in allowed_roles:
+            raise HTTPException(status_code=403, detail=f"Access Forbidden: Requires one of {allowed_roles}")
+        
+        return user
+
     def add_menu(self, menu: MenuItem): self.__menu.append(menu)
     
     @property
@@ -1052,13 +1081,11 @@ class Restaurant:
         
         return booking.pay_deposit(method, payment_details)
     
-    def process_order_payment(self, order_id: str, staff_id: str, coupon_code: Optional[str], method_name: str, payment_details: Dict[str, Any]):
+    def process_order_payment(self, order_id: str, token: str, coupon_code: Optional[str], method_name: str, payment_details: Dict[str, Any]):
         method = self.get_payment_method(method_name)
-        staff = self.get_staff(staff_id)
+        staff = self.verify_token_and_role(token, ["Admin", "Staff"])
         order = self.get_order(order_id)
         
-        # if order.order_type == OrderType.EVENT and staff.role != StaffRole.PartyStaff:
-        #     raise HTTPException(400, "Invalid Staff Role for Event Order")
             
         if order.status == OrderStatus.PAID: 
             raise HTTPException(400, "Order Already Paid")
@@ -1074,10 +1101,10 @@ class Restaurant:
             
         return receipt_data
     
-    def preview_order_bill(self, order_id: str, staff_id: str, coupon_code: Optional[str]):
+    def preview_order_bill(self, order_id: str, token: str, coupon_code: Optional[str]):
         order = self.get_order(order_id)
         if order.status == OrderStatus.PAID: raise HTTPException(400, "Order Already Paid")
-        staff = self.get_staff(staff_id)
+        staff = self.verify_token_and_role(token, ["Admin", "Staff"])
         return order.pre_calculate_totals(coupon_code)
     
 restaurant = Restaurant()

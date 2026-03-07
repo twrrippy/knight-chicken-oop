@@ -14,8 +14,8 @@ async def confirm_pay(
     order_id: Annotated[str, Field(
         description="รหัสออเดอร์ที่ต้องการชำระเงิน (รูปแบบที่คาดหวัง: ORD-xxx-xxx)"
     )],
-    staff_id: Annotated[str, Field(
-        description="รหัสพนักงานผู้ดำเนินการทำรายการ"
+    token: Annotated[str, Field(
+        description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)"
     )],
     method: Annotated[str, Field(
         description='วิธีการชำระเงิน รองรับเฉพาะ "qrcode", "creditcard" หรือ "cash"'
@@ -49,7 +49,7 @@ async def confirm_pay(
         - Receipt: สร้างใบเสร็จในระบบและจัดเก็บลงในประวัติของลูกค้า
     """
     try:
-        result = restaurant.process_order_payment(order_id, staff_id, coupon_code, method, payment_details)
+        result = restaurant.process_order_payment(order_id, token, coupon_code, method, payment_details)
         return result
     except HTTPException as e:
         return f"ไม่สามารถดำเนินการได้: {e.detail}"
@@ -85,7 +85,7 @@ async def preview_order(
     """
 
     try:
-        result = restaurant.preview_order_bill(order_id, staff_id, coupon_code)
+        result = restaurant.preview_order_bill(order_id, token, coupon_code)
         return result
     except HTTPException as e:
         return f"ไม่สามารถดำเนินการได้: {e.detail}"
