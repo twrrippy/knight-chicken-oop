@@ -549,8 +549,7 @@ class Order:
             self.status = OrderStatus.PAIDED
 
             if self.__booking:
-                self.__booking.mark_checked_in()
-                self.__booking.room.mark_room_in_use()
+                self.__booking.status = BookingStatus.PAIDED
             
             if self.__delivery:
                 self.__delivery.mark_as_paid()
@@ -834,9 +833,9 @@ class Restaurant:
         for item_index in range(len(self.__stock) - 1, -1, -1):
             if count == quantity:
                 return True
-            item = self.__stock[item_index ]
+            item = self.__stock[item_index]
             if item.name == item_name and item.status == ItemStatus.RESERVED:
-                item.status == ItemStatus.AVAILABLE 
+                item.status = ItemStatus.AVAILABLE
                 count += 1
         return count == quantity
                     
@@ -896,7 +895,7 @@ class Restaurant:
         if not room or not isinstance(room, Room):
             raise HTTPException(status_code=404, detail="Room not found")
 
-        if not self.is_slot_avaliable(room, start_time, hours):
+        if not self.is_slot_available(room, start_time, hours):
             raise HTTPException(status_code=400, detail="Time slot already occupied")
         
         booking_id = f"BK-{self.__booking_counter:03d}"
@@ -904,8 +903,8 @@ class Restaurant:
         time_slot = TimeSlot(start_time, hours)
         booking = Booking(booking_id, member, room, time_slot)
 
-        if amount_paid != booking.deposit:
-            raise HTTPException(status_code=404, detail=f"Insufficient Amount: need {booking.deposit} THB")
+        if amount_paid < booking.deposit:
+            raise HTTPException(status_code=400, detail=f"Insufficient Amount: need at least {booking.deposit} THB")
         
         pay_med = self.get_payment_method(pay_method)
         message = booking.pay_deposit(pay_med, payment_details)
@@ -913,7 +912,7 @@ class Restaurant:
         self.add_booking(booking)
         return message
 
-    def is_slot_avaliable(self, room, start, hours):
+    def is_slot_available(self, room, start, hours):
         end = start + timedelta(hours=hours)
         for b in self.__booking_list:
             if b.room.id == room.id: 

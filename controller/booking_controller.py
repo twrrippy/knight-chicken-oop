@@ -15,7 +15,7 @@ async def book_room(
     member_id: str, 
     room_id: str, 
     hours: int, 
-    amount_paid: float,
+    amount_paid: float, # amount_paid ไม่จำเป็นต้องมีก็ได้ไหม
     pay_method: str = Query(..., description="Payment strategy to use (e.g. QRCode, CreditCard)"),
     start_time: datetime = Query(..., example="2026-02-09 10:00:00"),
     payment_details: Dict[str, Any] = Body(
@@ -31,7 +31,7 @@ async def book_room(
     **R05**: Standard, Price: 500 THB/hour\n
     **room_price** = price_per_hour * hours\n
     **deposit** = room_price * 50%\n
-    **GOLD members** get 15% discount on room price\n
+    **GOLD members** get 15% discount on room price\n  ### ตอนนี้เหมือนยังไม่มี discount จาก tier ###
     **SILVER members** get 10% discount on room price\n
     **BRONZE members** get 5% discount on room price\n
     - **payment_details**: ข้อมูลเพิ่มเติมตามประเภทการจ่ายเงิน เช่น 

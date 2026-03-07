@@ -15,3 +15,5 @@ async def cook_order(order_id: str):
         return {"message": "Cooking finished. Order is READY.", "status": order.status.value}
     else:
         raise HTTPException(status_code=400, detail=f"Cannot cook order. Current status: {order.status.value}")
+
+# มี api อีกเส้นไหม เอาไว้ดูว่ามีออเดอร์ไหนอยู่ในคิวบ้าง (ที่จ่ายเงินแล้ว)
