@@ -6,7 +6,7 @@ from main_system.external_platform.payment_method import PaymentMethod
 from shared.utils.simulate import SimulationClock
 from main_system.coupon import Coupon, FixedAmountCoupon, PercentCoupon
 from main_system.enum import RoomStatus, RoomType, BookingStatus
-
+from main_system.booking import Room, TimeSlot, Booking
 from typing import TYPE_CHECKING, Optional, List, Tuple, Dict, Any
 from fastapi import FastAPI, HTTPException, Query
 from abc import ABC, abstractmethod
@@ -359,7 +359,7 @@ class Order:
         self.__status = OrderStatus.PENDING
         self.__status_start = SimulationClock.get_time()
         self.__coupon_used: Optional[Coupon] = None
-        self.__booking: Optional[Booking] = None
+        self.__booking: Optional['Booking'] = None
         self.__delivery: Optional[Delivery] = None
         self.__subtotal = 0.0
         self.__discount = 0.0
@@ -383,7 +383,7 @@ class Order:
         current_order_item.status = OrderItemStatus.ADDED
         self.update_price()
 
-    def add_booking(self, booking: Booking):
+    def add_booking(self, booking: 'Booking'):
         if self.booking: raise HTTPException(409, "Booking Already Exists")
         self.__booking = booking
 
@@ -394,7 +394,7 @@ class Order:
     def update_price(self):
         count_price = 0
         for order_item in self.__order_item_list:
-            if order_item.status != OrderItemStatus.OUT_OF_STOCK and order_item.status != OrderItemStatus.CANCEL:
+            if order_item.status != OrderItemStatus.OUT_OF_STOCK and order_item.status != OrderItemStatus.CANCELED:
                 count_price += order_item.price
         self.__subtotal = count_price
 

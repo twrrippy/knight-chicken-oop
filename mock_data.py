@@ -4,7 +4,7 @@ from main_system.enum import MemberTier, OrderType, OrderStatus, RoomType, Platf
 from main_system.restaurant import Order, Staff, Member, Food, Ingredient, Item
 from main_system.restaurant import SingleMenuItem, SetMenuItem
 from main_system.external_platform.payment_method import Cash, QRCode
-from main_system.restaurant import Room, TimeSlot, Booking
+from main_system.booking import Room, TimeSlot, Booking
 from main_system.external_platform.delivery_provider import Delivery, GrabDeliveryProvider, LineManDeliveryProvider, ShopeeFoodDeliveryProvider
 from main_system.restaurant import restaurant
 from shared.utils.simulate import SimulationClock
