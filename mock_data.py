@@ -77,7 +77,7 @@ def initialize_mock_data():
     # ==========================================
     # ORDER SCENARIO 1: General Order (Dine-in)
     # ==========================================
-    order_1 = Order("ORD-001", OrderType.GENERAL, mock_member)
+    order_1 = Order(OrderType.GENERAL, mock_member)
     if not hasattr(order_1, "_Order__order_item_list"):
         order_1._Order__order_item_list = []
     order_1.add_order_item(fried_chicken, 2) # 300
@@ -88,7 +88,7 @@ def initialize_mock_data():
     # ==========================================
     # ORDER SCENARIO 2: Delivery Order
     # ==========================================
-    order_2 = Order("ORD-002", OrderType.DELIVERY, mock_member)
+    order_2 = Order(OrderType.DELIVERY, mock_member)
     if not hasattr(order_2, "_Order__order_item_list"):
         order_2._Order__order_item_list = []
     order_2.add_order_item(fried_chicken, 1) # 150
@@ -114,7 +114,7 @@ def initialize_mock_data():
     restaurant.add_booking(booking)
 
     # Now create the order associated with this booking
-    order_3 = Order("ORD-003", OrderType.EVENT, mock_member)
+    order_3 = Order(OrderType.EVENT, mock_member)
     if not hasattr(order_3, "_Order__order_item_list"):
         order_3._Order__order_item_list = []
     order_3.add_order_item(fried_chicken, 10) # 1500

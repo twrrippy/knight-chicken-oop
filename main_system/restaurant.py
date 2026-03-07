@@ -476,8 +476,11 @@ class Booking:
     @property
     def status(self): return self.__status
 class Order:
-    def __init__(self, order_id: str, type: OrderType, customer: Customer):
-        self.__id = order_id
+    OrderId_count = 0
+
+    def __init__(self, type: OrderType, customer: Customer):
+        self.__id = f"ORD-{Order.OrderId_count:0{3}d}"
+        Order.OrderId_count += 1
         self.__type = type
         self.__customer: Customer = customer
         self.__order_item_list: List[OrderItem] = []
