@@ -267,6 +267,13 @@ class OrderItem:
         order_id: str
         menu: str
         quantity: int
+    
+    class OrderItemCustomDTO(BaseModel):
+        order_id: str
+        order_item_id: str
+        quantity: int
+        add_ingredient:Optional[List[str]] = []
+        sub_ingredient:Optional[List[str]] = []
 
     @staticmethod
     def is_valid_quantity(quantity: int):
@@ -382,6 +389,58 @@ class Order:
         self.__order_item_list.append(current_order_item)
         current_order_item.status = OrderItemStatus.ADDED
         self.update_price()
+        
+    # def add_order_item_custom(self, menu: MenuItem, quantity: int, add:List[str]=None, sub:List[str]=None):
+    #     try:
+    #         new_menu = copy.deepcopy(menu)
+    #         if isinstance (new_menu, SingleMenuItem):
+    #             if add:
+    #                 for item_name in add:
+    #                     new_menu.custom_add(item_name)
+    #             if sub:
+    #                 for item_name in sub:
+    #                     new_menu.custom_sub(item_name)
+    #         new_menu.update_price(menu)
+    #         current_order_item = OrderItem(self.__order_item_id_count, new_menu, quantity)
+    #         self.__order_item_id_count += 1      
+    #     except (ValueError,TypeError) as e:
+    #         raise ValueError(str(e))
+    #     self.__order_item_list.append(current_order_item)
+    #     current_order_item.status = OrderItemStatus.ADDED
+    #     self.update_price()
+    
+    def add_order_item_custom(self, menu: MenuItem, quantity: int, add:List[str]=None):
+        try:
+            new_menu = copy.deepcopy(menu)
+            if isinstance(new_menu, SingleMenuItem):
+                if add:
+                    for item_name in add:
+                        new_menu.custom_add(item_name)
+            new_menu.update_price(menu)
+            current_order_item = OrderItem(self.__order_item_id_count, new_menu, quantity)
+            self.__order_item_id_count += 1      
+        except (ValueError,TypeError) as e:
+            raise ValueError(str(e))
+        self.__order_item_list.append(current_order_item)
+        current_order_item.status = OrderItemStatus.ADDED
+        self.update_price()
+        
+    def sub_order_item_custom(self, menu: MenuItem, quantity: int, sub:List[str]=None):
+        try:
+            new_menu = copy.deepcopy(menu)
+            if isinstance(new_menu, SingleMenuItem):
+                if sub:
+                    for item_name in sub:
+                        new_menu.custom_sub(item_name)
+            new_menu.update_price(menu)
+            current_order_item = OrderItem(self.__order_item_id_count, new_menu, quantity)
+            self.__order_item_id_count += 1      
+        except (ValueError,TypeError) as e:
+            raise ValueError(str(e))
+        self.__order_item_list.append(current_order_item)
+        current_order_item.status = OrderItemStatus.ADDED
+        self.update_price()
+                
 
     def add_booking(self, booking: 'Booking'):
         if self.booking: raise HTTPException(409, "Booking Already Exists")
