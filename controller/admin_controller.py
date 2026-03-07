@@ -111,7 +111,7 @@ async def check_queue():
 async def get_queue(queue_order: int):
     if queue_order > 50 or queue_order < 1:
         raise HTTPException(status_code=400, detail="Queue not Found")
-    order = restaurant.get_queue()
+    order = restaurant.get_queue(queue_order)
     if order == False:
         raise HTTPException(status_code=400, detail="Queue not Found")
-    return order.order_to_dict(restaurant)
+    return order.order_to_dict()
