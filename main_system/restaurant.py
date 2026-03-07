@@ -973,7 +973,6 @@ class Restaurant:
             raise HTTPException(status_code=400, detail="Booking is not currently checked in")
         
         booking.mark_checked_out()
-        booking.room.mark_room_available()
         return {"message": f"Booking {booking_id} checked out successfully",
                 "room_id": booking.room.id,
                 "member_name": booking.member.name,
