@@ -9,7 +9,7 @@ from shared.utils.response import success_response_status, error_response_status
 router = APIRouter(prefix="/booking", tags=["Booking"])
 
 # @mcp.tool
-@router.post("/booking-room")
+@router.post("/booking-room") # เพิ่ม api อีกเส้นไหม ให้สามารถเช็คราคาห้อง วัน เวลาที่จะจอง ก่อนได้ แล้วค่อย ให้ อันนี้เป็น confirm booking + pay deposit
 async def book_room(
     token: str,
     member_id: str, 

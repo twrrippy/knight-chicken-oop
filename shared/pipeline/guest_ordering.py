@@ -457,14 +457,14 @@ class Order:
                 return order_item
         raise ValueError("Order Item NOT FOUND")
 
-    def reserve_stock(self, restaurant: 'Restaurant'): # (เปลี่ยนจาก order_reserve เป็น reserve_stock)
+    def order_reserve(self, restaurant: 'Restaurant'): # (ควรแก้ชื่อเป็น reserve_stock)
         for order_item in self.__order_item_list:
             if order_item.status == OrderItem.OrderItemStatus.ADDED:
                 order_item.order_item_reserve(restaurant)
         self.update_status(Order.OrderStatus.RESERVED)
         return self
     
-    def finalize_order(self): # (เปลี่ยนจาก order_confirm เป็น finalize_order)
+    def order_confirm(self): # (ควรแก้เป็น finalize_order)
         if self.__status == Order.OrderStatus.NONE:
             raise ValueError("Ordering Food First.")
         if self.__status == Order.OrderStatus.CANCELLED:
@@ -564,8 +564,8 @@ class Restaurant:
                 return find
         raise ValueError("Order NOT FOUND")
     
-    def reserve_stock(self, order: Order): # (เปลี่ยน reserve เป็น reserve_stock ให้ระบุชัดเจนว่าแค่จองของ)
-        return order.reserve_stock(self)
+    def reserve(self, order: Order): # (ควรแก้เป็น reserve_stock)
+        return order.order_reserve(self)
     
     def stock_reserve(self, item_name: str, quantity: int):
         if quantity <= 0:
@@ -594,9 +594,9 @@ class Restaurant:
                 item.update_status(Item.ItemStatus.AVAILABLE)
                 count += 1
 
-    def finalize_order(self, order:Order): # (เปลี่ยน confirm เป็น finalize_order เป็นการตัดของและล็อกบิล)
+    def confirm(self, order:Order): # (ควรแก้เป็น finalize_order)
         try:
-            confirmed_order = order.finalize_order()
+            confirmed_order = order.order_confirm()
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
         return confirmed_order
@@ -661,8 +661,8 @@ async def add_order(orderitem: OrderItem.OrderItemDTO):
         raise HTTPException(status_code=400, detail=(str(e)))
     return current_order.order_to_dict(restaurant)
 
-@app.put("/order/reserve_stock/guest", response_model=Union[Order.OrderDTO, dict], tags=["Ordering"]) # (เปลี่ยนจาก /ordering เป็น /reserve_stock ให้ระบุชัดเจนว่าใช้จองสต็อก)
-async def reserve_order_stock(order_id: str, guest: Guest.GuestDTO): # (เปลี่ยนจาก ordering -> reserve_order_stock)
+@app.put("/order/ordering/guest", response_model=Union[Order.OrderDTO, dict], tags=["Ordering"]) # (ควรแก้เป็น /reserve_stock)
+async def ordering(order_id: str, guest: Guest.GuestDTO): # (ควรแก้เป็น reserve_order_stock)
     if restaurant.check_queue >= 50:
         raise HTTPException(status_code=418, detail="Queue Overload")
     try:
@@ -671,17 +671,17 @@ async def reserve_order_stock(order_id: str, guest: Guest.GuestDTO): # (เป�
         order.check_customer(current_customer)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    reserved_order = restaurant.reserve_stock(order) # (เปลี่ยนเมทอด restaurant.reserve -> reserve_stock)
+    reserved_order = restaurant.reserve(order) # (ควรแก้เป็น reserve_stock)
     reserved_order.update_price
     return reserved_order.order_to_dict(restaurant)
 
-@app.put("/order/finalize/guest", response_model=Union[Order.OrderDTO, dict], tags=["Ordering"]) # (เปลี่ยนจาก /confirm เป็น /finalize ให้ดูเป็นการสรุปยอดตัดบิลจริงๆ)
-async def finalize_order(order_id: str, guest: Guest.GuestDTO): # (เปลี่ยนจาก confirm_order -> finalize_order)
+@app.put("/order/confirm/guest", response_model=Union[Order.OrderDTO, dict], tags=["Ordering"]) # (ควรแก้เป็น /finalize)
+async def confirm_order(order_id: str, guest: Guest.GuestDTO): # (ควรแก้เป็น finalize_order)
     try:
         current_customer = Guest(guest.id, guest.name, guest.phone_number)
         order = restaurant.search_order_from_id(order_id)
         order.check_customer(current_customer)
-        confirmed_order = restaurant.finalize_order(order) # (เปลี่ยนเมทอดจาก confirm เป็น finalize_order)
+        confirmed_order = restaurant.confirm(order) # (ควรแก้เป็น finalize_order)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return confirmed_order.order_to_dict(restaurant)

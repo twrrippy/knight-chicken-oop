@@ -415,14 +415,14 @@ class Order:
                 return order_item
         raise ValueError("Order Item NOT FOUND")
 
-    def reserve_stock(self): # (เปลี่ยนจาก order_reserve เป็น reserve_stock และถูกเรียกจากข้างบน)
+    def order_reserve(self): # (ควรแก้ชื่อเป็น reserve_stock ให้ระบุชัดเจนว่าจองของ)
         for order_item in self.__order_item_list:
             if order_item.status == OrderItemStatus.ADDED:
                 order_item.order_item_reserve()
         self.status = OrderStatus.RESERVED
         return self
     
-    def finalize_order(self): # (เปลี่ยนจาก order_confirm เป็น finalize_order)
+    def order_confirm(self): # (ควรแก้ชื่อเป็น finalize_order)
         if self.__status == OrderStatus.PENDING:
             raise ValueError("Ordering Food First.")
         if self.__status == OrderStatus.CANCELED:
@@ -775,8 +775,8 @@ class Restaurant:
         raise ValueError("Order NOT FOUND")
     
     #reserved while ordering
-    def reserve_stock(self, order: Order): # (เปลี่ยน reserve เป็น reserve_stock ให้อ่านปุ๊บรู้เลยว่าคือการจองสต็อก)
-        return order.reserve_stock()
+    def reserve(self, order: Order): # (ควรแก้ชื่อเป็น reserve_stock ให้ระบุชัดเจนว่าจองของ)
+        return order.order_reserve()
     
     def stock_reserve(self, item_name: str, quantity: int):
         if quantity <= 0:
@@ -841,9 +841,9 @@ class Restaurant:
         return count == quantity
                     
 
-    def finalize_order(self, order:Order): # (เปลี่ยน confirm เป็น finalize_order เป็นการตัดของและล็อกบิล)
+    def confirm(self, order:Order): # (ควรแก้ชื่อเป็น finalize_order)
         try:
-            confirmed_order = order.finalize_order()
+            confirmed_order = order.order_confirm()
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
         return confirmed_order

@@ -52,8 +52,8 @@ async def add_order(orderitem: OrderItem.OrderItemDTO):
 # async def custom_add_orderitem(custom: OrderItem.CustomDTO):
 
 
-@router.put("/reserve_stock/guest", response_model=Union[Order.OrderDTO, dict]) # (เปลี่ยนจาก /ordering เป็น /reserve_stock ให้ระบุชัดเจนว่าใช้จองสต็อก)
-async def reserve_order_stock(order_id: str, guest_id: str): # (เปลี่ยนจาก ordering -> reserve_order_stock)
+@router.put("/ordering/guest", response_model=Union[Order.OrderDTO, dict]) # (ควรแก้ชื่อเป็น /reserve_stock ให้ระบุชัดเจนว่าใช้จองสต็อก)
+async def ordering(order_id: str, guest_id: str): # (ควรแก้เป็น reserve_order_stock)
     if restaurant.check_queue >= 50:
         raise HTTPException(status_code=418, detail="Queue Overload")
     try:
@@ -62,17 +62,17 @@ async def reserve_order_stock(order_id: str, guest_id: str): # (เปลี่�
         order.check_customer(current_customer)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    reserved_order = restaurant.reserve_stock(order) # (เปลี่ยนเมทอด restaurant.reserve -> reserve_stock)
+    reserved_order = restaurant.reserve(order) # (ควรแก้เป็น reserve_stock)
     reserved_order.update_price
     return reserved_order.order_to_dict()
 
-@router.put("/finalize/guest", response_model=Union[Order.OrderDTO, dict]) # (เปลี่ยนจาก /confirm เป็น /finalize ให้ดูเป็นการสรุปยอดตัดบิลจริงๆ)
-async def finalize_order(order_id: str, guest_id: str): # (เปลี่ยนจาก confirm_order -> finalize_order)
+@router.put("/confirm/guest", response_model=Union[Order.OrderDTO, dict]) # (ควรแก้เป็น /finalize ให้ดูเป็นการสรุปยอดตัดบิลจริงๆ)
+async def confirm_order(order_id: str, guest_id: str): # (ควรแก้เป็น finalize_order)
     try:
         current_customer = Guest(guest_id)
         order = restaurant.search_order_from_id(order_id)
         order.check_customer(current_customer)
-        confirmed_order = restaurant.finalize_order(order) # (เปลี่ยนเมทอดจาก confirm เป็น finalize_order)
+        confirmed_order = restaurant.confirm(order) # (ควรแก้เป็น finalize_order)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return confirmed_order.order_to_dict()
