@@ -65,6 +65,8 @@ class Guest(Customer):
             self.__name = name
 
     @property
+    def id(self): return None
+    @property
     def name(self): return self.__name
 
     def __eq__(self, other):
@@ -449,15 +451,15 @@ class Order:
         if self.__status not in [OrderStatus.RESERVED, OrderStatus.PAIDED]:
             return False
             
-        self.status(OrderStatus.COOKING)
+        self.status = OrderStatus.COOKING
         all_done = True
-        for item in self.__order_list:
+        for item in self.__order_item_list:
             if item.status == OrderItemStatus.RESERVED:
-                if not item.process_cooking(restaurant):
+                if not item.process_cooking():
                     all_done = False
                 
         if all_done:
-            self.status(OrderStatus.READY)
+            self.status = OrderStatus.READY
             return True
         return False
 
