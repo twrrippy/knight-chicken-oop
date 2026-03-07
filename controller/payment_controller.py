@@ -10,7 +10,7 @@ router = APIRouter(prefix="/payment", tags=["Payment"])
 
 @mcp.tool
 @router.post("/confirm_pay/{order_id}")
-async def confirm_pay(
+async def confirm_order_pay(
     order_id: Annotated[str, Field(
         description="รหัสออเดอร์ที่ต้องการชำระเงิน (รูปแบบที่คาดหวัง: ORD-xxx)"
     )],
@@ -39,7 +39,7 @@ async def confirm_pay(
 
 @mcp.tool
 @router.post("/preview_order/{order_id}")
-async def preview_order(
+async def preview_order_bill(
     order_id: Annotated[str, Field(
         description="รหัสออเดอร์ที่ต้องการตรวจสอบยอด (รูปแบบที่คาดหวัง: ORD-xxx)"
     )],
