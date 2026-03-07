@@ -1,5 +1,6 @@
 from fastapi import APIRouter
-from typing import Optional, List, Tuple, Dict, Any
+from typing import Optional, List, Tuple, Dict, Any, Annotated
+from pydantic import Field
 from fastapi import HTTPException, Query
 from shared.utils.response import success_response_status, error_response_status
 from main_system.restaurant import restaurant
@@ -9,34 +10,27 @@ router = APIRouter(prefix="/payment", tags=["Payment"])
 
 @mcp.tool
 @router.post("/confirm_pay/{order_id}")
-async def confirm_pay(order_id: str, staff_id: str, method: str, coupon_code: Optional[str] = Query(default=None), payment_details: Dict[str, Any] = {}):
-    """
-    ยืนยันการชำระเงิน คำนวณยอดสุดท้าย และออกใบเสร็จ (Execute Payment)
+async def confirm_order_pay(
+    order_id: Annotated[str, Field(
+        description="รหัสออเดอร์ที่ต้องการชำระเงิน (รูปแบบที่คาดหวัง: ORD-xxx)"
+    )],
+    method: Annotated[str, Field(
+        description='วิธีการชำระเงิน รองรับเฉพาะ "qrcode", "creditcard" หรือ "cash"'
+    )],
+    coupon_code: Annotated[Optional[str], Field(
+        description="โค้ดคูปองส่วนลดที่ต้องการใช้งาน (ถ้ามี)"
+    )] = None,
+    payment_details: Annotated[Dict[str, Any], Field(
+        description='ข้อมูลเพิ่มเติมที่บังคับใช้ตามประเภทการจ่ายเงิน: กรณี qrcode ต้องระบุ {"account_number": "xxx"}, กรณี creditcard ต้องระบุ {"card_number": "...", "cvv": "..."}, กรณี cash ต้องระบุ {"cash_received": xxx}'
+    )] = {}
+):
 
-    หน้าที่:
-    - ยืนยันยอดชำระสุทธิและตัดเงินจริงตาม Payment Method ที่เลือก
-    - อัปเดตสถานะของออบเจ็กต์ต่างๆ ที่เกี่ยวข้องในระบบเมื่อชำระเงินสำเร็จ
-    
-    Arguments:
-    - order_id: รหัสออเดอร์ (Format: ORD-xxx-xxx)
-    - staff_id: รหัสพนักงานผู้ทำรายการ
-    - method: วิธีการชำระเงิน (เช่น "qrcode", "creditcard", "cash")
-    - coupon_code: (Optional) โค้ดคูปองที่ต้องการใช้งาน
-    - payment_details: ข้อมูลเพิ่มเติมตามประเภทการจ่ายเงิน เช่น 
-        - qrcode: {"account_number": "xxx" } 
-        - creditcard: {"card_number": "...", "cvv": "..."} 
-        - cash: {"cash_received": xxx}
-
-    ผลลัพธ์เมื่อทำรายการสำเร็จ:
-    1. Order -> เปลี่ยนสถานะเป็น PAID
-    2. Transaction -> บันทึกประวัติและเปลี่ยนสถานะเป็น SUCCESS
-    3. Booking & Room -> หากเป็น EventOrder จะเปลี่ยนสถานะจองเป็น CHECKED_IN และห้องเป็น IN_USE
-    4. Kitchen -> ส่งรายการอาหารเข้าคิวห้องครัว
-    5. Coupon -> ถูกมาร์คว่าใช้งานแล้ว (NOT_AVAILABLE)
-    6. Receipt -> สร้างใบเสร็จ เก็บลงประวัติลูกค้า และคืนค่า JSON ให้ Frontend
     """
+    Execute final payment and generate a receipt. CRITICAL: Do not guess parameters. You must explicitly ask the user for 'method' and 'payment_details' before executing this tool.
+    """
+
     try:
-        result = restaurant.process_order_payment(order_id, staff_id, coupon_code, method, payment_details)
+        result = restaurant.process_order_payment(order_id, coupon_code, method, payment_details)
         return result
     except HTTPException as e:
         return f"ไม่สามารถดำเนินการได้: {e.detail}"
@@ -45,23 +39,21 @@ async def confirm_pay(order_id: str, staff_id: str, method: str, coupon_code: Op
 
 @mcp.tool
 @router.post("/preview_order/{order_id}")
-async def preview_order(order_id: str, staff_id: str, coupon_code: Optional[str] = Query(default=None)):
+async def preview_order_bill(
+    order_id: Annotated[str, Field(
+        description="รหัสออเดอร์ที่ต้องการตรวจสอบยอด (รูปแบบที่คาดหวัง: ORD-xxx)"
+    )],
+    coupon_code: Annotated[Optional[str], Field(
+        description="โค้ดคูปองส่วนลดที่ต้องการทดลองคำนวณเพื่อดูยอดก่อนจ่ายจริง (ถ้ามี)"
+    )] = None
+):
+
     """
-    คำนวณยอดเงินที่ต้องชำระสำหรับ Order (Preview)
-    
-    หน้าที่:
-    - ดึงข้อมูล Order ตาม ID (Format: ORD-xxx-xxx)
-    - ตรวจสอบสิทธิ์พนักงาน (staff_id) ว่าสามารถเข้าถึงประเภท Order นั้นๆ ได้หรือไม่
-    - (Optional) ทดลองคำนวณส่วนลดถ้าใส่ coupon_code มา เพื่อดูยอดก่อนจ่ายจริง
-    
-    การทำงาน:
-    - ระบบจะคืนค่า JSON สรุปรายละเอียดออเดอร์ทั้งหมด (รายการอาหาร, รายละเอียดการจองห้อง, ค่าส่ง ฯลฯ)
-    - แสดงยอดรวมก่อนลด, ส่วนลดจากคูปอง, เงินมัดจำที่หักออก (ถ้ามี), และยอดสุทธิ (Final Price) เพื่อให้พนักงานแจ้งลูกค้า
-    - ฟังก์ชันนี้เป็นแบบ Stateless จะยังไม่บันทึกการใช้คูปองหรือเปลี่ยนแปลงสถานะใดๆ จนกว่าจะเรียก /confirm_pay
+    Calculate and preview the total bill for an order (subtotal, discounts, final price) before payment. This is a read-only action.
     """
 
     try:
-        result = restaurant.preview_order_bill(order_id, staff_id, coupon_code)
+        result = restaurant.preview_order_bill(order_id, coupon_code)
         return result
     except HTTPException as e:
         return f"ไม่สามารถดำเนินการได้: {e.detail}"

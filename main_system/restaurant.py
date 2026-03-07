@@ -47,12 +47,16 @@ class User(ABC):
     # def __eq__(self, other):
     #     return (type(other) is type(self)) and self.__name == other.name and self.__id == other.id and self.__phone_number == other.phone_number
 class Staff(User):
-    def __init__(self, id: str, name: str, phone_number: str, username: str="", password: str=""):
+    def __init__(self, id: str, name: str, phone_number: str, username: str="", password: str="", is_admin: Optional[bool] = False):
         super().__init__(id, name, phone_number, username, password)
+        self.__is_admin = is_admin
 
     def check_room_availability(self, room, start_time: datetime, hours: int) -> bool:
         return restaurant.is_slot_available(room, start_time, hours)
     
+    @property
+    def is_admin(self) -> bool: return self.__is_admin
+
 class Customer(User):
     pass
 class Guest(Customer):
@@ -65,7 +69,7 @@ class Guest(Customer):
             self.__name = name
 
     @property
-    def id(self): return None
+    def id(self): return f"GUEST"
     @property
     def name(self): return self.__name
 
@@ -76,12 +80,12 @@ class Member(Customer):
     def __init__(self, id: str, name: str, tier: MemberTier, username: str, password: str, phone: str = ""):
         super().__init__(id, name, phone, username, password)
         self.__coupon_list: List[Coupon] = [] 
-        self.__receipt_list: List['Receipt'] = []
+        self.__receipt_list: List[Receipt] = []
         self.__tier: MemberTier = tier
         self.__points: int = 0
 
-    def add_receipt(self, receipt: 'Receipt'): self.__receipt_list.append(receipt)
-    def add_coupon(self, coupon: 'Coupon'): self.__coupon_list.append(coupon)
+    def add_receipt(self, receipt: Receipt): self.__receipt_list.append(receipt)
+    def add_coupon(self, coupon: Coupon): self.__coupon_list.append(coupon)
     
     def get_coupon_by_code(self, code: str):
         for coupon in self.__coupon_list:
@@ -145,9 +149,18 @@ class MenuItem(ABC):
 
     def to_dict_order(self):
         original_menu = restaurant.search_menu_item_from_name(self.name)
+        custom = []
+        for ingredient in self.all_ingredient:
+            if ingredient.type == IngredientType.CUSTOMIZABLE:
+                custom.append(ingredient.ingredient_to_dict)
         self.update_price(original_menu)
+        custom = []
+        for ingredient in self.all_ingredient:
+            if ingredient.type == IngredientType.CUSTOMIZABLE:
+                custom.append(ingredient.ingredient_to_dict)
         return {
             "name": self.__name,
+            "customizable": custom if custom else None,
             "price": self.__price
         }
 
@@ -184,6 +197,12 @@ class SingleMenuItem(MenuItem):
                 return find_ingredient
         raise ValueError("INVALID: Item")
     
+    def find_ingredient_in_recipe_from_name(self, item_name: str):
+        for find_ingredient in self.__recipe:
+            if find_ingredient.item.name == item_name:
+                return find_ingredient
+        raise ValueError("INVALID: Item")
+    
     def calculate_price(self, original_menu: MenuItem):
         add_price = 0
         for ingredient in self.all_ingredient:
@@ -198,19 +217,10 @@ class SingleMenuItem(MenuItem):
     def all_ingredient(self):
         return self.__recipe
     
-    def custom_add(self, item: Item):
+    def custom_ingredient(self, item_name: str, quantity: int):
         try:
-            ingredient = self.find_ingredient_in_recipe(item)
-            ingredient.custom_add
-        except ValueError as e:
-            raise ValueError(str(e))
-        except TypeError as e:
-            raise TypeError(str(e))
-        
-    def custom_sub(self, item: Item):
-        try:
-            ingredient = self.find_ingredient_in_recipe(item)
-            ingredient.custom_sub
+            ingredient = self.find_ingredient_in_recipe_from_name(item_name)
+            ingredient.custom(quantity)
         except ValueError as e:
             raise ValueError(str(e))
         except TypeError as e:
@@ -269,6 +279,12 @@ class OrderItem:
         order_id: str
         menu: str
         quantity: int
+    
+    class OrderItemCustomDTO(BaseModel):
+        order_id: str
+        order_item_id: int
+        item_name: str
+        quantity: int
 
     @staticmethod
     def is_valid_quantity(quantity: int):
@@ -295,6 +311,16 @@ class OrderItem:
     @status.setter
     def status(self, status: OrderItemStatus): self.__status = status
     
+    def custom_menu(self, item_name: str, quantity: int):
+        if not isinstance(self.__menu_item, SingleMenuItem):
+            raise TypeError("Can not custom. This is not Single Menu Item.")
+        try:
+            self.__menu_item.custom_ingredient(item_name= item_name, quantity= quantity)
+        except ValueError as e:
+            raise ValueError(str(e))
+        except TypeError as e:
+            raise TypeError(str(e))
+
     def order_item_reserve(self):
         try:
             for ingredient in self.__menu_item.all_ingredient:
@@ -384,6 +410,21 @@ class Order:
         self.__order_item_list.append(current_order_item)
         current_order_item.status = OrderItemStatus.ADDED
         self.update_price()
+    
+    def search_order_item_from_id(self, order_item_id: int):
+        for order_item in self.__order_item_list:
+            if order_item.id == order_item_id:
+                return order_item
+        raise ValueError("Order Item NOT FOUND")
+
+    def custom(self,order_item_id: int, item_name: str, quantity: int):
+        try:
+            order_item = self.search_order_item_from_id(order_item_id)
+            order_item.custom_menu(item_name, quantity)
+        except ValueError as e:
+            raise ValueError(str(e))
+        except TypeError as e:
+            raise TypeError(str(e))
 
     def add_booking(self, booking: 'Booking'):
         if self.booking: raise HTTPException(409, "Booking Already Exists")
@@ -716,7 +757,32 @@ class Restaurant:
     def get_staff(self, id: str) -> 'Staff':
         for s in self.__staff_list:
             if s.id == id: return s
-        raise HTTPException(404, "Staff Not Found")    
+        raise HTTPException(404, "Staff Not Found")
+
+    def get_user_by_id(self, id: str) -> User:
+        for m in self.__member_list:
+            if m.id == id: return m
+        for s in self.__staff_list:
+            if s.id == id: return s
+        raise HTTPException(404, "User Not Found")
+
+    def verify_token_and_role(self, token: str, allowed_roles: List[str]) -> User:
+        session = self.__auth_manager.get_session(token)
+        if not session:
+            raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+        user = self.get_user_by_id(session.user_id)
+        if isinstance(user, Staff):
+            if user.is_admin:
+                user_role = "Admin"
+            else:
+                user_role = "Staff"
+        else:
+            user_role = "Member"
+        if user_role not in allowed_roles:
+            raise HTTPException(status_code=403, detail=f"Access Forbidden: Requires one of {allowed_roles}")
+
+        return user    
     
     def add_menu(self, menu: MenuItem): self.__menu.append(menu)
     
@@ -768,13 +834,12 @@ class Restaurant:
             if find.id == order_id:
                 return find
         raise ValueError("Order NOT FOUND")
-    
     #reserved while ordering
     def reserve(self, order: Order):
         return order.order_reserve()
     
     def stock_reserve(self, item_name: str, quantity: int):
-        if quantity <= 0:
+        if quantity < 0:
             raise ValueError("INVALID: Quantity")
         count = 0
         for item in self.__stock:
@@ -1047,13 +1112,10 @@ class Restaurant:
         
         return booking.pay_deposit(method, payment_details)
     
-    def process_order_payment(self, order_id: str, staff_id: str, coupon_code: Optional[str], method_name: str, payment_details: Dict[str, Any]):
+    def process_order_payment(self, order_id: str, coupon_code: Optional[str], method_name: str, payment_details: Dict[str, Any]):
         method = self.get_payment_method(method_name)
-        staff = self.get_staff(staff_id)
         order = self.get_order(order_id)
         
-        # if order.order_type == OrderType.EVENT and staff.role != StaffRole.PartyStaff:
-        #     raise HTTPException(400, "Invalid Staff Role for Event Order")
             
         if order.status == OrderStatus.PAIDED: 
             raise HTTPException(400, "Order Already Paid")
@@ -1069,10 +1131,9 @@ class Restaurant:
             
         return receipt_data
     
-    def preview_order_bill(self, order_id: str, staff_id: str, coupon_code: Optional[str]):
+    def preview_order_bill(self, order_id: str, coupon_code: Optional[str]):
         order = self.get_order(order_id)
         if order.status == OrderStatus.PAIDED: raise HTTPException(400, "Order Already Paid")
-        staff = self.get_staff(staff_id)
         return order.pre_calculate_totals(coupon_code)
     
 restaurant = Restaurant()
