@@ -6,7 +6,7 @@ from main_system.external_platform.payment_method import PaymentMethod
 from shared.utils.simulate import SimulationClock
 from main_system.coupon import Coupon, FixedAmountCoupon, PercentCoupon
 from main_system.enum import RoomStatus, RoomType, BookingStatus
-
+from main_system.booking import Room, TimeSlot, Booking
 from typing import TYPE_CHECKING, Optional, List, Tuple, Dict, Any
 from fastapi import FastAPI, HTTPException, Query
 from abc import ABC, abstractmethod
@@ -96,10 +96,7 @@ class Member(Customer):
 
     @property
     def tier(self) -> MemberTier: return self.__tier
-    @property
-    def username(self): return self.__username
-    @property
-    def password(self): return self.__password
+
 
     
 
@@ -201,7 +198,7 @@ class SingleMenuItem(MenuItem):
     
     def custom_add(self, item: Item):
         try:
-            ingredient = self.__find_ingredient_in_recipe(item)
+            ingredient = self.find_ingredient_in_recipe(item)
             ingredient.custom_add
         except ValueError as e:
             raise ValueError(str(e))
@@ -210,7 +207,7 @@ class SingleMenuItem(MenuItem):
         
     def custom_sub(self, item: Item):
         try:
-            ingredient = self.__find_ingredient_in_recipe(item)
+            ingredient = self.find_ingredient_in_recipe(item)
             ingredient.custom_sub
         except ValueError as e:
             raise ValueError(str(e))
@@ -348,125 +345,7 @@ class OrderItem:
             for ingredient in ingredients:
                 restaurant.stock_reverse(ingredient.item.name, ingredient.quantity * self.__quantity)
             self.status = OrderItemStatus.CANCELED
-class TimeSlot:
-    def __init__(self, start_time: datetime, hours: int):
-        self.__start_time = start_time
-        self.__end_time = start_time + timedelta(hours=hours)
-        self.__hours = hours
 
-    @property
-    def start_time(self): return self.__start_time
-    @property
-    def end_time(self): return self.__end_time
-    @property
-    def hours(self): return self.__hours
-
-class Room:
-    def __init__(self, room_id: str, room_type: RoomType):
-        self.__room_id = room_id
-        self.__room_type = room_type
-        self.__status = RoomStatus.AVAILABLE
-        if room_type == RoomType.HALL: 
-            self.__price_per_hour = 5000.0
-            self.__capacity = 100
-        elif room_type == RoomType.VIP: 
-            self.__price_per_hour = 2000.0
-            self.__capacity = 20
-        elif room_type == RoomType.STANDARD: 
-            self.__price_per_hour = 500.0
-            self.__capacity = 10
-        else:
-            raise ValueError("Unknown room type")
-    
-    def mark_room_in_use(self):
-        self.__status = RoomStatus.IN_USE
-
-    @property
-    def price_per_hour(self): return self.__price_per_hour
-    @property
-    def id(self): return self.__room_id
-    @property
-    def status(self): return self.__status
-    @status.setter
-    def status(self, new_status: RoomStatus): self.__status = new_status
-    @property
-    def type(self): return self.__room_type
-    @property
-    def capacity(self): return self.__capacity
-
-class Booking:
-    def __init__(self, member: 'Member', room: 'Room', time_slot: 'TimeSlot'):
-        self.__id = f"BK-{int(SimulationClock.get_time().timestamp())}"
-        self.__member = member
-        self.__room = room
-        self.__time_slot = time_slot
-        self.__status = BookingStatus.PENDING
-
-    def pay_deposit(self, method: PaymentMethod, payment_details: Dict[str, Any] = {}) -> Dict:
-        success, note = method.pay(self.deposit, **payment_details)
-        if not success: raise HTTPException(400, note)
-        self.__status = BookingStatus.DEPOSIT_PAID
-        return {
-            "booking_no": self.id,
-            "date": SimulationClock.get_time().strftime("%Y-%m-%d %H:%M:%S"),
-            "merchant": "Knight Chicken Fast Food Co.",
-            
-            "customer_info": {
-                "name": self.member.name,
-                "tier": self.member.tier
-            },
-            
-            "booking_details": self.get_details(),
-            
-            "financial_summary": {
-                "subtotal": self.full_price,
-                "deposit paid": self.deposit,
-                "amount_due": self.amount_due
-            },
-            
-            "payment_record": {
-                "method": method.name,
-                "status": "deposit Paid"
-            }
-        }
-
-    def mark_completed(self):
-        self.__status = BookingStatus.COMPLETED
-    
-    def mark_checked_in(self):
-        self.__status = BookingStatus.CHECKED_IN
-
-    def get_details(self) -> Dict[str, Any]:
-        return {
-            "type": "Booking Details",
-            "status": self.status,
-            "booking_id": self.id,
-            "room_id": self.room.id,
-            "room_type": self.room.type,
-            "time_slot": self.time_slot.start_time,
-            "full_price": self.full_price,
-            "deposit": self.deposit,
-            "amount_due": self.amount_due
-        }
-    
-    @property
-    def full_price(self): 
-        return self.room.price_per_hour * self.time_slot.hours if self.member.tier != MemberTier.GOLD else self.room.price_per_hour * self.time_slot.hours * 0.8
-    @property
-    def deposit(self): return self.full_price * 0.5
-    @property
-    def amount_due(self): return self.full_price - self.deposit
-
-    @property
-    def id(self): return self.__id
-    @property
-    def member(self): return self.__member
-    @property
-    def room(self): return self.__room
-    @property
-    def time_slot(self): return self.__time_slot
-    @property
-    def status(self): return self.__status
 class Order:
     OrderId_count = 0
 
@@ -480,7 +359,7 @@ class Order:
         self.__status = OrderStatus.PENDING
         self.__status_start = SimulationClock.get_time()
         self.__coupon_used: Optional[Coupon] = None
-        self.__booking: Optional[Booking] = None
+        self.__booking: Optional['Booking'] = None
         self.__delivery: Optional[Delivery] = None
         self.__subtotal = 0.0
         self.__discount = 0.0
@@ -504,7 +383,7 @@ class Order:
         current_order_item.status = OrderItemStatus.ADDED
         self.update_price()
 
-    def add_booking(self, booking: Booking):
+    def add_booking(self, booking: 'Booking'):
         if self.booking: raise HTTPException(409, "Booking Already Exists")
         self.__booking = booking
 
@@ -776,6 +655,10 @@ class Restaurant:
         self.__payment_method: List[PaymentMethod] = []
         self.__room_list: List[Room] = []
         self.__delivery_providers: List[DeliveryProvider] = []
+        self.__auth_manager = AuthManager()
+        self.__member_counter = 0
+        self.__staff_counter = 0
+        self.__booking_counter = 0
 
     def add_delivery_provider(self, provider: 'DeliveryProvider'): self.__delivery_providers.append(provider)
     def get_delivery_provider(self, provider_name: str) -> 'DeliveryProvider':
@@ -783,8 +666,8 @@ class Restaurant:
             if p.platform_name.lower() == provider_name.lower(): return p
         raise HTTPException(404, "Delivery Provider Not Found")
     
-    def add_room(self, room: 'Room'): self.__room_list.append(room)
-    def get_room(self, room_id: str) -> 'Room':
+    def add_room(self, room: Room): self.__room_list.append(room)
+    def get_room(self, room_id: str) -> Room:
         for r in self.__room_list:
             if r.id == room_id: return r
         raise HTTPException(404, "Room Not Found")
@@ -990,10 +873,13 @@ class Restaurant:
             if s.name.lower() == method_name.lower(): return s
         raise HTTPException(status_code=400, detail="Unknown Method")
     
-    def booking_room(self, staff_id: str, member_id: str, room_id: str, hours: int, amount_paid: float, pay_method: str, start_time: datetime, payment_details: Dict[str, Any] = {}):
-        staff = self.get_staff(staff_id)
+    def booking_room(self,token: str, member_id: str, room_id: str, hours: int, amount_paid: float, pay_method: str, start_time: datetime, payment_details: Dict[str, Any] = {}):
+        session = self.__auth_manager.get_session(token)
+        if not session:
+            raise HTTPException(status_code=401, detail="Unauthorized token")
+        staff = self.get_staff(session.user_id)
         if not isinstance(staff, Staff):
-            raise HTTPException(status_code=403, detail="Only Staff can handle bookings")
+            raise HTTPException(status_code=401, detail="Only Staff can handle bookings")
 
         member = self.get_member_by_id(member_id)
         if not member or not isinstance(member, Member):
@@ -1006,8 +892,10 @@ class Restaurant:
         if not self.is_slot_avaliable(room, start_time, hours):
             raise HTTPException(status_code=400, detail="Time slot already occupied")
         
+        booking_id = f"BK-{self.__booking_counter:03d}"
+        self.__booking_counter += 1
         time_slot = TimeSlot(start_time, hours)
-        booking = Booking(member, room, time_slot)
+        booking = Booking(booking_id, member, room, time_slot)
 
         if amount_paid != booking.deposit:
             raise HTTPException(status_code=404, detail=f"Insufficient Amount: need {booking.deposit} THB")
@@ -1021,7 +909,7 @@ class Restaurant:
     def is_slot_avaliable(self, room, start, hours):
         end = start + timedelta(hours=hours)
         for b in self.__booking_list:
-            if b.room.room_id == room.room_id: 
+            if b.room.id == room.id: 
                 if b.status not in [BookingStatus.CANCELLED, BookingStatus.COMPLETED]:
                     if start < b.time_slot.end_time and end > b.time_slot.start_time:
                         return False

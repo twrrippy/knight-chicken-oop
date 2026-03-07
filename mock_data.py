@@ -4,7 +4,7 @@ from main_system.enum import MemberTier, OrderType, OrderStatus, RoomType, Platf
 from main_system.restaurant import Order, Staff, Member, Food, Ingredient, Item
 from main_system.restaurant import SingleMenuItem, SetMenuItem
 from main_system.external_platform.payment_method import Cash, QRCode
-from main_system.restaurant import Room, TimeSlot, Booking
+from main_system.booking import Room, TimeSlot, Booking
 from main_system.external_platform.delivery_provider import Delivery, GrabDeliveryProvider, LineManDeliveryProvider, ShopeeFoodDeliveryProvider
 from main_system.restaurant import restaurant
 from shared.utils.simulate import SimulationClock
@@ -107,7 +107,7 @@ def initialize_mock_data():
     # First, create and pay deposit for the booking
     start_time = SimulationClock.get_time() + timedelta(days=1)
     time_slot = TimeSlot(start_time, 3) # 3 hours
-    booking = Booking(mock_member, room_vip, time_slot)
+    booking = Booking("BK-100", mock_member, room_vip, time_slot)
     
     # Mocking that booking deposit was already paid
     booking._Booking__status = BookingStatus.DEPOSIT_PAID
