@@ -46,5 +46,4 @@ API_KEY=
 (not use yet)
 
 
-links:
-https://drive.google.com/drive/folders/1GZ0UDEFs6RoaoV6-w8vbrHiRuC7z-cq4
+**link of resource will be in our wiki!**
