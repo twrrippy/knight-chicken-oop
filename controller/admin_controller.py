@@ -1,12 +1,9 @@
-from typing import Optional
-
-from fastapi import APIRouter, Query, status, HTTPException
-from shared.utils.response import success_response_status, error_response_status
-from main_system.enum import ItemStatus
-from main_system.restaurant import Order
-from typing import Union
-# from main import restaurant_system, 
+from typing import Union, Annotated, Optional
+from pydantic import Field
+from mcp_core import mcp
 from main_system.restaurant import restaurant, Order
+from fastapi import APIRouter
+
 """Admin Controller Routes include:
 - Log Management: (Manager) call Central Log or Audit Trail
 - Simulation Management: controlling the simulation speed (time acceleration) Expired or Booking
@@ -16,14 +13,30 @@ from main_system.restaurant import restaurant, Order
 
 router = APIRouter(prefix="/admin")
 
+@mcp.tool
 @router.get("/get-all-receipts", tags=["Data"])
-async def get_all_receipts():
-    """show all receipts in the system"""
-    return {"receipts": restaurant.get_all_receipts}
+async def get_all_receipts(
+    token: Annotated[str, Field(
+        description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)"
+    )]
+):
+    """
+    Retrieve all payment receipts. Requires ADMIN access.
+    """
+    restaurant.verify_token_and_role(token, ["Admin"])
+    return [r.generate() for r in restaurant.get_all_receipts()]
 
+@mcp.tool
 @router.get("/get-all-members", tags=["Data"])
-async def get_all_members():
-    """show all members in the system"""
+async def get_all_members(
+    token: Annotated[str, Field(
+        description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)"
+    )]
+):
+    """
+    Retrieve a list of all registered members. Requires ADMIN access.
+    """
+    restaurant.verify_token_and_role(token, ["Admin"])
     return [
         {
             "member_id": m.id,
@@ -32,9 +45,17 @@ async def get_all_members():
         } for m in restaurant.get_all_members()
     ]
 
+@mcp.tool
 @router.get("/get-all-rooms", tags=["Data"])
-async def get_all_rooms():
-    """get all rooms in the system"""
+async def get_all_rooms(
+    token: Annotated[str, Field(
+        description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)"
+    )]
+):
+    """
+    Retrieve all rooms and their current statuses. Requires ADMIN access.
+    """
+    restaurant.verify_token_and_role(token, ["Admin"])
     return [
         {
             "room_id": r.id,
@@ -44,9 +65,17 @@ async def get_all_rooms():
         } for r in restaurant.get_all_rooms()
     ]
 
+@mcp.tool
 @router.get("/get-all-staff", tags=["Data"])
-async def get_all_staff():
-    """get all staff"""
+async def get_all_staff(
+    token: Annotated[str, Field(
+        description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)"
+    )]
+):
+    """
+    Retrieve a list of all staff members. Requires ADMIN access.
+    """
+    restaurant.verify_token_and_role(token, ["Admin"])
     return [
         {
             "staff_id": s.id,
@@ -54,9 +83,18 @@ async def get_all_staff():
         } for s in restaurant.get_all_staff()
     ]
 
+
+@mcp.tool
 @router.get("/get-all-orders", tags=["Data"])
-async def get_all_orders():
-    """get all orders in the system"""
+async def get_all_orders(
+    token: Annotated[str, Field(
+        description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)"
+    )]
+):
+    """
+    Retrieve all orders in the system. Requires ADMIN access.
+    """
+    restaurant.verify_token_and_role(token, ["Admin"])
     return [
         {
             "order_id": o.id,
@@ -65,9 +103,17 @@ async def get_all_orders():
         } for o in restaurant.get_all_orders()
     ]
 
+@mcp.tool
 @router.get("/get-all-bookings", tags=["Data"])
-async def get_all_bookings():
-    """get all bookings in the system"""
+async def get_all_bookings(
+    token: Annotated[str, Field(
+        description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)"
+    )]
+):
+    """
+    Retrieve all room bookings. Requires ADMIN access.
+    """
+    restaurant.verify_token_and_role(token, ["Admin"])
     return [
         {
             "booking_id": b.id,
@@ -78,15 +124,28 @@ async def get_all_bookings():
         } for b in restaurant.get_all_bookings()
     ]
 
+@mcp.tool
 @router.post("/auth/login", tags=["Authentication"])
-async def login(username: str, password: str):
-    """เข้าสู่ระบบด้วย username และ password เพื่อรับ Token"""
-    token = restaurant.login(username, password)
+async def login(
+    username: Annotated[str, Field(description="ชื่อผู้ใช้งาน")], 
+    password: Annotated[str, Field(description="รหัสผ่าน")]
+):
+    """
+    Authenticate a user or staff member and retrieve an access token.
+    """
+    session = restaurant.login(username, password)
+    token = session.token
     return {"access_token": token, "token_type": "bearer"}
 
+
+@mcp.tool
 @router.post("/auth/logout", tags=["Authentication"])
-async def logout(token: str = Query(...)):
-    """ออกจากระบบและทำลาย Token"""
+async def logout(
+    token: Annotated[str, Field(description="Token ที่ต้องการทำลาย")]
+):
+    """
+    Invalidate the current access token and log out the user.
+    """
     success = restaurant.logout(token)
     if success:
         return {"message": "Logged out successfully"}
