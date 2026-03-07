@@ -65,7 +65,7 @@ class Guest(Customer):
             self.__name = name
 
     @property
-    def id(self): return None
+    def id(self): return f"GUEST"
     @property
     def name(self): return self.__name
 
@@ -76,12 +76,12 @@ class Member(Customer):
     def __init__(self, id: str, name: str, tier: MemberTier, username: str, password: str, phone: str = ""):
         super().__init__(id, name, phone, username, password)
         self.__coupon_list: List[Coupon] = [] 
-        self.__receipt_list: List['Receipt'] = []
+        self.__receipt_list: List[Receipt] = []
         self.__tier: MemberTier = tier
         self.__points: int = 0
 
-    def add_receipt(self, receipt: 'Receipt'): self.__receipt_list.append(receipt)
-    def add_coupon(self, coupon: 'Coupon'): self.__coupon_list.append(coupon)
+    def add_receipt(self, receipt: Receipt): self.__receipt_list.append(receipt)
+    def add_coupon(self, coupon: Coupon): self.__coupon_list.append(coupon)
     
     def get_coupon_by_code(self, code: str):
         for coupon in self.__coupon_list:
@@ -145,9 +145,14 @@ class MenuItem(ABC):
 
     def to_dict_order(self):
         original_menu = restaurant.search_menu_item_from_name(self.name)
+        custom = []
+        for ingredient in self.all_ingredient:
+            if ingredient.type == IngredientType.CUSTOMIZABLE:
+                custom.append(ingredient.ingredient_to_dict)
         self.update_price(original_menu)
         return {
             "name": self.__name,
+            "customizable": custom if custom else None,
             "price": self.__price
         }
 
