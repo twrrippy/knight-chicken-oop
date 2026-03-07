@@ -341,21 +341,21 @@ class OrderItem:
         if self.__status != OrderItemStatus.RESERVED:
              return False
         
-        self.status(OrderItemStatus.COOKING)
-        ingredients = self.__menu_item.all_ingredient()
+        self.status = OrderItemStatus.COOKING
+        ingredients = self.__menu_item.all_ingredient
         
         for ingredient in ingredients:
             restaurant.consume_reserved_ingredient(ingredient.item.name, ingredient.quantity * self.__quantity)
             
-        self.status(OrderItemStatus.READY)
+        self.status = OrderItemStatus.READY
         return True
 
     def cancel_reservation(self):
         if self.__status == OrderItemStatus.RESERVED:
-            ingredients = self.__menu_item.all_ingredient()
+            ingredients = self.__menu_item.all_ingredient
             for ingredient in ingredients:
-                restaurant.reverse_reserve_ingredient(ingredient.item.name, ingredient.quantity * self.__quantity)
-            self.status(OrderItemStatus.CANCELED)
+                restaurant.stock_reverse(ingredient.item.name, ingredient.quantity * self.__quantity)
+            self.status = OrderItemStatus.CANCELED
 class TimeSlot:
     def __init__(self, start_time: datetime, hours: int):
         self.__start_time = start_time
@@ -920,33 +920,41 @@ class Restaurant:
                 item.update_status = ItemStatus.AVAILABLE
                 count += 1
     
-    # def find_ingredient_in_stock(self, item_name: str):
-    #     return sum(1 for item in self.__stock if item.name == item_name)
+    def find_ingredient_in_stock(self, item_name: str):
+        return sum(1 for item in self.__stock if item.name == item_name and item.status == ItemStatus.AVAILABLE)
 
-    # def find_item_in_reserved(self, item_name: str):
-    #     return sum(1 for reserved_item in self.__reserved_stock if reserved_item.name == item_name)
+    def find_item_in_reserved(self, item_name: str):
+        return sum(1 for item in self.__stock if item.name == item_name and item.status == ItemStatus.RESERVED)
     
-    # def consume_reserved_ingredient(self, item_name: str, quantity: int):
-    #     if self.find_item_in_reserved(item_name) < quantity:
-    #         return False
+    def consume_reserved_ingredient(self, item_name: str, quantity: int):
+        if self.find_item_in_reserved(item_name) < quantity:
+            return False
 
-    #     count = 0
-    #     for i in range(len(self.__reserved_stock) - 1, -1, -1):
-    #         if self.__reserved_stock[i].name == item_name:
-    #             self.__reserved_stock.pop(i)
-    #             count += 1
-    #             if count == quantity:
-    #                 break
-    #     return True
+        count = 0
+        for i in range(len(self.__stock) - 1, -1, -1):
+            item = self.__stock[i]
+            if item.name == item_name and item.status == ItemStatus.RESERVED:
+                self.__stock.pop(i)
+                count += 1
+                if count == quantity:
+                    break
+        return True
 
-    # def reverse_reserve_ingredient(self, item_name: str, quantity: int):
-    #     count = 0
-    #     for i in range(len(self.__reserved_stock) - 1, -1, -1):
-    #         if self.__reserved_stock[i].name == item_name:
-    #             self.__stock.append(self.__reserved_stock.pop(i)) 
-    #             count += 1
-    #             if count == quantity:
-    #                 break
+    def stock_reverse(self, item_name: str, quantity: int):
+        if quantity < 0:
+            raise ValueError("INVALID: Quantity")
+        if self.check_stock(item_name, ItemStatus.RESERVED) < quantity:
+            raise ValueError("Reverse")
+        count = 0
+        for item_index in range(len(self.__stock) - 1, -1, -1):
+            if count == quantity:
+                return True
+            item = self.__stock[item_index ]
+            if item.name == item_name and item.status == ItemStatus.RESERVED:
+                item.status == ItemStatus.AVAILABLE 
+                count += 1
+        return count == quantity
+                    
 
     def confirm(self, order:Order):
         try:
