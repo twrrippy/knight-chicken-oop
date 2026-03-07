@@ -48,10 +48,11 @@ class User(ABC):
     def password(self):
         return self.__password
     
-    def check_username(self, username):
-        return self.__username == username
-    def check_password(self, password):
-        return self.__password == password
+    def check_username(self, username: str) -> bool:
+        return hasattr(self, "_username") and self.__username == username
+
+    def check_password(self, password: str) -> bool:
+        return hasattr(self, "_password") and self.__password == password
     
     def __eq__(self, other):
         return (type(other) is type(self)) and self.__name == other.name and self.__id == other.id and self.__phone_number == other.phone_number
@@ -62,25 +63,15 @@ class Staff(User):
     def check_room_availability(self, room, start_time: datetime, hours: int) -> bool:
         return restaurant.is_slot_available(room, start_time, hours)
     
-class Customer(ABC):
-    def __init__(self, id: str, name: str, phone: str = ""):
+class Customer(User):
+    pass
+class Guest(Customer):
+    def __init__(self, id: str, name: str, phone_number: str = ""):
+        if not User.is_valid_phone_number(phone_number):
+            raise ValueError("INVALID: Phone number")
         self.__id = id
         self.__name = name
-        self.__phone = phone
-
-    @property
-    def id(self):
-        return self.__id
-
-    @property
-    def name(self):
-        return self.__name
-
-    @property
-    def phone(self):
-        return self.__phone
-
-class Guest(Customer):
+        self.__phone_number = phone_number
     class GuestDTO(BaseModel):
         id: str
         name: str
@@ -88,13 +79,11 @@ class Guest(Customer):
 
 class Member(Customer):
     def __init__(self, id: str, name: str, tier: MemberTier, username: str, password: str, phone: str = ""):
-        super().__init__(id, name, phone)
+        super().__init__(id, name, phone, username, password)
         self.__coupon_list: List[Coupon] = [] 
         self.__receipt_list: List['Receipt'] = []
         self.__tier: MemberTier = tier
         self.__points: int = 0
-        self.__username = username
-        self.__password = password
 
     def add_receipt(self, receipt: 'Receipt'): self.__receipt_list.append(receipt)
     def add_coupon(self, coupon: 'Coupon'): self.__coupon_list.append(coupon)
@@ -119,11 +108,7 @@ class Member(Customer):
     @property
     def password(self): return self.__password
 
-    def check_username(self, username: str) -> bool:
-        return hasattr(self, "_username") and self.__username == username
-
-    def check_password(self, password: str) -> bool:
-        return hasattr(self, "_password") and self.__password == password
+    
 
 
 class MenuItem(ABC):
@@ -852,7 +837,7 @@ class Restaurant:
         return confirmed_order
     
     def check_and_issue_reward(self, order: 'Order'):
-        if not isinstance(order.customer, 'Member'):
+        if not isinstance(order.customer, Member):
             return None
 
         member = order.customer
@@ -875,7 +860,7 @@ class Restaurant:
         return None
     
     def check_and_issue_member_teir(self, order: 'Order'):
-        if not isinstance(order.customer, 'Member'):
+        if not isinstance(order.customer, Member):
             return None
 
     def get_payment_method(self, method_name: str) -> 'PaymentMethod':
@@ -885,15 +870,15 @@ class Restaurant:
     
     def booking_room(self, staff_id: str, member_id: str, room_id: str, hours: int, amount_paid: float, pay_method: str, start_time: datetime, payment_details: Dict[str, Any] = {}):
         staff = self.get_staff(staff_id)
-        if not isinstance(staff, 'Staff'):
+        if not isinstance(staff, Staff):
             raise HTTPException(status_code=403, detail="Only Staff can handle bookings")
 
         member = self.get_member_by_id(member_id)
-        if not member or not isinstance(member, 'Member'):
+        if not member or not isinstance(member, Member):
             raise HTTPException(status_code=404, detail="Member not found")
         
         room = self.get_room(room_id)
-        if not room or not isinstance(room, 'Room'):
+        if not room or not isinstance(room, Room):
             raise HTTPException(status_code=404, detail="Room not found")
 
         if not self.is_slot_avaliable(room, start_time, hours):
