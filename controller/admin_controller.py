@@ -14,14 +14,14 @@ from main_system.restaurant import restaurant, Order
 - System Settings: etc.
 """
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(prefix="/admin")
 
-@router.get("/get-logs")
+@router.get("/get-logs", tags=["Data"])
 async def get_logs():
     """retrieve all audit logs from the centralized logging system"""
     return {"logs": restaurant.get_all_receipts}
 
-@router.get("/get-all-members")
+@router.get("/get-all-members", tags=["Data"])
 async def get_all_members():
     """show all members in the system"""
     return [
@@ -32,7 +32,7 @@ async def get_all_members():
         } for m in restaurant.get_all_members()
     ]
 
-@router.get("/get-all-rooms")
+@router.get("/get-all-rooms", tags=["Data"])
 async def get_all_rooms():
     """get all rooms in the system"""
     return [
@@ -44,7 +44,7 @@ async def get_all_rooms():
         } for r in restaurant.get_all_rooms()
     ]
 
-@router.get("/get-all-staff")
+@router.get("/get-all-staff", tags=["Data"])
 async def get_all_staff():
     """get all staff"""
     return [
