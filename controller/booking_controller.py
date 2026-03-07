@@ -6,7 +6,7 @@ from fastapi.encoders import jsonable_encoder
 from main_system.restaurant import restaurant
 from shared.utils.response import success_response_status, error_response_status
 
-router = APIRouter(prefix="/booking", tags=["booking"])
+router = APIRouter(prefix="/booking", tags=["Booking"])
 
 # @mcp.tool
 @router.post("/booking-room")
