@@ -26,6 +26,19 @@ async def start_order():
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     
+# @router.post("/member/start/general")
+# async def start_order():
+#     try:
+#         current_customer = restaurant
+#         order = Order(OrderType.GENERAL, current_customer)
+#         restaurant.add_order(order)
+#         return {
+#             "Order ID": order.id,
+#             "Customer": current_customer.name
+#         }
+#     except ValueError as e:
+#         raise HTTPException(status_code=400, detail=str(e))
+    
 @router.put("/orderitem/add", response_model=Union[Order.OrderDTO, dict])
 async def add_order(orderitem: OrderItem.OrderItemDTO):
     try:
@@ -35,6 +48,10 @@ async def add_order(orderitem: OrderItem.OrderItemDTO):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=(str(e)))
     return current_order.order_to_dict()
+
+# @router.put("/orderitem/custom/add/{order_id}", response_model=Union[Order.OrderDTO, dict])
+# async def custom_add_orderitem(custom: OrderItem.CustomDTO):
+
 
 @router.put("/ordering/guest", response_model=Union[Order.OrderDTO, dict])
 async def ordering(order_id: str, guest_id: str):
