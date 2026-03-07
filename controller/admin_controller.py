@@ -16,10 +16,10 @@ from main_system.restaurant import restaurant, Order
 
 router = APIRouter(prefix="/admin")
 
-@router.get("/get-logs", tags=["Data"])
-async def get_logs():
-    """retrieve all audit logs from the centralized logging system"""
-    return {"logs": restaurant.get_all_receipts}
+@router.get("/get-all-receipts", tags=["Data"])
+async def get_all_receipts():
+    """show all receipts in the system"""
+    return {"receipts": restaurant.get_all_receipts}
 
 @router.get("/get-all-members", tags=["Data"])
 async def get_all_members():
