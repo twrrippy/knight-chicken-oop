@@ -11,7 +11,7 @@ from shared.utils.simulate import SimulationClock
 
 def initialize_mock_data():
     # 1. Staff
-    admin1 = Staff("A-001", "Kwang Admin", "923123123", "Kwang", "password", True)
+    admin1 = Staff("A-001", "Kwang Admin", "0801111111", "Kwang", "password", True)
     staff1 = Staff("S-001", "Alice Manager", "0801111111", "alice", "password")
     staff2 = Staff("S-002", "Bob Cashier", "0802222222", "bob", "password")
     staff3 = Staff("S-003", "Charlie Kitchen", "0803333333", "charlie", "password")

@@ -152,7 +152,8 @@ async def login(
     Returns:
         Dict[str, str]: Access Token และประเภทของ Token
     """
-    token = restaurant.login(username, password)
+    session = restaurant.login(username, password)
+    token = session.token
     return {"access_token": token, "token_type": "bearer"}
 
 @mcp.tool

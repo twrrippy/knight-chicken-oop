@@ -12,6 +12,9 @@ class Session:
         self.__is_active = True
 
     @property
+    def token(self): return self.__token
+
+    @property
     def is_active(self): return self.__is_active
 
     @property
