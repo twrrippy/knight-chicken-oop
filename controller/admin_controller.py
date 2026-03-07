@@ -14,24 +14,34 @@ router = APIRouter(prefix="/admin")
 
 @mcp.tool
 @router.get("/get-all-receipts", tags=["Data"])
-async def get_all_receipts():
+async def get_all_receipts(
+    token: Annotated[str, Field(
+        description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)"
+    )]
+):
     """
-    ดึงข้อมูลใบเสร็จทั้งหมดในระบบ
+    ดึงข้อมูลใบเสร็จทั้งหมดในระบบ เฉพาะ ADMIN เท่านั้นที่ใช้ได้
     
     Returns:
         Dict[str, List[Dict]]: รายการใบเสร็จทั้งหมด
     """
+    restaurant.verify_token_and_role(token, ["Admin"])
     return {"receipts": restaurant.get_all_receipts}
 
 @mcp.tool
 @router.get("/get-all-members", tags=["Data"])
-async def get_all_members():
+async def get_all_members(
+    token: Annotated[str, Field(
+        description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)"
+    )]
+):
     """
-    ดึงข้อมูลสมาชิกทั้งหมดในระบบ
+    ดึงข้อมูลสมาชิกทั้งหมดในระบบ เฉพาะ ADMIN เท่านั้นที่ใช้ได้
     
     Returns:
         List[Dict]: รายชื่อสมาชิกพร้อมข้อมูลเบื้องต้น (ID, ชื่อ, Tier)
     """
+    restaurant.verify_token_and_role(token, ["Admin"])
     return [
         {
             "member_id": m.id,
@@ -42,13 +52,18 @@ async def get_all_members():
 
 @mcp.tool
 @router.get("/get-all-rooms", tags=["Data"])
-async def get_all_rooms():
+async def get_all_rooms(
+    token: Annotated[str, Field(
+        description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)"
+    )]
+):
     """
-    ดึงข้อมูลห้องทั้งหมดในระบบ
+    ดึงข้อมูลห้องทั้งหมดในระบบ เฉพาะ ADMIN เท่านั้นที่ใช้ได้
     
     Returns:
         List[Dict]: ข้อมูลห้อง (ID, ประเภท, สถานะ, ราคาต่อชั่วโมง)
     """
+    restaurant.verify_token_and_role(token, ["Admin"])
     return [
         {
             "room_id": r.id,
@@ -60,13 +75,18 @@ async def get_all_rooms():
 
 @mcp.tool
 @router.get("/get-all-staff", tags=["Data"])
-async def get_all_staff():
+async def get_all_staff(
+    token: Annotated[str, Field(
+        description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)"
+    )]
+):
     """
-    ดึงข้อมูลพนักงานทั้งหมดในระบบ
+    ดึงข้อมูลพนักงานทั้งหมดในระบบ เฉพาะ ADMIN เท่านั้นที่ใช้ได้
     
     Returns:
         List[Dict]: รายชื่อพนักงาน (ID, ชื่อ)
     """
+    restaurant.verify_token_and_role(token, ["Admin"])
     return [
         {
             "staff_id": s.id,
@@ -76,13 +96,18 @@ async def get_all_staff():
 
 @mcp.tool
 @router.get("/get-all-orders", tags=["Data"])
-async def get_all_orders():
+async def get_all_orders(
+    token: Annotated[str, Field(
+        description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)"
+    )]
+):
     """
-    ดึงข้อมูลออเดอร์ทั้งหมดในระบบ
+    ดึงข้อมูลออเดอร์ทั้งหมดในระบบ เฉพาะ ADMIN เท่านั้นที่ใช้ได้
     
     Returns:
         List[Dict]: รายการออเดอร์ (ID, ชื่อลูกค้า, สถานะ)
     """
+    restaurant.verify_token_and_role(token, ["Admin"])
     return [
         {
             "order_id": o.id,
@@ -93,13 +118,18 @@ async def get_all_orders():
 
 @mcp.tool
 @router.get("/get-all-bookings", tags=["Data"])
-async def get_all_bookings():
+async def get_all_bookings(
+    token: Annotated[str, Field(
+        description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)"
+    )]
+):
     """
-    ดึงข้อมูลการจองห้องทั้งหมดในระบบ
+    ดึงข้อมูลการจองห้องทั้งหมดในระบบ เฉพาะ ADMIN เท่านั้นที่ใช้ได้
     
     Returns:
         List[Dict]: รายการจองห้อง (ID, ชื่อลูกค้า, ประเภทห้อง, สถานะ, เวลาเริ่มต้น)
     """
+    restaurant.verify_token_and_role(token, ["Admin"])
     return [
         {
             "booking_id": b.id,
@@ -168,7 +198,7 @@ async def staff_sign_up(
 ):
     """
     ลงทะเบียนพนักงานใหม่เข้าระบบ
-    ระบบจะสร้างรหัสพนักงาน (S-xxx) ให้อัตโนมัติ
+    ระบบจะสร้างรหัสพนักงาน (S-xxx) ให้อัตโนมัติ 
     """
     staff = restaurant.register_staff(username, password, name, phone)
     return {
@@ -183,7 +213,7 @@ async def get_stock(
     item_name: Annotated[str, Field(description="ชื่อวัตถุดิบที่ต้องการตรวจสอบ (เช่น Chicken, Beef)")]
 ):
     """
-    ตรวจสอบจำนวนวัตถุดิบในสต็อกคงเหลือ
+    ตรวจสอบจำนวนวัตถุดิบในสต็อกคงเหลือ 
     
     Returns:
         Dict[str, int]: จำนวนวัตถุดิบที่พร้อมใช้งาน (Available) และที่ถูกจองไว้ (Reserved)
