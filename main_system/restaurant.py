@@ -40,9 +40,9 @@ class User(ABC):
     def phone_number(self): return self.__phone_number
     
     def check_username(self, username: str) -> bool:
-        return hasattr(self, "_username") and self.__username == username
+        return hasattr(self, "__username") and self.__username == username
     def check_identity(self, username: str, password: str) -> bool:
-        return hasattr(self, "_username") and hasattr(self, "_password") and self.__username == username and self.__password == password
+        return hasattr(self, "__username") and hasattr(self, "__password") and self.__username == username and self.__password == password
     
     # def __eq__(self, other):
     #     return (type(other) is type(self)) and self.__name == other.name and self.__id == other.id and self.__phone_number == other.phone_number
