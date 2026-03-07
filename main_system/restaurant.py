@@ -702,7 +702,6 @@ class Restaurant:
 
     def add_receipts(self, receipt: Receipt): 
         self.__receipt_list.append(receipt)
-         # print(f"[SYSTEM LOG] {receipt.timestamp} | {receipt.id} | {receipt.status} | {receipt.amount} THB")
     def get_receipts_by_order_id(self, order_id: str) -> Receipt:
         for r in self.__receipt_list:
             if r.order.id == order_id: return r

@@ -1,5 +1,5 @@
 from typing import Optional, List, Tuple, Dict, Any, Annotated
-from fastapi import APIRouter
+from fastapi import APIRouter, status
 from datetime import datetime, timedelta
 from pydantic import Field
 from mcp_core import mcp
@@ -57,23 +57,12 @@ async def book_room(
     #     - qrcode: {"account_number": "xxx"} 
     #     - creditcard: {"card_number": "...", "cvv": "..."} 
     #     - cash: {"cash_received": xxx}\n
-        
-    # จองห้องและชำระเงินมัดจำ (Book Room & Pay Deposit)
-
-    # ขั้นตอนการทำงาน:
-    # 1. ตรวจสอบความว่างของห้องตามช่วงเวลาที่ระบุ
-    # 2. คำนวณราคาสุทธิ (หักส่วนลดตาม Tier ของสมาชิก)
-    # 3. ตรวจสอบยอดมัดจำ (ต้องจ่ายอย่างน้อย 50%)
-    # 4. บันทึกข้อมูลการจองและมาร์คสถานะห้องเป็น RESERVED
-    
-    # Returns:
-    #     Dict[str, Any]: ข้อมูลสรุปการจองและใบเสร็จมัดจำ
     # """
     try:
         payload = restaurant.booking_room(token, member_id, room_id, hours, amount_paid, pay_method, start_time=start_time, payment_details=payment_details)
-        return success_response_status(status= status.HTTP_200_OK,payload= jsonable_encoder(payload))
+        return success_response_status(status=status.HTTP_200_OK, payload=jsonable_encoder(payload))
     except Exception as e:
-        raise error_response_status(status= status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(e))
+        raise error_response_status(status=status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(e))
 
 @mcp.tool
 @router.get("/preview_booking/{booking_id}")
