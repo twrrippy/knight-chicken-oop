@@ -59,7 +59,7 @@ async def member_start_general_order(token: str):
     except HTTPException as e:
         raise HTTPException(status_code=400, detail=str(e))
     
-@router.put("/orderitem/add", response_model=Union[Order.OrderDTO, dict])
+@router.put("/orderitem/add")
 async def add_item_to_order(order_id: str, menu: str, quantity: int):
     """
     [Intent]: เพิ่มเมนูอาหารพร้อมจำนวน (OrderItem) ลงในออเดอร์ (Order) ที่มีอยู่แล้ว\n
@@ -77,7 +77,7 @@ async def add_item_to_order(order_id: str, menu: str, quantity: int):
         # raise HTTPException(status_code=400, detail=(str(e)))
     return current_order.order_to_dict()
  
-@router.put("/orderitem/remove", response_model=Union[Order.OrderDTO, dict])
+@router.put("/orderitem/remove")
 async def remove_item_in_order(order_id: str, order_item_id: int):
     """
     [Intent]: ลบรายการอาหาร (OrderItem) จากออเดอร์ (Order) ที่มีอยู่แล้ว\n
@@ -92,7 +92,7 @@ async def remove_item_in_order(order_id: str, order_item_id: int):
         # raise HTTPException(status_code=400, detail=(str(e)))
     return current_order.order_to_dict()
 
-@router.put("/orderitem/custom", response_model=Union[Order.OrderDTO, dict])
+@router.put("/orderitem/custom")
 async def custom_item_in_order(order_id: str, order_item_id: int, item_name: str, quantity: int):
     """
     [Intent]: ปรับแต่งส่วนผสม (Customizable Ingredient) ของเมนูอาหารที่อยู่ใน Order\n
@@ -111,7 +111,7 @@ async def custom_item_in_order(order_id: str, order_item_id: int, item_name: str
     
 
 
-@router.put("/ordering/guest", response_model=Union[Order.OrderDTO, dict])
+@router.put("/ordering/guest")
 async def check_and_reserve_stock(order_id: str, guest_id: str):
     """
     [Intent]: ขั้นตอน Pre-order เพื่อจองวัตถุดิบ/สินค้าก่อนการยืนยัน\n
@@ -134,7 +134,7 @@ async def check_and_reserve_stock(order_id: str, guest_id: str):
         # raise HTTPException(status_code=400, detail=str(e))
     return reserved_order.order_to_dict()
 
-@router.put("/ordering/member", response_model=Union[Order.OrderDTO, dict])
+@router.put("/ordering/member")
 async def check_and_reserve_stock(order_id: str, token: str):
     """
     [Intent]: ขั้นตอน Pre-order เพื่อจองวัตถุดิบ/สินค้าก่อนการยืนยัน\n
@@ -157,7 +157,7 @@ async def check_and_reserve_stock(order_id: str, token: str):
         # raise HTTPException(status_code=400, detail=str(e))
     return reserved_order.order_to_dict()
 
-@router.put("/confirm/guest", response_model=Union[Order.OrderDTO, dict])
+@router.put("/confirm/guest")
 async def confirm_order(order_id: str, guest_id: str):
     """
     [Intent]: ยืนยันคำสั่งซื้อในขั้นตอนสุดท้าย (หลังจากการ reserve สำเร็จแล้ว)\n
@@ -173,7 +173,7 @@ async def confirm_order(order_id: str, guest_id: str):
         return f"{e}"
         # raise HTTPException(status_code=400, detail=str(e))
     return confirmed_order.order_to_dict()
-@router.put("/confirm/member", response_model=Union[Order.OrderDTO, dict])
+@router.put("/confirm/member")
 async def confirm_order(order_id: str, token: str):
     """
     [Intent]: ยืนยันคำสั่งซื้อในขั้นตอนสุดท้าย (หลังจากการ reserve สำเร็จแล้ว)\n
@@ -189,6 +189,11 @@ async def confirm_order(order_id: str, token: str):
         return f"{e}"
         # raise HTTPException(status_code=400, detail=str(e))
     return confirmed_order.order_to_dict()
+
+@router.get("/{order_id}")
+async def get_order_from_id(order_id: str):
+    current_order = restaurant.search_order_from_id(order_id)
+    return current_order.order_to_dict()
 
 @mcp.tool()
 async def create_random_delivery_order(

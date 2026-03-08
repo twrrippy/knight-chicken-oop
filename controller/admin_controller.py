@@ -150,7 +150,8 @@ async def logout(
     success = restaurant.logout(token)
     if success:
         return {"message": "Logged out successfully"}
-    raise HTTPException(status_code=400, detail="Invalid Token")
+    return {"message": "Invalid Token"}
+    # raise HTTPException(status_code=400, detail="Invalid Token")
 
 @router.post("/register/member", tags=["Registration"])
 async def member_sign_up(
@@ -182,11 +183,21 @@ async def staff_sign_up(username: str, password: str, name: str, phone: str = "0
 async def check_queue():
     return { "Queue": restaurant.check_queue}
 
-@router.get("/queue/get/{queue_order}", response_model=Union[Order.OrderDTO, dict], tags=["Queue"])
-async def get_queue(queue_order: int):
-    if queue_order > 50 or queue_order < 1:
-        raise HTTPException(status_code=400, detail="Queue not Found")
-    order = restaurant.get_queue(queue_order)
-    if order == False:
-        raise HTTPException(status_code=400, detail="Queue not Found")
-    return order.order_to_dict()
+# @router.get("/queue/get/{queue_order}", response_model=Union[Order.OrderDTO, dict], tags=["Queue"])
+# async def get_queue(queue_order: int):
+#     if queue_order > 50 or queue_order < 1:
+#         raise HTTPException(status_code=400, detail="Queue not Found")
+#     order = restaurant.get_queue(queue_order)
+#     if order == False:
+#         raise HTTPException(status_code=400, detail="Queue not Found")
+#     return order.order_to_dict()
+
+@router.put("/order/void", tags=["Order"])
+async def void_order(order_id: str, token: str):
+    try:
+        restaurant.verify_token_and_role(token=token, allowed_roles=["Admin"])
+        order = restaurant.search_order_from_id(order_id)
+        order.void_order()
+    except Exception as e:
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
+    return {"message": "Voided order successfully"}

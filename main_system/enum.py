@@ -13,7 +13,7 @@ class OrderStatus(str, Enum):
     PENDING = "Pending"
     RESERVED = "Reserved"
     CONFIRMED = "Confirmed"
-    PAIDED = "Paid"
+    PAID = "Paid"
     COOKING = "Cooking"
     READY = "Ready"
     SERVED = "Served"
