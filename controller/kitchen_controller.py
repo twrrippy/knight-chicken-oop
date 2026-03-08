@@ -20,7 +20,7 @@ async def cook_order(
     Start cooking a specific order. Changes the order status to COOKING in the kitchen. 
     """
     try:
-        restaurant.verify_token_and_role(token, ["Admin"])
+        restaurant.verify_token_and_role(token, ["Admin", "Staff"])
         order = restaurant.search_order_from_id(order_id)
         success = order.cook_order()
         if success:
@@ -41,7 +41,7 @@ async def view_kitchen_queue(
     View the kitchen queue (orders that are ready to be cooked).
     """
     try:
-        restaurant.verify_token_and_role(token, ["Admin"])
+        restaurant.verify_token_and_role(token, ["Admin", "Staff"])
         queue = restaurant.get_kitchen_queue()
         if queue["total_queue"]==0:
             return {"message": "No order in queue ","queue": queue}
