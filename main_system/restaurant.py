@@ -17,6 +17,7 @@ from pydantic import BaseModel
 import uuid
 import random
 import copy
+import asyncio
 
 class User(ABC):
     @staticmethod
@@ -636,6 +637,7 @@ class Order:
             
             if self.__delivery:
                 self.__delivery.mark_as_paid()
+                self.__delivery.request_rider()
 
             if coupon: coupon.mark_as_used()
 
@@ -1264,5 +1266,14 @@ class Restaurant:
         order = self.get_order(order_id)
         if order.status == OrderStatus.PAIDED: raise HTTPException(400, "Order Already Paid")
         return order.pre_calculate_totals(coupon_code)
+
+    async def simulate_delivery(self, order_id: str, delay_seconds: int = 10):
+        await asyncio.sleep(delay_seconds)
+        try:
+            order = self.get_order(order_id)
+            if order.delivery:
+                self.update_delivery_status(order.id, DeliveryStatus.DELIVERED)
+        except Exception as e:
+            print(f"Failed to auto-transition delivery {order.id}: {e}")
     
 restaurant = Restaurant()
