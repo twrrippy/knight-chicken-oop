@@ -53,9 +53,9 @@ async def get_all_rooms(
     )]
 ):
     """
-    Retrieve all rooms and their current statuses. Requires ADMIN access.
+    Retrieve all rooms and their current statuses. Requires Staff access.
     """
-    restaurant.verify_token_and_role(token, ["Admin"])
+    restaurant.verify_token_and_role(token, ["Admin, Staff"])
     return [
         {
             "room_id": r.id,
