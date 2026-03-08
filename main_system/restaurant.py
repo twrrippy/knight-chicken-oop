@@ -480,7 +480,8 @@ class Order:
     def check_customer(self, customer: Customer):
         if self.__customer != customer:
             raise ValueError("Wrong Customer")
-
+        return True
+    
     def search_order_item_from_id(self, order_item_id: int):
         for order_item in self.__order_item_list:
             if order_item.id == order_item_id:
@@ -539,6 +540,16 @@ class Order:
             self.status = OrderStatus.READY
             return True
         return False
+
+    def serve_order(self):
+        if self.__status != OrderStatus.READY:
+            return False    
+        self.status = OrderStatus.SERVED
+        for item in self.__order_item_list:
+            item.status = OrderItemStatus.SERVED
+        return True
+            
+            
 
     def pre_calculate_totals(self, coupon_code: Optional[str] = None):
         coupon = None
@@ -989,15 +1000,20 @@ class Restaurant:
             "order":queue_list
         }
         
-                    
-
     def confirm(self, order:Order):
         try:
             confirmed_order = order.order_confirm()
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
         return confirmed_order
-
+    
+    def serve_order(self, order:Order):
+        try:
+            order = order.serve_order()
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        return order
+        
     def create_delivery_order(self, customer: 'User', provider_name: str, distance: float):
         provider = self.get_delivery_provider(provider_name)
         

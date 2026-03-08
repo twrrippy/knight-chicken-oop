@@ -251,6 +251,29 @@ async def member_confirm_order(
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
     return confirmed_order.order_to_dict()
 
+@mcp.tool
+@router.put("/serve", response_model=Union[Order.OrderDTO, dict])
+async def serve(
+    order_id: Annotated[str, Field(
+        description="รหัสออเดอร์ที่ต้องการเสิร์ฟ (Format: ORD-xxx)"
+    )],
+    token: Annotated[str, Field(
+        description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)"
+    )]
+):
+    """
+    Update status Order. Changes the order status from Ready to Served. 
+    """
+    try:
+        restaurant.verify_token_and_role(token,["Admin","Staff"])
+        order = restaurant.search_order_from_id(order_id)
+        is_success = restaurant.serve_order(order)
+        if not is_success:
+            return f"Status is not READY"
+        return order.order_to_dict()
+    except Exception as e:
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
+
 @mcp.tool()
 @router.post("/guest/start/delivery")
 async def guest_start_delivery_order(
