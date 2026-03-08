@@ -464,12 +464,6 @@ class Order:
     def check_customer(self, customer: Customer):
         if self.__customer != customer:
             raise ValueError("Wrong Customer")
-    
-    def search_order_item_from_id(self, order_item_id: int):
-        for order_item in self.__order_item_list:
-            if order_item.id == order_item_id:
-                return order_item
-        raise ValueError("Order Item NOT FOUND")
 
     def order_reserve(self):
         for order_item in self.__order_item_list:

@@ -10,6 +10,7 @@ from shared.utils.response import success_response_status, error_response_status
 
 router = APIRouter(prefix="/booking", tags=["Booking"])
 
+@mcp.tool
 @router.post("/check-booking-availability")
 async def check_booking_availability(
     token: Annotated[str, Field(
@@ -49,7 +50,7 @@ async def check_booking_availability(
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {str(e)}"
 
-# @mcp.tool
+@mcp.tool
 @router.post("/booking-room")
 async def book_room(
     token: Annotated[str, Field(
@@ -103,7 +104,7 @@ async def book_room(
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {str(e)}"
 
-# @mcp.tool
+@mcp.tool
 @router.get("/preview_booking/{booking_id}")
 async def preview_booking(booking_id: str):
     """
@@ -111,6 +112,7 @@ async def preview_booking(booking_id: str):
     """
     return restaurant.preview_booking_details(booking_id)
 
+@mcp.tool
 @router.post("/check-in/{booking_id}")
 async def check_in(token: str,
         order_id: Annotated[str, Field(
@@ -149,6 +151,7 @@ async def check_in(token: str,
     except Exception as e:
         raise error_response_status(status=status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(e))
 
+@mcp.tool
 @router.post("/check-out/{booking_id}")
 async def check_out(
     token: Annotated[str, Field(
