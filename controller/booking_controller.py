@@ -3,10 +3,8 @@ from typing import Optional, List, Tuple, Dict, Any, Annotated
 from datetime import datetime, timedelta
 from pydantic import Field
 from mcp_core import mcp
-
-from fastapi.encoders import jsonable_encoder
 from main_system.restaurant import restaurant
-from shared.utils.response import success_response_status, error_response_status
+
 
 router = APIRouter(prefix="/booking", tags=["Booking"])
 
@@ -74,25 +72,10 @@ async def book_room(
     """
     Book a room and process the required 50% deposit payment. Do not calculate discounts yourself; the system handles it. Ask the user for room choice and payment details before calling.
     """
-    # # Description: There are 5 rooms for booking.\n
-    # **R01**: VIP, Price: 2000 THB/hour\n
-    # **R02**: Hall, Price: 5000 THB/hour\n
-    # **R03**: Standard, Price: 500 THB/hour\n
-    # **R04**: VIP, Price: 2000 THB/hour\n
-    # **R05**: Standard, Price: 500 THB/hour\n
-    # **room_price** = price_per_hour * hours\n
-    # **deposit** = room_price * 50%\n
-    # **GOLD members** get 15% discount on room price\n
-    # **SILVER members** get 10% discount on room price\n
-    # **BRONZE members** get 5% discount on room price\n
-    # - **payment_details**: ข้อมูลเพิ่มเติมตามประเภทการจ่ายเงิน เช่น 
-    #     - qrcode: {"account_number": "xxx"} 
-    #     - creditcard: {"card_number": "...", "cvv": "..."} 
-    #     - cash: {"cash_received": xxx}\n
-    # """
     try:
-        payload = restaurant.booking_room(token, member_id, room_id, hours, pay_method, start_time=start_time, payment_details=payment_details)
-        return success_response_status(status= status.HTTP_200_OK,payload= jsonable_encoder(payload))
+        restaurant.verify_token_and_role(token, allowed_roles=["Staff", "Admin"])
+        payload = restaurant.booking_room(member_id, room_id, hours, pay_method, start_time=start_time, payment_details=payment_details)
+        return payload
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
 
@@ -137,20 +120,10 @@ async def check_in(token: str,
     """
     Check-in a customer to their booked room and process the payment for the remaining balance.
     """
-    # """
-    # ## Check in a guest for their booking.
-    # **order_id**: รหัสออเดอร์ที่เกี่ยวข้องกับการจองนี้ (Format: ORD-xxx-xxx)\n
-    # **booking_id**: รหัสการจองที่ต้องการเช็คอิน (Format: BK-xxx)\n
-    # **coupon_code**: (Optional) โค้ดคูปองที่ลูกค้าอาจมีและต้องการใช้สำหรับส่วนลด\n
-    # **pay_method**: วิธีการชำระเงินที่ลูกค้าใช้สำหรับการจ่ายเงินที่เหลือ (เช่น "qrcode", "creditcard", "cash")\n
-    # **payment_details**: ข้อมูลเพิ่มเติมตามประเภทการจ่ายเงิน เช่น 
-    #     - qrcode: {"account_number": "xxx"} 
-    #     - creditcard: {"card_number": "...", "cvv": "..."} 
-    #     - cash: {"cash_received": xxx}\n
-    # """
     try:
-        payload = restaurant.check_in_booking(token=token, order_id=order_id, booking_id=booking_id, coupon_code=coupon_code, pay_method=pay_method, payment_details=payment_details)
-        return success_response_status(status=status.HTTP_200_OK, payload=jsonable_encoder(payload))
+        restaurant.verify_token_and_role(token, ["Admin", "Staff"])
+        payload = restaurant.check_in_booking(order_id=order_id, booking_id=booking_id, coupon_code=coupon_code, pay_method=pay_method, payment_details=payment_details)
+        return payload
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
 
@@ -168,7 +141,8 @@ async def check_out(
     Check out a guest from their booking.
     """
     try:
-        payload = restaurant.check_out_booking(token=token, booking_id=booking_id)
-        return success_response_status(status=status.HTTP_200_OK, payload=jsonable_encoder(payload))
+        restaurant.verify_token_and_role(token, ["Admin", "Staff"])
+        payload = restaurant.check_out_booking(booking_id=booking_id)
+        return payload
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException
+import asyncio
 from typing import Annotated
 from pydantic import Field
 from mcp_core import mcp
@@ -20,10 +21,12 @@ async def cook_order(
     Start cooking a specific order. Changes the order status to COOKING in the kitchen. 
     """
     try:
-        restaurant.verify_token_and_role(token, ["Admin"])
+        restaurant.verify_token_and_role(token, ["Admin", "Staff"])
         order = restaurant.search_order_from_id(order_id)
         success = order.cook_order()
         if success:
+            if order.delivery:
+                asyncio.create_task(restaurant.simulate_delivery(order_id))
             return {"message": "Cooking finished. Order is READY.", "status": order.status.value}
         else:
             raise HTTPException(status_code=400, detail=f"Cannot cook order. Current status: {order.status.value}")
@@ -41,7 +44,7 @@ async def view_kitchen_queue(
     View the kitchen queue (orders that are ready to be cooked).
     """
     try:
-        restaurant.verify_token_and_role(token, ["Admin"])
+        restaurant.verify_token_and_role(token, ["Admin", "Staff"])
         queue = restaurant.get_kitchen_queue()
         if queue["total_queue"]==0:
             return {"message": "No order in queue ","queue": queue}

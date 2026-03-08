@@ -39,6 +39,9 @@ class Delivery:
             return success, rider_name, tracking_id
         raise HTTPException(400, "Rider Request Failed")
 
+    def mark_in_transit(self):
+        self.__status = DeliveryStatus.IN_TRANSIT
+
     def mark_delivered(self):
         self.__status = DeliveryStatus.DELIVERED
 
