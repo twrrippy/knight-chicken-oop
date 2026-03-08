@@ -16,7 +16,7 @@ Resource Controller Module
 router = APIRouter(prefix="/resource")
 
 
-
+@mcp.tool
 @router.get("/stock/all", tags=["Stock"])
 async def check_stock_all(
     token: Annotated[str, Field(description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)")]
@@ -34,6 +34,7 @@ async def check_stock_all(
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {str(e)}"
 
+@mcp.tool
 @router.get("/stock/check/{item_name}", tags=["Stock"])
 async def check_stock_item(
     token: Annotated[str, Field(description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)")],
