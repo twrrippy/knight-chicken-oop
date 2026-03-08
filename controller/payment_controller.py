@@ -32,10 +32,8 @@ async def confirm_order_pay(
     try:
         result = restaurant.process_order_payment(order_id, coupon_code, method, payment_details)
         return result
-    except HTTPException as e:
-        return f"ไม่สามารถดำเนินการได้: {e.detail}"
     except Exception as e:
-        return f"เกิดข้อผิดพลาดของระบบ: {str(e)}"
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
 @router.post("/preview_order/{order_id}")
@@ -55,7 +53,5 @@ async def preview_order_bill(
     try:
         result = restaurant.preview_order_bill(order_id, coupon_code)
         return result
-    except HTTPException as e:
-        return f"ไม่สามารถดำเนินการได้: {e.detail}"
     except Exception as e:
-        return f"เกิดข้อผิดพลาดของระบบ: {str(e)}"
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"

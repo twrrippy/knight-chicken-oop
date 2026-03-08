@@ -16,16 +16,20 @@ Order Controller Module
 """
 router = APIRouter(prefix="/order", tags=["Order"])
 
+@mcp.tool
 @router.post("/guest/start/general")
 async def guest_start_general_order():
     """
-    [Intent]: เริ่มต้นการสั่งอาหารสำหรับลูกค้า Walk-in (Guest) ที่หน้าร้าน\n
-    [State Change]: \n
-        1. สร้าง instance ของ `Guest`\n
-        2. สร้าง `Order` ใหม่ประเภท GENERAL โดยผูกกับ `Guest`\n
-        3. บันทึก Order ลงใน Restaurant ผ่าน `restaurant.add_order()`\n
-    [Returns]: Dictionary ข้อมูล Order ID และชื่อลูกค้า\n
+    เริ่มต้นการสั่งอาหารสำหรับลูกค้า Walk-in (Guest)
     """
+    # """
+    # [Intent]: เริ่มต้นการสั่งอาหารสำหรับลูกค้า Walk-in (Guest) ที่หน้าร้าน\n
+    # [State Change]: \n
+    #     1. สร้าง instance ของ `Guest`\n
+    #     2. สร้าง `Order` ใหม่ประเภท GENERAL โดยผูกกับ `Guest`\n
+    #     3. บันทึก Order ลงใน Restaurant ผ่าน `restaurant.add_order()`\n
+    # [Returns]: Dictionary ข้อมูล Order ID และชื่อลูกค้า\n
+    # """
     try:
         current_customer = Guest()
         order = Order(OrderType.GENERAL, current_customer)
@@ -34,20 +38,28 @@ async def guest_start_general_order():
             "Order ID": order.id,
             "Customer": current_customer.name
         }
-    except ValueError as e:
-        return f"{e}"
-        # raise HTTPException(status_code=400, detail=str(e))
-    
+    except Exception as e:
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
+
+@mcp.tool
 @router.post("/member/start/general")
-async def member_start_general_order(token: str):
+async def member_start_general_order(
+    token: Annotated[str, Field(
+        description="Token ของสมาชิก (ได้จากการเรียกใช้ tool login)"
+    )]
+):
     """
-    [Intent]: เริ่มต้นการสั่งอาหารสำหรับลูกค้า (Member) ที่หน้าร้าน\n
-    [State Change]: \n
-        1. ตรวจสอบสิทธิ์และหาเจ้าของ 'token' จาก 'restaurant.verify_token_and_role()'\n
-        2. สร้าง `Order` ใหม่ประเภท GENERAL โดยผูกกับ `Member`\n
-        3. บันทึก Order ลงใน Restaurant ผ่าน `restaurant.add_order()`\n
-    [Returns]: Dictionary ข้อมูล Order ID และชื่อลูกค้า\n
+    เริ่มต้นการสั่งอาหารสำหรับลูกค้า Member ต้องการสิทธ์ Member
     """
+
+    # """
+    # [Intent]: เริ่มต้นการสั่งอาหารสำหรับลูกค้า (Member) ที่หน้าร้าน\n
+    # [State Change]: \n
+    #     1. ตรวจสอบสิทธิ์และหาเจ้าของ 'token' จาก 'restaurant.verify_token_and_role()'\n
+    #     2. สร้าง `Order` ใหม่ประเภท GENERAL โดยผูกกับ `Member`\n
+    #     3. บันทึก Order ลงใน Restaurant ผ่าน `restaurant.add_order()`\n
+    # [Returns]: Dictionary ข้อมูล Order ID และชื่อลูกค้า\n
+    # """
     try:
         current_customer = restaurant.verify_token_and_role(token=token, allowed_roles=["Member"])
         order = Order(OrderType.GENERAL, current_customer)
@@ -56,92 +68,131 @@ async def member_start_general_order(token: str):
             "Order ID": order.id,
             "Customer": current_customer.name
         }
-    except HTTPException as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    
+    except Exception as e:
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
+
+@mcp.tool  
 @router.put("/orderitem/add")
-async def add_item_to_order(order_id: str, menu: str, quantity: int):
+async def add_item_to_order(
+    order_id: Annotated[str, Field(
+        description="รหัสออเดอร์(รูปแบบที่คาดหวัง: ORD-xxx)"
+    )], 
+    menu: Annotated[str, Field(
+        description="ชื่อเมนูอาหาร ได้จากการเรียกใช้ tool (get_menu)"
+    )], 
+    quantity: Annotated[int, Field(
+        description="จำนวนอาหารที่ต้องการเพิ่ม 1 ขึ้นไป"
+    )]
+):
     """
-    [Intent]: เพิ่มเมนูอาหารพร้อมจำนวน (OrderItem) ลงในออเดอร์ (Order) ที่มีอยู่แล้ว\n
-    [Dependencies]: \n
-        - `restaurant.search_order_from_id()` เพื่อหา Order ปัจจุบัน\n
-        - `restaurant.search_menu_item_from_name()` เพื่อดึงข้อมูล MenuItem จากชื่อ\n
-    [State Change]: อัปเดตรายการอาหารภายในออเดอร์ ผ่าน `current_order.add_order_item()`\n
+    เพิ่มเมนูอาหารพร้อมจำนวน ลงในออเดอร์ที่มีอยู่แล้ว 
     """
+
+    # """
+    # [Intent]: เพิ่มเมนูอาหารพร้อมจำนวน (OrderItem) ลงในออเดอร์ (Order) ที่มีอยู่แล้ว\n
+    # [Dependencies]: \n
+    #     - `restaurant.search_order_from_id()` เพื่อหา Order ปัจจุบัน\n
+    #     - `restaurant.search_menu_item_from_name()` เพื่อดึงข้อมูล MenuItem จากชื่อ\n
+    # [State Change]: อัปเดตรายการอาหารภายในออเดอร์ ผ่าน `current_order.add_order_item()`\n
+    # """
     try:
         current_order = restaurant.search_order_from_id(order_id)
         current_menu = restaurant.search_menu_item_from_name(menu)
         current_order.add_order_item(current_menu, quantity)
-    except ValueError as e:
-        return f"{e}"
-        # raise HTTPException(status_code=400, detail=(str(e)))
+    except Exception as e:
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
     return current_order.order_to_dict()
- 
+
+@mcp.tool
 @router.put("/orderitem/remove")
-async def remove_item_in_order(order_id: str, order_item_id: int):
+async def remove_item_in_order(
+    order_id: Annotated[str, Field(
+        description="รหัสออเดอร์(รูปแบบที่คาดหวัง: ORD-xxx)"
+    )], 
+    order_item_id: Annotated[int, Field(
+        description="ลำดับของเมนูอาหาร (order_item) ที่ต้องการลบใน order"
+    )]
+):
     """
-    [Intent]: ลบรายการอาหาร (OrderItem) จากออเดอร์ (Order) ที่มีอยู่แล้ว\n
-    [Dependencies]: `restaurant.search_order_from_id()` เพื่อหา Order ปัจจุบัน\n
-    [State Change]: อัปเดตรายการอาหารภายในออเดอร์ ผ่าน `current_order.remove_order_item()`\n
+    ลบรายการอาหาร (OrderItem) จากออเดอร์ (Order) ที่มีอยู่แล้ว
     """
     try:
         current_order = restaurant.search_order_from_id(order_id)
         current_order.remove_order_item(order_item_id)
-    except ValueError as e:
-        return f"{e}"
-        # raise HTTPException(status_code=400, detail=(str(e)))
+    except Exception as e:
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
     return current_order.order_to_dict()
 
+@mcp.tool
 @router.put("/orderitem/custom")
-async def custom_item_in_order(order_id: str, order_item_id: int, item_name: str, quantity: int):
+async def custom_item_in_order(
+    order_id: Annotated[str, Field(
+        description="รหัสออเดอร์(รูปแบบที่คาดหวัง: ORD-xxx)"
+    )], 
+    order_item_id: Annotated[int, Field(
+        description="ลำดับของเมนูอาหาร (order_item) ที่ต้องการ custom ใน order"
+    )], 
+    item_name: Annotated[str, Field(
+        description="ชื่อของ item ที่ต้องการแก้"
+    )], 
+    quantity: Annotated[int, Field(
+        description="จำนวนของ item ที่ต้องการ"
+    )]
+):
     """
-    [Intent]: ปรับแต่งส่วนผสม (Customizable Ingredient) ของเมนูอาหารที่อยู่ใน Order\n
-    [Logic]: ใช้สำหรับเมนูประเภท SingleMenuItem ที่สืบทอดจาก MenuItem\n
-    [State Change]: ค้นหา Order ตาม ID และเรียกใช้ `current_order.custom()` เพื่อปรับจำนวนของ ingredient (ที่มี item ชื่อ item_name) ของ SingleMenuItem ใน OrderItem ที่มี order_item_id นั้นๆ\n
+    ปรับแต่ง Ingredient ของเมนูอาหารที่อยู่ใน Order
     """
+    # """
+    # [Intent]: ปรับแต่งส่วนผสม (Customizable Ingredient) ของเมนูอาหารที่อยู่ใน Order\n
+    # [Logic]: ใช้สำหรับเมนูประเภท SingleMenuItem ที่สืบทอดจาก MenuItem\n
+    # [State Change]: ค้นหา Order ตาม ID และเรียกใช้ `current_order.custom()` เพื่อปรับจำนวนของ ingredient (ที่มี item ชื่อ item_name) ของ SingleMenuItem ใน OrderItem ที่มี order_item_id นั้นๆ\n
+    # """
     try:
         current_order = restaurant.search_order_from_id(order_id)
         current_order.custom(order_item_id, item_name, quantity)
-    except ValueError as e:
-        return f"{e}"
-        # raise HTTPException(status_code=400, detail=(str(e)))
-    except TypeError as e:
-            raise TypeError(str(e))
+    except Exception as e:
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
     return current_order.order_to_dict()
     
 
-
+@mcp.tool
 @router.put("/ordering/guest")
-async def check_and_reserve_stock(order_id: str, guest_id: str):
+async def guest_check_and_reserve_stock(
+    order_id: Annotated[str, Field(
+        description="รหัสออเดอร์(รูปแบบที่คาดหวัง: ORD-xxx)"
+    )], 
+    guest_id: Annotated[str, Field(
+        description="รหัส Guest (รูปแบบที่คาดหวัง: GUEST-xxx)"
+    )]
+):
     """
-    [Intent]: ขั้นตอน Pre-order เพื่อจองวัตถุดิบ/สินค้าก่อนการยืนยัน\n
-    [Business Rules]: \n
-        - หาก `restaurant.check_queue` >= 50 จะปฏิเสธการสั่ง\n
-        - ต้องตรวจสอบสิทธิ์ว่า `guest_id` ตรงกับเจ้าของ Order (`order.check_customer()`)\n
-    [State Change]: เรียก `restaurant.reserve()` เพื่อจองสต็อก\n
+    ขั้นตอน Pre-order สำหรับ Guest เพื่อจองวัตถุดิบ/สินค้าก่อนการยืนยัน
     """
+    
     if restaurant.check_queue >= 50:
         return f"Queue Overload"
-        # raise HTTPException(status_code=418, detail="Queue Overload")
     try:
         current_customer = Guest(guest_id)
         order = restaurant.search_order_from_id(order_id)
         order.check_customer(current_customer)
         reserved_order = restaurant.reserve(order)
         reserved_order.update_price()
-    except ValueError as e:
-        return f"{e}"
-        # raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
     return reserved_order.order_to_dict()
 
+@mcp.tool
 @router.put("/ordering/member")
-async def check_and_reserve_stock(order_id: str, token: str):
+async def member_check_and_reserve_stock(
+    order_id: Annotated[str, Field(
+        description="รหัสออเดอร์(รูปแบบที่คาดหวัง: ORD-xxx)"
+    )], 
+    token: Annotated[str, Field(
+        description="Token ของสมาชิก (ได้จากการเรียกใช้ tool login)"
+    )]
+):
     """
-    [Intent]: ขั้นตอน Pre-order เพื่อจองวัตถุดิบ/สินค้าก่อนการยืนยัน\n
-    [Business Rules]: \n
-        - หาก `restaurant.check_queue` >= 50 จะปฏิเสธการสั่ง\n
-        - ต้องตรวจสอบสิทธิ์ว่าเจ้าของ `token` ตรงกับเจ้าของ Order (`order.check_customer()`)\n
-    [State Change]: เรียก `restaurant.reserve()` เพื่อจองสต็อก\n
+    ขั้นตอน Pre-order สำหรับสมาชิก เพื่อจองวัตถุดิบ/สินค้าก่อนการยืนยัน
     """
     if restaurant.check_queue >= 50:
         return f"Queue Overload"
@@ -152,42 +203,52 @@ async def check_and_reserve_stock(order_id: str, token: str):
         order.check_customer(current_customer)
         reserved_order = restaurant.reserve(order)
         reserved_order.update_price()
-    except ValueError as e:
-        return f"{e}"
-        # raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
     return reserved_order.order_to_dict()
 
+@mcp.tool
 @router.put("/confirm/guest")
-async def confirm_order(order_id: str, guest_id: str):
+async def confirm_order(
+    order_id: Annotated[str, Field(
+        description="รหัสออเดอร์(รูปแบบที่คาดหวัง: ORD-xxx)"
+    )], 
+    guest_id: Annotated[str, Field(
+        description="รหัส Guest (รูปแบบที่คาดหวัง: GUEST-xxx)"
+    )]
+):
     """
-    [Intent]: ยืนยันคำสั่งซื้อในขั้นตอนสุดท้าย (หลังจากการ reserve สำเร็จแล้ว)\n
-    [Dependencies]: `restaurant.confirm(order)`\n
-    [State Change]: เปลี่ยนสถานะ Order เป็น Confirmed และเตรียมจ่ายเงิน\n
+    ยืนยันคำสั่งซื้อในขั้นตอนสุดท้าย สำหรับ Guest (หลังจากการ reserve สำเร็จแล้ว)
     """
     try:
         current_customer = Guest(guest_id)
         order = restaurant.search_order_from_id(order_id)
         order.check_customer(current_customer)
         confirmed_order = restaurant.confirm(order)
-    except ValueError as e:
-        return f"{e}"
-        # raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
     return confirmed_order.order_to_dict()
+
+@mcp.tool
 @router.put("/confirm/member")
-async def confirm_order(order_id: str, token: str):
+async def member_confirm_order(
+    order_id: Annotated[str, Field(
+        description="รหัสออเดอร์(รูปแบบที่คาดหวัง: ORD-xxx)"
+    )], 
+    token: Annotated[str, Field(
+        description="Token ของสมาชิก (ได้จากการเรียกใช้ tool login)"
+    )]
+):
     """
-    [Intent]: ยืนยันคำสั่งซื้อในขั้นตอนสุดท้าย (หลังจากการ reserve สำเร็จแล้ว)\n
-    [Dependencies]: `restaurant.confirm(order)`\n
-    [State Change]: เปลี่ยนสถานะ Order เป็น Confirmed และเตรียมจ่ายเงิน\n
+    ยืนยันคำสั่งซื้อในขั้นตอนสุดท้าย สำหรับสมาชิก (หลังจากการ reserve สำเร็จแล้ว)
     """
     try:
         current_customer = restaurant.verify_token_and_role(token=token, allowed_roles=["Member"])
         order = restaurant.search_order_from_id(order_id)
         order.check_customer(current_customer)
         confirmed_order = restaurant.confirm(order)
-    except ValueError as e:
-        return f"{e}"
-        # raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
     return confirmed_order.order_to_dict()
 
 @router.get("/{order_id}")
@@ -204,13 +265,16 @@ async def create_random_delivery_order(
     """
     สร้าง delivery order แบบสุ่ม อัตโนมัติ (สุ่ม provider, เมนู, จ่ายเงินผ่าน creditcard)
     """
-    restaurant.verify_token_and_role(token, ["Admin"])
-    return restaurant.create_random_delivery_order()
+    try:
+        restaurant.verify_token_and_role(token, ["Admin"])
+        return restaurant.create_random_delivery_order()
+    except Exception as e:
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool()
 async def update_delivery_status(
     token: Annotated[str, Field(
-        description="Token ของพนักงาน"
+        description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)"
     )],
     order_id: Annotated[str, Field(
         description="รหัสออเดอร์ของ delivery_order"
@@ -222,5 +286,8 @@ async def update_delivery_status(
     """
     อัปเดตสถานะของ delivery_order 
     """
-    restaurant.verify_token_and_role(token, ["Admin", "Staff"])
-    return restaurant.update_delivery_status(order_id, new_status)
+    try:
+        restaurant.verify_token_and_role(token, ["Admin", "Staff"])
+        return restaurant.update_delivery_status(order_id, new_status)
+    except Exception as e:
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"

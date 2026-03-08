@@ -9,32 +9,44 @@ router = APIRouter(prefix="/kitchen", tags=["Kitchen"])
 @mcp.tool
 @router.post("/cook/{order_id}")
 async def cook_order(
+    token: Annotated[str, Field(
+        description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)"
+    )],
     order_id: Annotated[str, Field(
         description="รหัสออเดอร์ที่ต้องการทำอาหาร (Format: ORD-xxx)"
     )]
 ):
     """
-    Start cooking a specific order. Changes the order status to COOKING in the kitchen.
+    Start cooking a specific order. Changes the order status to COOKING in the kitchen. 
     """
     try:
+        restaurant.verify_token_and_role(token, ["Admin"])
         order = restaurant.search_order_from_id(order_id)
         success = order.cook_order()
         if success:
             return {"message": "Cooking finished. Order is READY.", "status": order.status.value}
         else:
             raise HTTPException(status_code=400, detail=f"Cannot cook order. Current status: {order.status.value}")
-    except HTTPException as e:
-        return f"ไม่สามารถดำเนินการได้: {e.detail}"
-    except ValueError as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
    
-@router.get("queue")
-async def view_kitchen_queue():
-    queue = restaurant.get_kitchen_queue()
-    if queue["total_queue"]==0:
-        return {"message": "No order in queue ","queue": queue}
-    return {"message": "Current queue ","queue": queue}
+@mcp.tool
+@router.get("/queue")
+async def view_kitchen_queue(
+    token: Annotated[str, Field(
+        description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)"
+    )]
+):
+    """
+    View the kitchen queue (orders that are ready to be cooked).
+    """
+    try:
+        restaurant.verify_token_and_role(token, ["Admin"])
+        queue = restaurant.get_kitchen_queue()
+        if queue["total_queue"]==0:
+            return {"message": "No order in queue ","queue": queue}
+        return {"message": "Current queue ","queue": queue}
+    except Exception as e:
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
     
     
