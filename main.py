@@ -11,9 +11,11 @@ from controller.payment_controller import router as payment_router
 from controller.admin_controller import router as admin_router
 from controller.booking_controller import router as booking_router
 from controller.simulation_controller import router as simulation_router
+from controller.authentication_controller import router as authen_router
 
 app = FastAPI()
 
+app.include_router(authen_router)
 app.include_router(order_router)
 app.include_router(resource_router)
 app.include_router(kitchen_router)
