@@ -252,17 +252,43 @@ async def member_confirm_order(
     return confirmed_order.order_to_dict()
 
 @mcp.tool()
-async def create_random_delivery_order(
-    token: Annotated[str, Field(
-        description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)"
+@router.post("/guest/start/delivery")
+async def guest_start_delivery_order(
+    provider_name: Annotated[str, Field(
+        description="ชื่อ Delivery Provider เช่น Grab, LineMan, ShopeeFood"
+    )],
+    distance: Annotated[float, Field(
+        description="ระยะทางจากร้านถึงลูกค้า (กิโลเมตร)"
     )]
 ):
     """
-    สร้าง delivery order แบบสุ่ม อัตโนมัติ (สุ่ม provider, เมนู, จ่ายเงินผ่าน creditcard)
+    เริ่มต้นการสั่งอาหารแบบ Delivery สำหรับลูกค้า Walk-in (Guest)
     """
     try:
-        restaurant.verify_token_and_role(token, ["Admin"])
-        return restaurant.create_random_delivery_order()
+        current_customer = Guest()
+        return restaurant.create_delivery_order(current_customer, provider_name, distance)
+    except Exception as e:
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
+
+@mcp.tool()
+@router.post("/member/start/delivery")
+async def member_start_delivery_order(
+    token: Annotated[str, Field(
+        description="Token ของสมาชิก (ได้จากการเรียกใช้ tool login)"
+    )],
+    provider_name: Annotated[str, Field(
+        description="ชื่อ Delivery Provider เช่น Grab, LineMan, ShopeeFood"
+    )],
+    distance: Annotated[float, Field(
+        description="ระยะทางจากร้านถึงลูกค้า (กิโลเมตร)"
+    )]
+):
+    """
+    เริ่มต้นการสั่งอาหารแบบ Delivery สำหรับลูกค้า Member ต้องการสิทธ์ Member
+    """
+    try:
+        current_customer = restaurant.verify_token_and_role(token=token, allowed_roles=["Member"])
+        return restaurant.create_delivery_order(current_customer, provider_name, distance)
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
 
