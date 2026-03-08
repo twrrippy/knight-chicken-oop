@@ -65,7 +65,6 @@ class Ingredient:
             raise ValueError("INVALID: Quantity")
         self.__quantity = quantity
 
-    @property
     def custom(self, quantity: int):
         if self.__type == IngredientType.CUSTOMIZABLE:
             self.modify(quantity)
