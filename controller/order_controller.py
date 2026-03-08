@@ -261,6 +261,9 @@ async def serve(
         description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)"
     )]
 ):
+    """
+    Update status Order. Changes the order status from Ready to Served. 
+    """
     try:
         restaurant.verify_token_and_role(token,["Admin","Staff"])
         order = restaurant.search_order_from_id(order_id)
