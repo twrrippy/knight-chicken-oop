@@ -540,20 +540,16 @@ class Order:
             self.status = OrderStatus.READY
             return True
         return False
-    
+
     def serve_order(self):
-        if self.__status not in OrderStatus.READY:
+        if self.__status != OrderStatus.READY:
             return False    
         self.status = OrderStatus.SERVED
-        all_done = True
         for item in self.__order_item_list:
-            if item.status == OrderItemStatus.READY:
-                if not item.process_cooking():
-                    all_done = False        
-        if all_done:
-            self.status = OrderStatus.SERVED
-            return True
-        return False
+            item.status = OrderItemStatus.SERVED
+        return True
+            
+            
 
     def pre_calculate_totals(self, coupon_code: Optional[str] = None):
         coupon = None

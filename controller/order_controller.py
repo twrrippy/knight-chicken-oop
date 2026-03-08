@@ -262,11 +262,8 @@ async def serve(
     )]
 ):
     try:
-        # allow staff and admin
         restaurant.verify_token_and_role(token,["Admin"])
         order = restaurant.search_order_from_id(order_id)
-        
-        # # add function serve_order
         is_success = restaurant.serve_order(order)
         if not is_success:
             raise HTTPException(
@@ -279,8 +276,6 @@ async def serve(
             status_code=400, 
             detail=f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
         )
-        # return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
-        # #raise HTTPException(status_code=400, detail=str(e))
 
 @mcp.tool()
 async def create_random_delivery_order(
