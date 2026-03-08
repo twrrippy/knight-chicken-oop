@@ -42,8 +42,12 @@ async def check_booking_availability(
                  "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"), 
                  "deposit_required": f"{room.price_per_hour * hours * 0.5} THB with no discount"
                 }
+    except HTTPException as e:
+        return f"ไม่สามารถดำเนินการได้: {e.detail}"
+    except ValueError as e:
+        return f"ไม่สามารถดำเนินการได้: {str(e)}"
     except Exception as e:
-        raise error_response_status(status=status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(e))
+        return f"ไม่สามารถดำเนินการได้: {str(e)}"
 
 # @mcp.tool
 @router.post("/booking-room")
@@ -92,8 +96,12 @@ async def book_room(
     try:
         payload = restaurant.booking_room(token, member_id, room_id, hours, pay_method, start_time=start_time, payment_details=payment_details)
         return success_response_status(status= status.HTTP_200_OK,payload= jsonable_encoder(payload))
+    except HTTPException as e:
+        return f"ไม่สามารถดำเนินการได้: {e.detail}"
+    except ValueError as e:
+        return f"ไม่สามารถดำเนินการได้: {str(e)}"
     except Exception as e:
-        raise error_response_status(status= status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(e))
+        return f"ไม่สามารถดำเนินการได้: {str(e)}"
 
 # @mcp.tool
 @router.get("/preview_booking/{booking_id}")
@@ -156,5 +164,9 @@ async def check_out(
     try:
         payload = restaurant.check_out_booking(token=token, booking_id=booking_id)
         return success_response_status(status=status.HTTP_200_OK, payload=jsonable_encoder(payload))
+    except HTTPException as e:
+        return f"ไม่สามารถดำเนินการได้: {e.detail}"
+    except ValueError as e:
+        return f"ไม่สามารถดำเนินการได้: {str(e)}"
     except Exception as e:
-        raise error_response_status(status=status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(e))
+        return f"ไม่สามารถดำเนินการได้: {str(e)}"
