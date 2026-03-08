@@ -43,12 +43,8 @@ async def check_booking_availability(
                  "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"), 
                  "deposit_required": f"{room.price_per_hour * hours * 0.5} THB with no discount"
                 }
-    except HTTPException as e:
-        return f"ไม่สามารถดำเนินการได้: {e.detail}"
-    except ValueError as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
 @router.post("/booking-room")
@@ -97,12 +93,8 @@ async def book_room(
     try:
         payload = restaurant.booking_room(token, member_id, room_id, hours, pay_method, start_time=start_time, payment_details=payment_details)
         return success_response_status(status= status.HTTP_200_OK,payload= jsonable_encoder(payload))
-    except HTTPException as e:
-        return f"ไม่สามารถดำเนินการได้: {e.detail}"
-    except ValueError as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
 @router.get("/preview_booking/{booking_id}")
@@ -149,7 +141,7 @@ async def check_in(token: str,
         payload = restaurant.check_in_booking(token=token, order_id=order_id, booking_id=booking_id, coupon_code=coupon_code, pay_method=pay_method, payment_details=payment_details)
         return success_response_status(status=status.HTTP_200_OK, payload=jsonable_encoder(payload))
     except Exception as e:
-        raise error_response_status(status=status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(e))
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
 @router.post("/check-out/{booking_id}")
@@ -167,9 +159,5 @@ async def check_out(
     try:
         payload = restaurant.check_out_booking(token=token, booking_id=booking_id)
         return success_response_status(status=status.HTTP_200_OK, payload=jsonable_encoder(payload))
-    except HTTPException as e:
-        return f"ไม่สามารถดำเนินการได้: {e.detail}"
-    except ValueError as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"

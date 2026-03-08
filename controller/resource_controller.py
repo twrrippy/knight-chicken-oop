@@ -27,12 +27,8 @@ async def check_stock_all(
     try:
         restaurant.verify_token_and_role(token, ["Admin", "Staff"])
         return restaurant.all_stock()
-    except HTTPException as e:
-        return f"ไม่สามารถดำเนินการได้: {e.detail}"
-    except ValueError as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
 @router.get("/stock/check/{item_name}", tags=["Stock"])
@@ -46,12 +42,8 @@ async def check_stock_item(
     try:
         restaurant.verify_token_and_role(token, ["Admin", "Staff"])
         return restaurant.check_stock_item(item_name)
-    except HTTPException as e:
-        return f"ไม่สามารถดำเนินการได้: {e.detail}"
-    except ValueError as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
 @router.post("/stock/add/item")
@@ -68,12 +60,8 @@ async def restock(
         restaurant.verify_token_and_role(token, ["Admin", "Staff"])
         current_item = Item(item_name, price_per_unit)
         restaurant.add_stock(current_item, quantity)
-    except HTTPException as e:
-        return f"ไม่สามารถดำเนินการได้: {e.detail}"
-    except ValueError as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
     
 # @router.post("/stock/add/item")
 # async def restock(item_name: str, quantity: int):

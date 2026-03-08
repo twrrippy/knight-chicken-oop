@@ -27,12 +27,8 @@ async def get_all_receipts(
     try:
         restaurant.verify_token_and_role(token, ["Admin"])
         return [r.generate() for r in restaurant.get_all_receipts()]
-    except HTTPException as e:
-        return f"ไม่สามารถดำเนินการได้: {e.detail}"
-    except ValueError as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
 @router.get("/get-all-members", tags=["Data"])
@@ -53,12 +49,8 @@ async def get_all_members(
                 "tier": m.tier
             } for m in restaurant.get_all_members()
         ]
-    except HTTPException as e:
-        return f"ไม่สามารถดำเนินการได้: {e.detail}"
-    except ValueError as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
 @router.get("/get-all-rooms", tags=["Data"])
@@ -80,12 +72,8 @@ async def get_all_rooms(
                 "price_per_hour": r.price_per_hour,
             } for r in restaurant.get_all_rooms()
         ]
-    except HTTPException as e:
-        return f"ไม่สามารถดำเนินการได้: {e.detail}"
-    except ValueError as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
 @router.get("/get-all-staff", tags=["Data"])
@@ -105,12 +93,8 @@ async def get_all_staff(
                 "name": s.name,
             } for s in restaurant.get_all_staff()
         ]
-    except HTTPException as e:
-        return f"ไม่สามารถดำเนินการได้: {e.detail}"
-    except ValueError as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
 @router.get("/get-all-orders", tags=["Data"])
@@ -131,12 +115,8 @@ async def get_all_orders(
                 "status": o.status.value,
             } for o in restaurant.get_all_orders()
         ]
-    except HTTPException as e:
-        return f"ไม่สามารถดำเนินการได้: {e.detail}"
-    except ValueError as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
 @router.get("/get-all-bookings", tags=["Data"])
@@ -159,12 +139,8 @@ async def get_all_bookings(
                 "time_slot": b.time_slot.start_time.strftime("%Y-%m-%d %H:00:00")
             } for b in restaurant.get_all_bookings()
         ]
-    except HTTPException as e:
-        return f"ไม่สามารถดำเนินการได้: {e.detail}"
-    except ValueError as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
 @router.post("/auth/login", tags=["Authentication"])
@@ -179,12 +155,8 @@ async def login(
         session = restaurant.login(username, password)
         token = session.token
         return {"access_token": token, "token_type": "bearer"}
-    except HTTPException as e:
-        return f"ไม่สามารถดำเนินการได้: {e.detail}"
-    except ValueError as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
 @router.post("/auth/logout", tags=["Authentication"])
@@ -199,12 +171,8 @@ async def logout(
         if success:
             return {"message": "Logged out successfully"}
         return f"ไม่สามารถดำเนินการได้: Invalid Token"
-    except HTTPException as e:
-        return f"ไม่สามารถดำเนินการได้: {e.detail}"
-    except ValueError as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
 @router.post("/register/member", tags=["Registration"])
@@ -227,12 +195,8 @@ async def member_sign_up(
             "username": member.username,
             "tier": member.tier
         }
-    except HTTPException as e:
-        return f"ไม่สามารถดำเนินการได้: {e.detail}"
-    except ValueError as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
 @router.post("/register/staff", tags=["Registration"])
@@ -254,12 +218,8 @@ async def staff_sign_up(
             "staff_id": staff.id,
             "name": staff.name
         }
-    except HTTPException as e:
-        return f"ไม่สามารถดำเนินการได้: {e.detail}"
-    except ValueError as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
 @router.get("/queue/check", tags=["Queue"])
@@ -272,12 +232,8 @@ async def check_queue(
     try:
         restaurant.verify_token_and_role(token, ["Admin", "Staff"])
         return {"Queue": restaurant.check_queue}
-    except HTTPException as e:
-        return f"ไม่สามารถดำเนินการได้: {e.detail}"
-    except ValueError as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
 @router.get("/queue/get/{queue_order}", response_model=Union[Order.OrderDTO, dict], tags=["Queue"])
@@ -296,9 +252,5 @@ async def get_queue(
         if order == False:
             return f"ไม่สามารถดำเนินการได้: Queue not Found"
         return order.order_to_dict()
-    except HTTPException as e:
-        return f"ไม่สามารถดำเนินการได้: {e.detail}"
-    except ValueError as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
