@@ -102,7 +102,7 @@ async def preview_booking(
 @router.post("/check-in/{booking_id}")
 async def check_in(token: str,
         order_id: Annotated[str, Field(
-        description="รหัสออเดอร์ที่เกี่ยวข้องกับการจองห้องนี้ (Format: ORD-xxx)"
+        description="รหัสออเดอร์ (Format: ORD-xxx)"
     )], 
         booking_id: Annotated[str, Field(
         description="รหัสการจอง (Format: BK-xxx)"
