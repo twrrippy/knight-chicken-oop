@@ -72,7 +72,7 @@ async def member_start_general_order(
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool  
-@router.put("/orderitem/add", response_model=Union[Order.OrderDTO, dict])
+@router.put("/orderitem/add")
 async def add_item_to_order(
     order_id: Annotated[str, Field(
         description="รหัสออเดอร์(รูปแบบที่คาดหวัง: ORD-xxx)"
@@ -104,7 +104,7 @@ async def add_item_to_order(
     return current_order.order_to_dict()
 
 @mcp.tool
-@router.put("/orderitem/remove", response_model=Union[Order.OrderDTO, dict])
+@router.put("/orderitem/remove")
 async def remove_item_in_order(
     order_id: Annotated[str, Field(
         description="รหัสออเดอร์(รูปแบบที่คาดหวัง: ORD-xxx)"
@@ -124,7 +124,7 @@ async def remove_item_in_order(
     return current_order.order_to_dict()
 
 @mcp.tool
-@router.put("/orderitem/custom", response_model=Union[Order.OrderDTO, dict])
+@router.put("/orderitem/custom")
 async def custom_item_in_order(
     order_id: Annotated[str, Field(
         description="รหัสออเดอร์(รูปแบบที่คาดหวัง: ORD-xxx)"
@@ -150,13 +150,14 @@ async def custom_item_in_order(
     try:
         current_order = restaurant.search_order_from_id(order_id)
         current_order.custom(order_item_id, item_name, quantity)
+        current_order.update_price()
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
     return current_order.order_to_dict()
     
 
 @mcp.tool
-@router.put("/ordering/guest", response_model=Union[Order.OrderDTO, dict])
+@router.put("/ordering/guest")
 async def guest_check_and_reserve_stock(
     order_id: Annotated[str, Field(
         description="รหัสออเดอร์(รูปแบบที่คาดหวัง: ORD-xxx)"
@@ -182,7 +183,7 @@ async def guest_check_and_reserve_stock(
     return reserved_order.order_to_dict()
 
 @mcp.tool
-@router.put("/ordering/member", response_model=Union[Order.OrderDTO, dict])
+@router.put("/ordering/member")
 async def member_check_and_reserve_stock(
     order_id: Annotated[str, Field(
         description="รหัสออเดอร์(รูปแบบที่คาดหวัง: ORD-xxx)"
@@ -208,7 +209,7 @@ async def member_check_and_reserve_stock(
     return reserved_order.order_to_dict()
 
 @mcp.tool
-@router.put("/confirm/guest", response_model=Union[Order.OrderDTO, dict])
+@router.put("/confirm/guest")
 async def confirm_order(
     order_id: Annotated[str, Field(
         description="รหัสออเดอร์(รูปแบบที่คาดหวัง: ORD-xxx)"
@@ -230,7 +231,7 @@ async def confirm_order(
     return confirmed_order.order_to_dict()
 
 @mcp.tool
-@router.put("/confirm/member", response_model=Union[Order.OrderDTO, dict])
+@router.put("/confirm/member")
 async def member_confirm_order(
     order_id: Annotated[str, Field(
         description="รหัสออเดอร์(รูปแบบที่คาดหวัง: ORD-xxx)"
@@ -251,18 +252,72 @@ async def member_confirm_order(
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
     return confirmed_order.order_to_dict()
 
-@mcp.tool()
-async def create_random_delivery_order(
+@mcp.tool
+@router.put("/serve", response_model=Union[Order.OrderDTO, dict])
+async def serve(
+    order_id: Annotated[str, Field(
+        description="รหัสออเดอร์ที่ต้องการเสิร์ฟ (Format: ORD-xxx)"
+    )],
     token: Annotated[str, Field(
         description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)"
     )]
 ):
     """
-    สร้าง delivery order แบบสุ่ม อัตโนมัติ (สุ่ม provider, เมนู, จ่ายเงินผ่าน creditcard)
+    Update status Order. Changes the order status from Ready to Served. 
     """
     try:
-        restaurant.verify_token_and_role(token, ["Admin"])
-        return restaurant.create_random_delivery_order()
+        restaurant.verify_token_and_role(token,["Admin","Staff"])
+        order = restaurant.search_order_from_id(order_id)
+        is_success = restaurant.serve_order(order)
+        if not is_success:
+            return f"Status is not READY"
+        return order.order_to_dict()
+    except Exception as e:
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
+
+@router.get("/{order_id}")
+async def get_order_from_id(order_id: str):
+    current_order = restaurant.search_order_from_id(order_id)
+    return current_order.order_to_dict()
+
+@mcp.tool()
+@router.post("/guest/start/delivery")
+async def guest_start_delivery_order(
+    provider_name: Annotated[str, Field(
+        description="ชื่อ Delivery Provider เช่น Grab, LineMan, ShopeeFood"
+    )],
+    distance: Annotated[float, Field(
+        description="ระยะทางจากร้านถึงลูกค้า (กิโลเมตร)"
+    )]
+):
+    """
+    เริ่มต้นการสั่งอาหารแบบ Delivery สำหรับลูกค้า Walk-in (Guest)
+    """
+    try:
+        current_customer = Guest()
+        return restaurant.create_delivery_order(current_customer, provider_name, distance)
+    except Exception as e:
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
+
+@mcp.tool()
+@router.post("/member/start/delivery")
+async def member_start_delivery_order(
+    token: Annotated[str, Field(
+        description="Token ของสมาชิก (ได้จากการเรียกใช้ tool login)"
+    )],
+    provider_name: Annotated[str, Field(
+        description="ชื่อ Delivery Provider เช่น Grab, LineMan, ShopeeFood"
+    )],
+    distance: Annotated[float, Field(
+        description="ระยะทางจากร้านถึงลูกค้า (กิโลเมตร)"
+    )]
+):
+    """
+    เริ่มต้นการสั่งอาหารแบบ Delivery สำหรับลูกค้า Member ต้องการสิทธ์ Member
+    """
+    try:
+        current_customer = restaurant.verify_token_and_role(token=token, allowed_roles=["Member"])
+        return restaurant.create_delivery_order(current_customer, provider_name, distance)
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
 

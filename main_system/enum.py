@@ -13,7 +13,7 @@ class OrderStatus(str, Enum):
     PENDING = "Pending"
     RESERVED = "Reserved"
     CONFIRMED = "Confirmed"
-    PAIDED = "Paid"
+    PAID = "Paid"
     COOKING = "Cooking"
     READY = "Ready"
     SERVED = "Served"
@@ -26,6 +26,7 @@ class OrderItemStatus(Enum):
     OUT_OF_STOCK = "Out of Stock"
     COOKING = "Cooking"
     READY = "Ready"
+    SERVED = "Served"
     CANCELED = "Canceled"
 
 class DeliveryStatus(str, Enum):

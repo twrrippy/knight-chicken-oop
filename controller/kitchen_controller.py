@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException
+import asyncio
 from typing import Annotated
 from pydantic import Field
 from mcp_core import mcp
@@ -24,6 +25,8 @@ async def cook_order(
         order = restaurant.search_order_from_id(order_id)
         success = order.cook_order()
         if success:
+            if order.delivery:
+                asyncio.create_task(restaurant.simulate_delivery(order_id))
             return {"message": "Cooking finished. Order is READY.", "status": order.status.value}
         else:
             raise HTTPException(status_code=400, detail=f"Cannot cook order. Current status: {order.status.value}")
