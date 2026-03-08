@@ -1062,6 +1062,8 @@ class Restaurant:
         
         if new_status == DeliveryStatus.DRIVER_ASSIGNED:
             order.delivery.request_rider()
+        elif new_status == DeliveryStatus.IN_TRANSIT:
+            order.delivery.mark_in_transit()
         elif new_status == DeliveryStatus.DELIVERED:
             order.delivery.mark_delivered()
             order.status = OrderStatus.SERVED
