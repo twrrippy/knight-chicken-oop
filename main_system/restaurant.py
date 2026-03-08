@@ -528,7 +528,7 @@ class Order:
     def order_to_dict(self) -> dict:
         return {
             "order_id": self.__id,
-            "order_type": self.__type,
+            "order_type": self.order_type,
             "order_status": self.__status,
             "customer": self.__customer.name,
             "order_item_list": self.order_item_dict_list(),
@@ -1031,7 +1031,7 @@ class Restaurant:
     def create_delivery_order(self, customer: 'User', provider_name: str, distance: float):
         provider = self.get_delivery_provider(provider_name)
         
-        order = Order(OrderType.DELIVERY, customer)
+        order = Order(customer)
         
         delivery_id = f"DEL-{random.randint(1000, 9999)}"
         delivery = Delivery(delivery_id, provider, distance)

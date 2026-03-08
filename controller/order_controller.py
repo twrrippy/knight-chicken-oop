@@ -32,7 +32,7 @@ async def guest_start_general_order():
     # """
     try:
         current_customer = Guest()
-        order = Order(OrderType.GENERAL, current_customer)
+        order = Order(current_customer)
         restaurant.add_order(order)
         return {
             "Order ID": order.id,
@@ -62,7 +62,7 @@ async def member_start_general_order(
     # """
     try:
         current_customer = restaurant.verify_token_and_role(token=token, allowed_roles=["Member"])
-        order = Order(OrderType.GENERAL, current_customer)
+        order = Order(current_customer)
         restaurant.add_order(order)
         return {
             "Order ID": order.id,
