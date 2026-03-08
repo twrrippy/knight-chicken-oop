@@ -563,8 +563,9 @@ class Order:
         subtotal = sum(item.price for item in self.__order_item_list)
         deposit = 0.0
 
+        booking_full_price = 0.0
         if self.__booking:
-            subtotal += self.__booking.full_price
+            booking_full_price = self.__booking.full_price
             deposit = self.__booking.deposit
 
         if self.__delivery:
@@ -579,6 +580,8 @@ class Order:
         teir_discount = 0.0
         if isinstance(self.__customer, Member):
             teir_discount = self.__customer.get_member_discount(subtotal)
+        
+        subtotal += booking_full_price
 
         discount = min(teir_discount + coupon_discount, subtotal)
 
