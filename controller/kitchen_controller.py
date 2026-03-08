@@ -15,3 +15,12 @@ async def cook_order(order_id: str):
         return {"message": "Cooking finished. Order is READY.", "status": order.status.value}
     else:
         raise HTTPException(status_code=400, detail=f"Cannot cook order. Current status: {order.status.value}")
+   
+@router.get("queue")
+async def view_kitchen_queue():
+    queue = restaurant.get_kitchen_queue()
+    if queue["total_queue"]==0:
+        return {"message": "No order in queue ","queue": queue}
+    return {"message": "Current queue ","queue": queue}
+    
+    

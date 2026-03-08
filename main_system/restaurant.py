@@ -899,6 +899,28 @@ class Restaurant:
                 item.status == ItemStatus.AVAILABLE 
                 count += 1
         return count == quantity
+
+    def get_kitchen_queue(self):     
+        queue_list = []
+        for order in self.__order_list:
+            if order.status == OrderStatus.PAIDED:
+                queue_list.append(
+                {"order_id": order.id,
+                 "order_type": order.order_type.value,
+                 "status":order.status.value,
+                 "items":[
+                     {"name": item.menu_item.name,
+                      "quantity": item.quantity,
+                      "status":item.status.value
+                     }
+                     for item in order.order_item
+                 ]}
+            )
+        return {
+            "total_queue": len(queue_list),
+            "order":queue_list
+        }
+        
                     
 
     def confirm(self, order:Order):
