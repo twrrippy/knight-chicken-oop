@@ -29,9 +29,6 @@ async def cook_order(
         return f"ไม่สามารถดำเนินการได้: {str(e)}"
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {str(e)}"
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=(str(e)))
-    
    
 @router.get("queue")
 async def view_kitchen_queue():
