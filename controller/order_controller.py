@@ -251,19 +251,36 @@ async def member_confirm_order(
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
     return confirmed_order.order_to_dict()
 
-@router.put("/serve")
-async def serve(order_id: str, token: str):
+@mcp.tool
+@router.put("/serve", response_model=Union[Order.OrderDTO, dict])
+async def serve(
+    order_id: Annotated[str, Field(
+        description="รหัสออเดอร์ที่ต้องการเสิร์ฟ (Format: ORD-xxx)"
+    )],
+    token: Annotated[str, Field(
+        description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)"
+    )]
+):
     try:
         # allow staff and admin
-        current_customer = restaurant.verify_token_and_role(token=token, allowed_roles=["Staff","Admin"])
+        restaurant.verify_token_and_role(token,["Admin"])
         order = restaurant.search_order_from_id(order_id)
-        order.check_customer(current_customer) 
-        # add function serve_order
-        served_order = restaurant.serve_order(order)
-    except ValueError as e:
-        return f"{e}"
-        # raise HTTPException(status_code=400, detail=str(e))
-    return served_order.order_to_dict()
+        
+        # # add function serve_order
+        is_success = restaurant.serve_order(order)
+        if not is_success:
+            raise HTTPException(
+                status_code=400, 
+                detail="Status is not READY"
+            )
+        return order.order_to_dict()
+    except Exception as e:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
+        )
+        # return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
+        # #raise HTTPException(status_code=400, detail=str(e))
 
 @mcp.tool()
 async def create_random_delivery_order(

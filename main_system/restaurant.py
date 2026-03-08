@@ -1011,12 +1011,12 @@ class Restaurant:
             raise HTTPException(status_code=400, detail=str(e))
         return confirmed_order
     
-    def serve_order(self, order:Order ,order_id:str):
+    def serve_order(self, order:Order):
         try:
-            order = self.get_order(order_id)
+            order = order.serve_order()
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
-        return order.serve_order()
+        return order
         
     def create_random_delivery_order(self):
         if not self.__delivery_providers:
