@@ -464,6 +464,7 @@ class Order:
     def check_customer(self, customer: Customer):
         if self.__customer != customer:
             raise ValueError("Wrong Customer")
+        return True
     
     def search_order_item_from_id(self, order_item_id: int):
         for order_item in self.__order_item_list:
@@ -521,6 +522,20 @@ class Order:
                 
         if all_done:
             self.status = OrderStatus.READY
+            return True
+        return False
+    
+    def serve_order(self):
+        if self.__status not in OrderStatus.READY:
+            return False    
+        self.status = OrderStatus.SERVED
+        all_done = True
+        for item in self.__order_item_list:
+            if item.status == OrderItemStatus.READY:
+                if not item.process_cooking():
+                    all_done = False        
+        if all_done:
+            self.status = OrderStatus.SERVED
             return True
         return False
 
@@ -973,15 +988,20 @@ class Restaurant:
             "order":queue_list
         }
         
-                    
-
     def confirm(self, order:Order):
         try:
             confirmed_order = order.order_confirm()
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
         return confirmed_order
-
+    
+    def serve_order(self, order:Order ,order_id:str):
+        try:
+            order = self.get_order(order_id)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        return order.serve_order()
+        
     def create_random_delivery_order(self):
         if not self.__delivery_providers:
             raise HTTPException(400, "No Delivery Providers Available")

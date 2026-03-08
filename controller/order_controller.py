@@ -178,10 +178,9 @@ async def confirm_order(order_id: str, token: str):
 async def serve(order_id: str, token: str):
     try:
         # allow staff and admin
-        current_customer = restaurant.verify_token_and_role(token=token, allowed_roles=["Member"])
+        current_customer = restaurant.verify_token_and_role(token=token, allowed_roles=["Staff","Admin"])
         order = restaurant.search_order_from_id(order_id)
-        order.check_customer(current_customer)
-        
+        order.check_customer(current_customer) 
         # add function serve_order
         served_order = restaurant.serve_order(order)
     except ValueError as e:
