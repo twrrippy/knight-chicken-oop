@@ -21,6 +21,7 @@ app.include_router(payment_router)
 app.include_router(admin_router)
 app.include_router(booking_router)
 app.include_router(simulation_router)
+
 @mcp.tool()
 @app.get("/menu", response_model=dict, tags=["Menu"])
 async def get_menu():

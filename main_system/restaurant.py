@@ -241,6 +241,8 @@ class SingleMenuItem(MenuItem):
         try:
             ingredient = self.find_ingredient_in_recipe_from_name(item_name)
             ingredient.custom(quantity)
+            menu = restaurant.search_menu_item_from_name(self.name)
+            self.update_price(menu)
         except ValueError as e:
             raise ValueError(str(e))
         except TypeError as e:
@@ -353,6 +355,7 @@ class OrderItem:
                 self.status= OrderItemStatus.RESERVED
         except ValueError as e:
             raise ValueError(str(e))
+        
     def order_item_reverse(self, ingredient: Ingredient):
         for reserved_ingredient in self.__menu_item.all_ingredient:
             if reserved_ingredient.item.name == ingredient.item.name:
@@ -421,6 +424,8 @@ class Order:
         total_price: float
 
     def add_order_item(self, menu: MenuItem, quantity: int):
+        if not (self.__status == OrderStatus.PENDING or self.__status == OrderStatus.RESERVED):
+            raise ValueError(f"Can not add order item. ({self.__status})")
         try:
             new_menu = copy.deepcopy(menu)
             current_order_item = OrderItem(self.__order_item_id_count, new_menu, quantity)
@@ -437,6 +442,8 @@ class Order:
         return True
     
     def remove_order_item(self, order_item_id: int):
+        if not (self.__status == OrderStatus.PENDING or self.__status == OrderStatus.RESERVED):
+            raise ValueError(f"Can not remove order item. ({self.__status})")
         if not self.is_valid_order_item_id(order_item_id):
             raise ValueError("Order Item NOT FOUND")
         for e in range(len(self.__order_item_list)):
@@ -454,6 +461,8 @@ class Order:
         raise ValueError("Order Item NOT FOUND")
 
     def custom(self,order_item_id: int, item_name: str, quantity: int):
+        if not (self.__status == OrderStatus.PENDING or self.__status == OrderStatus.RESERVED):
+            raise ValueError(f"Can not custom order item. ({self.__status})")
         try:
             order_item = self.search_order_item_from_id(order_item_id)
             order_item.custom_menu(item_name, quantity)
@@ -476,6 +485,7 @@ class Order:
             if order_item.status != OrderItemStatus.OUT_OF_STOCK and order_item.status != OrderItemStatus.CANCELED:
                 count_price += order_item.price
         self.__subtotal = count_price
+        return count_price
 
     def check_customer(self, customer: Customer):
         if self.__customer != customer:
@@ -497,7 +507,7 @@ class Order:
     
     def order_confirm(self):
         if self.__status == OrderStatus.PENDING:
-            raise ValueError("Ordering Food First.")
+            raise ValueError("Reserve Food First.")
         if self.__status == OrderStatus.CANCELED:
             raise ValueError("Order already been canceled")
         if self.__status != OrderStatus.RESERVED:
@@ -526,7 +536,7 @@ class Order:
         }
         
     def cook_order(self):
-        if self.__status not in [OrderStatus.RESERVED, OrderStatus.PAIDED]:
+        if self.__status not in [OrderStatus.RESERVED, OrderStatus.PAID]:
             return False
             
         self.status = OrderStatus.COOKING
@@ -629,7 +639,7 @@ class Order:
             note = "Payment Done"
 
         if success:
-            self.status = OrderStatus.PAIDED
+            self.status = OrderStatus.PAID
 
             if self.__booking:
                 self.__booking.mark_as_paid()
@@ -647,6 +657,16 @@ class Order:
             return receipt
         else:
             raise HTTPException(400, note)
+        
+    def void_order(self):
+        if self.__status == OrderStatus.PENDING or self.__status == OrderStatus.RESERVED or self.__status == OrderStatus. CONFIRMED:
+            for order_item in self.__order_item_list:
+                if order_item.status == OrderItemStatus.RESERVED:
+                    order_item.cancel_reservation()
+                    order_item.status = OrderItemStatus.CANCELED
+            self.status = OrderStatus.CANCELED
+            return
+        raise ValueError("Can not void order.")
 
     @property
     def subtotal(self): return self.__subtotal
@@ -842,7 +862,7 @@ class Restaurant:
     def check_queue(self):
         count_queue = 0
         for order in self.__order_list:
-            if order.status == OrderStatus.PAIDED or order.status == OrderStatus.COOKING:
+            if order.status == OrderStatus.PAID or order.status == OrderStatus.COOKING:
                 count_queue += 1
         return count_queue
     
@@ -859,7 +879,7 @@ class Restaurant:
     def get_queue(self, queue_order: int):
         count_queue = 0
         for order in self.__order_list:
-            if order.status == OrderStatus.PAIDED or order.status == OrderStatus.COOKING:
+            if order.status == OrderStatus.PAID or order.status == OrderStatus.COOKING:
                 count_queue += 1
             if count_queue == queue_order:
                 return order
@@ -915,7 +935,10 @@ class Restaurant:
         raise ValueError("Order NOT FOUND")
     #reserved while ordering
     def reserve(self, order: Order):
-        return order.order_reserve()
+        if order.status == OrderStatus.PENDING or order.status == OrderStatus.RESERVED:
+            return order.order_reserve()
+        else:
+            raise ValueError(f"{order.status}")
     
     def stock_reserve(self, item_name: str, quantity: int):
         if quantity < 0:
@@ -933,7 +956,7 @@ class Restaurant:
     def stock_reverse(self, item_name: str, quantity: int):
         if quantity < 0:
             raise ValueError("INVALID: Quantity")
-        if self.check_stock_item(item_name, ItemStatus.RESERVED) < quantity:
+        if self.count_stock_item(item_name, ItemStatus.RESERVED) < quantity:
             raise ValueError("reverse thing you should not")
         count = 0
         for item_index in range(len(self.__stock) - 1, -1, -1):
@@ -964,25 +987,10 @@ class Restaurant:
                     break
         return True
 
-    def stock_reverse(self, item_name: str, quantity: int):
-        if quantity < 0:
-            raise ValueError("INVALID: Quantity")
-        if self.check_stock_item(item_name, ItemStatus.RESERVED) < quantity:
-            raise ValueError("Reverse")
-        count = 0
-        for item_index in range(len(self.__stock) - 1, -1, -1):
-            if count == quantity:
-                return True
-            item = self.__stock[item_index ]
-            if item.name == item_name and item.status == ItemStatus.RESERVED:
-                item.status == ItemStatus.AVAILABLE 
-                count += 1
-        return count == quantity
-
     def get_kitchen_queue(self):     
         queue_list = []
         for order in self.__order_list:
-            if order.status == OrderStatus.PAIDED:
+            if order.status == OrderStatus.PAID:
                 queue_list.append(
                 {"order_id": order.id,
                  "order_type": order.order_type.value,
@@ -1279,7 +1287,7 @@ class Restaurant:
         order = self.get_order(order_id)
         
             
-        if order.status == OrderStatus.PAIDED: 
+        if order.status == OrderStatus.PAID: 
             raise HTTPException(400, "Order Already Paid")
             
         receipt = order.execute_payment(method, payment_details, coupon_code)
@@ -1301,7 +1309,7 @@ class Restaurant:
     
     def preview_order_bill(self, order_id: str, coupon_code: Optional[str]):
         order = self.get_order(order_id)
-        if order.status == OrderStatus.PAIDED: raise HTTPException(400, "Order Already Paid")
+        if order.status == OrderStatus.PAID: raise HTTPException(400, "Order Already Paid")
         return order.pre_calculate_totals(coupon_code)
     
 restaurant = Restaurant()
