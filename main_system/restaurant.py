@@ -1155,16 +1155,17 @@ class Restaurant:
 
     def check_in_booking(self, order_id: str, booking_id: str, coupon_code: str, pay_method: str, payment_details: Dict[str, Any] = {}):
         booking = self.get_booking(booking_id)
+        
         if not booking:
             raise HTTPException(status_code=404, detail="Booking not found")
         if booking.status == BookingStatus.CANCELLED:
             raise HTTPException(status_code=400, detail="Booking is cancelled")
         if booking.status != BookingStatus.DEPOSIT_PAID:
             raise HTTPException(status_code=400, detail="Booking is not ready for check-in ")
-        
         order = self.get_order(order_id)
         if not order or order.booking != booking:
             raise HTTPException(status_code=404, detail="Order not found or does not match booking")
+        order.add_booking(booking)
 
         receipt_data = self.process_order_payment(order_id=order.id, coupon_code=coupon_code, method_name=pay_method, payment_details=payment_details)
 
