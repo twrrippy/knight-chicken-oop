@@ -44,8 +44,8 @@ class User(ABC):
     def check_identity(self, username: str, password: str) -> bool:
         return self.__username == username and self.__password == password
     
-    # def __eq__(self, other):
-    #     return (type(other) is type(self)) and self.__name == other.name and self.__id == other.id and self.__phone_number == other.phone_number
+    def __eq__(self, other):
+        return (type(other) is type(self)) and self.__name == other.name and self.__id == other.id and self.__phone_number == other.phone_number
 class Staff(User):
     def __init__(self, id: str, name: str, phone_number: str, username: str="", password: str="", is_admin: Optional[bool] = False):
         super().__init__(id, name, phone_number, username, password)
@@ -124,10 +124,9 @@ class Member(Customer):
     @property
     def tier(self) -> MemberTier: return self.__tier
 
-
+    # def __eq__(self, other):
+    #     return (type(other) is type(self)) and self.__name == other.name and self.__id == other.id and self.__phone_number == other.phone_number
     
-
-
 class MenuItem(ABC):
     @staticmethod
     def is_valid_price(price: float):
@@ -296,16 +295,16 @@ class SetMenuItem(MenuItem):
         return original_menu.price
 
 class OrderItem:
-    class OrderItemDTO(BaseModel):
-        order_id: str
-        menu: str
-        quantity: int
+    # class OrderItemDTO(BaseModel):
+    #     order_id: str
+    #     menu: str
+    #     quantity: int
     
-    class OrderItemCustomDTO(BaseModel):
-        order_id: str
-        order_item_id: int
-        item_name: str
-        quantity: int
+    # class OrderItemCustomDTO(BaseModel):
+    #     order_id: str
+    #     order_item_id: int
+    #     item_name: str
+    #     quantity: int
 
     @staticmethod
     def is_valid_quantity(quantity: int):
