@@ -94,8 +94,6 @@ async def custom_item_in_order(order_id: str, order_item_id: int, item_name: str
             raise TypeError(str(e))
     return current_order.order_to_dict()
     
-
-
 @router.put("/ordering/guest", response_model=Union[Order.OrderDTO, dict])
 async def check_and_reserve_stock(order_id: str, guest_id: str):
     """
@@ -158,6 +156,7 @@ async def confirm_order(order_id: str, guest_id: str):
         return f"{e}"
         # raise HTTPException(status_code=400, detail=str(e))
     return confirmed_order.order_to_dict()
+
 @router.put("/confirm/member", response_model=Union[Order.OrderDTO, dict])
 async def confirm_order(order_id: str, token: str):
     """
@@ -174,6 +173,21 @@ async def confirm_order(order_id: str, token: str):
         return f"{e}"
         # raise HTTPException(status_code=400, detail=str(e))
     return confirmed_order.order_to_dict()
+
+@router.put("/serve")
+async def serve(order_id: str, token: str):
+    try:
+        # allow staff and admin
+        current_customer = restaurant.verify_token_and_role(token=token, allowed_roles=["Member"])
+        order = restaurant.search_order_from_id(order_id)
+        order.check_customer(current_customer)
+        
+        # add function serve_order
+        served_order = restaurant.serve_order(order)
+    except ValueError as e:
+        return f"{e}"
+        # raise HTTPException(status_code=400, detail=str(e))
+    return served_order.order_to_dict()
 
 @mcp.tool()
 async def create_random_delivery_order(
