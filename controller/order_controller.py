@@ -286,3 +286,33 @@ async def update_delivery_status(
         return restaurant.update_delivery_status(order_id, new_status)
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
+
+@mcp.tool
+@router.post("/member/start/event")
+async def member_start_event_order(
+    token: Annotated[str, Field(
+        description="Token ของสมาชิก (ได้จากการเรียกใช้ tool login)"
+    )]
+):
+    """
+    เริ่มต้นการสั่งอาหารสำหรับลูกค้า Member ที่จองห้อง โดยต้องการสิทธ์ Member
+    """
+
+    # """
+    # [Intent]: เริ่มต้นการสั่งอาหารสำหรับลูกค้า (Member) ที่จองห้อง\n
+    # [State Change]: \n
+    #     1. ตรวจสอบสิทธิ์และหาเจ้าของ 'token' จาก 'restaurant.verify_token_and_role()'\n
+    #     2. สร้าง `Order` ใหม่ประเภท Event โดยผูกกับ `Member`\n
+    #     3. บันทึก Order ลงใน Restaurant ผ่าน `restaurant.add_order()`\n
+    # [Returns]: Dictionary ข้อมูล Order ID และชื่อลูกค้า\n
+    # """
+    try:
+        current_customer = restaurant.verify_token_and_role(token=token, allowed_roles=["Member"])
+        order = Order(OrderType.EVENT, current_customer)
+        restaurant.add_order(order)
+        return {
+            "Order ID": order.id,
+            "Customer": current_customer.name
+        }
+    except Exception as e:
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"

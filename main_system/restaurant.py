@@ -1160,7 +1160,9 @@ class Restaurant:
             raise HTTPException(status_code=404, detail="Booking not found")
         if booking.status == BookingStatus.CANCELLED:
             raise HTTPException(status_code=400, detail="Booking is cancelled")
-        if booking.status != BookingStatus.DEPOSIT_PAID:
+        if booking.status == BookingStatus.CHECKED_IN:
+            raise HTTPException(status_code=400, detail="Booking already checked in")
+        if booking.status != BookingStatus.DEPOSIT_PAID or booking.time_slot.start_time > SimulationClock.get_time():
             raise HTTPException(status_code=400, detail="Booking is not ready for check-in ")
         order = self.get_order(order_id)
         order.add_booking(booking)
