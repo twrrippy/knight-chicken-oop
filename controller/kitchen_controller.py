@@ -9,14 +9,18 @@ router = APIRouter(prefix="/kitchen", tags=["Kitchen"])
 @mcp.tool
 @router.post("/cook/{order_id}")
 async def cook_order(
+    token: Annotated[str, Field(
+        description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)"
+    )],
     order_id: Annotated[str, Field(
         description="รหัสออเดอร์ที่ต้องการทำอาหาร (Format: ORD-xxx)"
     )]
 ):
     """
-    Start cooking a specific order. Changes the order status to COOKING in the kitchen.
+    Start cooking a specific order. Changes the order status to COOKING in the kitchen. 
     """
     try:
+        restaurant.verify_token_and_role(token, ["Admin"])
         order = restaurant.search_order_from_id(order_id)
         success = order.cook_order(order)
         if success:
