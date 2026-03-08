@@ -266,10 +266,7 @@ async def serve(
         order = restaurant.search_order_from_id(order_id)
         is_success = restaurant.serve_order(order)
         if not is_success:
-            raise HTTPException(
-                status_code=400, 
-                detail="Status is not READY"
-            )
+            return f"Status is not READY"
         return order.order_to_dict()
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
