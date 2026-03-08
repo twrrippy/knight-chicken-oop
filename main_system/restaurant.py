@@ -275,16 +275,16 @@ class SetMenuItem(MenuItem):
         return original_menu.price
 
 class OrderItem:
-    class OrderItemDTO(BaseModel):
-        order_id: str
-        menu: str
-        quantity: int
+    # class OrderItemDTO(BaseModel):
+    #     order_id: str
+    #     menu: str
+    #     quantity: int
     
-    class OrderItemCustomDTO(BaseModel):
-        order_id: str
-        order_item_id: int
-        item_name: str
-        quantity: int
+    # class OrderItemCustomDTO(BaseModel):
+    #     order_id: str
+    #     order_item_id: int
+    #     item_name: str
+    #     quantity: int
 
     @staticmethod
     def is_valid_quantity(quantity: int):
