@@ -2,6 +2,7 @@ from typing import Union, Annotated, Optional
 from pydantic import Field
 from mcp_core import mcp
 from main_system.restaurant import restaurant, Order
+from main_system.enum import ItemStatus
 from fastapi import APIRouter
 
 """Admin Controller Routes include:
@@ -53,9 +54,9 @@ async def get_all_rooms(
     )]
 ):
     """
-    Retrieve all rooms and their current statuses. Requires ADMIN access.
+    Retrieve all rooms and their current statuses. Requires Staff access.
     """
-    restaurant.verify_token_and_role(token, ["Admin"])
+    restaurant.verify_token_and_role(token, ["Admin, Staff"])
     return [
         {
             "room_id": r.id,
@@ -175,15 +176,6 @@ async def staff_sign_up(username: str, password: str, name: str, phone: str = "0
         "message": "Staff registered successfully",
         "staff_id": staff.id,
         "name": staff.name
-    }
-
-@router.get("/stock/check/{item_name}", tags=["Stock"])
-async def get_stock(item_name: str):
-    item_available = restaurant.check_stock(item_name, ItemStatus.AVAILABLE)
-    item_reserved = restaurant.check_stock(item_name, ItemStatus.RESERVED)
-    return {
-        "Available": item_available,
-        "Reserved": item_reserved
     }
 
 @router.get("/queue/check", tags=["Queue"])

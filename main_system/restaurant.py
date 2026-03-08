@@ -44,8 +44,8 @@ class User(ABC):
     def check_identity(self, username: str, password: str) -> bool:
         return self.__username == username and self.__password == password
     
-    # def __eq__(self, other):
-    #     return (type(other) is type(self)) and self.__name == other.name and self.__id == other.id and self.__phone_number == other.phone_number
+    def __eq__(self, other):
+        return (type(other) is type(self)) and self.__name == other.name and self.__id == other.id and self.__phone_number == other.phone_number
 class Staff(User):
     def __init__(self, id: str, name: str, phone_number: str, username: str="", password: str="", is_admin: Optional[bool] = False):
         super().__init__(id, name, phone_number, username, password)
@@ -86,6 +86,25 @@ class Member(Customer):
 
     def add_receipt(self, receipt: Receipt): self.__receipt_list.append(receipt)
     def add_coupon(self, coupon: Coupon): self.__coupon_list.append(coupon)
+    def add_points(self, points: int): 
+        if points <= 0:
+            raise ValueError("INVALID: Points")
+        self.__points += points
+
+    def check_and_issue_member_teir(self):
+        if self.__points >= 1500:
+            self.__tier = MemberTier.GOLD
+            self.__points = 0
+            return self.__tier
+        elif self.__points >= 800:
+            self.__tier = MemberTier.SILVER
+            self.__points = 0
+            return self.__tier
+        elif self.__points >= 300:
+            self.__tier = MemberTier.BRONZE
+            self.__points = 0
+            return self.__tier
+        return None
     
     def get_coupon_by_code(self, code: str):
         for coupon in self.__coupon_list:
@@ -101,12 +120,13 @@ class Member(Customer):
         return 0.0
 
     @property
+    def points(self) -> int: return self.__points
+    @property
     def tier(self) -> MemberTier: return self.__tier
 
-
+    # def __eq__(self, other):
+    #     return (type(other) is type(self)) and self.__name == other.name and self.__id == other.id and self.__phone_number == other.phone_number
     
-
-
 class MenuItem(ABC):
     @staticmethod
     def is_valid_price(price: float):
@@ -168,7 +188,7 @@ class MenuItem(ABC):
         current_status = MenuItemStatus.AVAILABLE
         custom = []
         for ingredient in self.all_ingredient:
-            if restaurant.check_stock(ingredient.item.name, ItemStatus.AVAILABLE) < ingredient.quantity:
+            if restaurant.count_stock_item(ingredient.item.name, ItemStatus.AVAILABLE) < ingredient.quantity:
                 current_status = MenuItemStatus.UNAVAILABLE
                 break
             if ingredient.type == IngredientType.CUSTOMIZABLE:
@@ -275,16 +295,16 @@ class SetMenuItem(MenuItem):
         return original_menu.price
 
 class OrderItem:
-    class OrderItemDTO(BaseModel):
-        order_id: str
-        menu: str
-        quantity: int
+    # class OrderItemDTO(BaseModel):
+    #     order_id: str
+    #     menu: str
+    #     quantity: int
     
-    class OrderItemCustomDTO(BaseModel):
-        order_id: str
-        order_item_id: int
-        item_name: str
-        quantity: int
+    # class OrderItemCustomDTO(BaseModel):
+    #     order_id: str
+    #     order_item_id: int
+    #     item_name: str
+    #     quantity: int
 
     @staticmethod
     def is_valid_quantity(quantity: int):
@@ -585,8 +605,7 @@ class Order:
             self.status = OrderStatus.PAIDED
 
             if self.__booking:
-                self.__booking.mark_checked_in()
-                self.__booking.room.mark_room_in_use()
+                self.__booking.mark_as_paid()
             
             if self.__delivery:
                 self.__delivery.mark_as_paid()
@@ -595,6 +614,8 @@ class Order:
 
             receipt = Receipt(self, method)
             if isinstance(self.__customer, Member):
+                deposit = self.__booking.deposit if self.__booking else 0.0
+                self.__customer.add_points(round((total_payable + deposit)/10))
                 self.__customer.add_receipt(receipt)
             return receipt
         else:
@@ -658,7 +679,8 @@ class Receipt:
             
             "customer_info": {
                 "name": order.customer.name,
-                "tier": order.customer.tier if isinstance(order.customer, Member) else "None"
+                "tier": order.customer.tier if isinstance(order.customer, Member) else "None",
+                "points": order.customer.points if isinstance(order.customer, Member) else 0
             },
             
             "order_summary": {
@@ -797,6 +819,12 @@ class Restaurant:
                 count_queue += 1
         return count_queue
     
+    # def search_item_in_stock_from_name(self, item_name: str) -> Item:
+    #     for item in self.__stock:
+    #         if item.name == item_name:
+    #             return item
+    #     raise ValueError("Item NOT FOUND. Please add new item to stock first.")
+        
     def add_stock(self, item: Item, quantity: int):
         for e in range(quantity):
             self.__stock.append(copy.deepcopy(item))
@@ -810,12 +838,36 @@ class Restaurant:
                 return order
         return False
     
-    def check_stock(self, item_name: str, status: ItemStatus):
+    def count_stock_item(self, item_name: str, status: ItemStatus):
         count_stock = 0
         for find in self.__stock:
             if find.name == item_name and find.status == status:
                 count_stock += 1
         return count_stock
+    
+    def check_stock_item(self, item_name: str):
+        item_available = self.count_stock_item(item_name, ItemStatus.AVAILABLE)
+        item_reserved = self.count_stock_item(item_name, ItemStatus.RESERVED)
+        return {
+            "Item": item_name,
+            "Available": item_available,
+            "Reserved": item_reserved
+        }
+    
+    def all_stock(self):
+        item_name_list = []
+        for item in self.__stock:
+            for name in item_name_list:
+                if item.name == name:
+                    break
+            else:
+                item_name_list.append(item.name)
+        item_list = []
+        for name in item_name_list:
+            item_list.append(self.check_stock_item(name))
+        return{
+            "Stock" : item_list
+        }
     
     def get_menu(self):
         menu = []
@@ -1030,10 +1082,6 @@ class Restaurant:
             return reward_coupon.code
             
         return None
-    
-    def check_and_issue_member_teir(self, order: 'Order'):
-        if not isinstance(order.customer, Member):
-            return None
 
     def get_payment_method(self, method_name: str) -> 'PaymentMethod':
         for s in self.__payment_method:
@@ -1216,10 +1264,16 @@ class Restaurant:
             
         receipt = order.execute_payment(method, payment_details, coupon_code)
         self.add_receipts(receipt)
+
+        teir_reward = None
+        if isinstance(order.customer, Member):
+            teir_reward = order.customer.check_and_issue_member_teir()
         
         reward_code = self.check_and_issue_reward(order)
         
         receipt_data = receipt.generate()
+        if teir_reward:
+            receipt_data["teir_issued"] = f"Congratulations! You received a new teir: {teir_reward}"
         if reward_code:
             receipt_data["reward_issued"] = f"Congratulations! You received a new coupon: {reward_code}"
             
