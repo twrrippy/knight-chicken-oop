@@ -3,7 +3,7 @@ from main_system.coupon import PercentCoupon, FixedAmountCoupon
 from main_system.enum import MemberTier, OrderType, OrderStatus, RoomType, PlatformName, BookingStatus, IngredientType
 from main_system.restaurant import Order, Staff, Member, Food, Ingredient, Item
 from main_system.restaurant import SingleMenuItem, SetMenuItem
-from main_system.external_platform.payment_method import Cash, QRCode
+from main_system.external_platform.payment_method import Cash, QRCode, CreditCard
 from main_system.booking import Room, TimeSlot, Booking
 from main_system.external_platform.delivery_provider import Delivery, GrabDeliveryProvider, LineManDeliveryProvider, ShopeeFoodDeliveryProvider
 from main_system.restaurant import restaurant
@@ -61,6 +61,7 @@ def initialize_mock_data():
     # 5. Payment Methods
     restaurant.add_payment_method(Cash("PAY-01", "cash"))
     restaurant.add_payment_method(QRCode("PAY-02", "qrcode"))
+    restaurant.add_payment_method(CreditCard("PAY-03", "creditcard"))
 
     # 6. Delivery Providers
     grab = GrabDeliveryProvider()

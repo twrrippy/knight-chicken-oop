@@ -2,8 +2,12 @@ from fastapi import APIRouter, HTTPException
 from shared.utils.response import success_response_status, error_response_status
 from main_system.restaurant import restaurant, Order, OrderItem, Guest
 from main_system.enum import OrderType
-from typing import Union
+from typing import Union, Annotated
 import uuid
+from mcp_core import mcp
+from pydantic import Field
+from main_system.enum import DeliveryStatus
+
 """
 Order Controller Module
 - delivery Management: track and update delivery statuses
@@ -84,3 +88,32 @@ async def confirm_order(order_id: str, guest_id: str):
         raise HTTPException(status_code=400, detail=str(e))
     return confirmed_order.order_to_dict()
 
+@mcp.tool()
+async def create_random_delivery_order(
+    token: Annotated[str, Field(
+        description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)"
+    )]
+):
+    """
+    สร้าง delivery order แบบสุ่ม อัตโนมัติ (สุ่ม provider, เมนู, จ่ายเงินผ่าน creditcard)
+    """
+    restaurant.verify_token_and_role(token, ["Admin"])
+    return restaurant.create_random_delivery_order()
+
+@mcp.tool()
+async def update_delivery_status(
+    token: Annotated[str, Field(
+        description="Token ของพนักงาน"
+    )],
+    order_id: Annotated[str, Field(
+        description="รหัสออเดอร์ของ delivery_order"
+    )],
+    new_status: Annotated[DeliveryStatus, Field(
+        description="สถานะใหม่ที่ต้องการเปลี่ยน เช่น Driver Assigned, Delivered, Canceled"
+    )]
+):
+    """
+    อัปเดตสถานะของ delivery_order 
+    """
+    restaurant.verify_token_and_role(token, ["Admin", "Staff"])
+    return restaurant.update_delivery_status(order_id, new_status)

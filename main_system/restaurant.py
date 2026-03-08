@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Optional, List, Tuple, Dict, Any
 from fastapi import FastAPI, HTTPException, Query
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
-from main_system.enum import Enum, MemberTier, MenuItemStatus, ItemStatus, IngredientType, CouponStatus, OrderStatus, OrderType, OrderItemStatus
+from main_system.enum import Enum, MemberTier, MenuItemStatus, ItemStatus, IngredientType, CouponStatus, OrderStatus, OrderType, OrderItemStatus, DeliveryStatus
 from fastmcp import FastMCP
 from pydantic import BaseModel
 import uuid
@@ -907,6 +907,84 @@ class Restaurant:
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
         return confirmed_order
+
+    def create_random_delivery_order(self):
+        if not self.__delivery_providers:
+            raise HTTPException(400, "No Delivery Providers Available")
+        
+        provider = random.choice(self.__delivery_providers)
+        
+        customer = Guest()
+
+        order = Order(OrderType.DELIVERY, customer)
+        
+        delivery_id = f"DEL-{random.randint(1000, 9999)}"
+        distance = round(random.uniform(1.0, 15.0), 2)
+        delivery = Delivery(delivery_id, provider, distance)
+        order.add_delivery(delivery)
+        
+        available_menus = [m for m in self.__menu if m.to_dict_menu()["status"] == MenuItemStatus.AVAILABLE]
+        if not available_menus:
+            raise HTTPException(400, "No Available Menus")
+            
+        num_items = random.randint(1, 3)
+        for _ in range(num_items):
+            menu_item = random.choice(available_menus)
+            quantity = random.randint(1, 3)
+            order.add_order_item(menu_item, quantity)
+            
+        self.add_order(order)
+        
+        try:
+            self.reserve(order)
+            self.confirm(order)
+        except Exception:
+            pass
+            
+        cc_method = None
+        for m in self.__payment_method:
+            if m.name.lower() == "creditcard":
+                cc_method = m
+                break
+        
+        if not cc_method:
+            raise HTTPException(400, "CreditCard Payment Method not found")
+            
+        payment_details = {
+            "card_number": f"4532{random.randint(100000000000, 999999999999)}",
+            "cvv": f"{random.randint(100, 999)}"
+        }
+        
+        receipt_data = self.process_order_payment(order.id, None, "creditcard", payment_details)
+        
+        return {
+            "message": "Random Delivery Order Created Successfully",
+            "order_id": order.id,
+            "delivery_id": delivery.id,
+            "receipt": receipt_data,
+            "delivery_details": delivery.get_details()
+        }
+
+    def update_delivery_status(self, order_id: str, new_status: DeliveryStatus):
+        order = self.get_order(order_id)
+        if not order.delivery:
+            raise HTTPException(400, "Order is not a delivery order")
+        
+        if new_status == DeliveryStatus.DRIVER_ASSIGNED:
+            order.delivery.request_rider()
+        elif new_status == DeliveryStatus.DELIVERED:
+            order.delivery.mark_delivered()
+            order.status = OrderStatus.SERVED
+        elif new_status == DeliveryStatus.CANCELED:
+            order.delivery.mark_canceled()
+            order.status = OrderStatus.CANCELED
+        
+        return {
+            "message": f"Delivery status updated to {new_status.value}",
+            "order_id": order.id,
+            "delivery_details": order.delivery.get_details()
+        }
+    
     
     def check_and_issue_reward(self, order: 'Order'):
         if not isinstance(order.customer, Member):
@@ -938,7 +1016,7 @@ class Restaurant:
     def get_payment_method(self, method_name: str) -> 'PaymentMethod':
         for s in self.__payment_method:
             if s.name.lower() == method_name.lower(): return s
-        raise HTTPException(status_code=400, detail="Unknown Method")
+        raise HTTPException(status_code=400, detail="Unknown Payment Method")
     
     def booking_room(self,token: str, member_id: str, room_id: str, hours: int, pay_method: str, start_time: datetime, payment_details: Dict[str, Any] = {}):
         staff = self.verify_token_and_role(token, allowed_roles=["Staff", "Admin"])
