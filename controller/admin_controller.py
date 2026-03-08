@@ -221,6 +221,7 @@ async def get_stock(
         "Reserved": item_reserved
     }
 
+@mcp.tool
 @router.get("/queue/check", tags=["Queue"])
 async def check_queue(
     token: Annotated[str, Field(description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)")]
@@ -231,6 +232,7 @@ async def check_queue(
     restaurant.verify_token_and_role(token, ["Admin", "Staff"])
     return { "Queue": restaurant.check_queue}
 
+@mcp.tool
 @router.get("/queue/get/{queue_order}", response_model=Union[Order.OrderDTO, dict], tags=["Queue"])
 async def get_queue(
     token: Annotated[str, Field(description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)")],
