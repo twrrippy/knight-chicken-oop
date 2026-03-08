@@ -143,38 +143,6 @@ async def get_all_bookings(
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
-@router.post("/auth/login", tags=["Authentication"])
-async def login(
-    username: Annotated[str, Field(description="ชื่อผู้ใช้งาน")], 
-    password: Annotated[str, Field(description="รหัสผ่าน")]
-):
-    """
-    Authenticate a user or staff member and retrieve an access token.
-    """
-    try:
-        session = restaurant.login(username, password)
-        token = session.token
-        return {"access_token": token, "token_type": "bearer"}
-    except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
-
-@mcp.tool
-@router.post("/auth/logout", tags=["Authentication"])
-async def logout(
-    token: Annotated[str, Field(description="Token ที่ต้องการทำลาย")]
-):
-    """
-    Invalidate the current access token and log out the user.
-    """
-    try:
-        success = restaurant.logout(token)
-        if success:
-            return {"message": "Logged out successfully"}
-        return f"ไม่สามารถดำเนินการได้: Invalid Token"
-    except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
-
-@mcp.tool
 @router.post("/register/member", tags=["Registration"])
 async def member_sign_up(
     token: Annotated[str, Field(description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)")],
