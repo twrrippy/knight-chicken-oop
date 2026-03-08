@@ -35,19 +35,26 @@ async def guest_start_general_order():
             "Customer": current_customer.name
         }
     except ValueError as e:
-        return f"{e}"
+        return f"ไม่สามารถดำเนินการได้: {str(e)}"
         # raise HTTPException(status_code=400, detail=str(e))
     
 @router.post("/member/start/general")
-async def member_start_general_order(token: str):
+async def member_start_general_order(
+    token: Annotated[str, Field(
+        description="Token ของสมาชิก (ได้จากการเรียกใช้ tool login)"
+    )]
+):
     """
-    [Intent]: เริ่มต้นการสั่งอาหารสำหรับลูกค้า (Member) ที่หน้าร้าน\n
-    [State Change]: \n
-        1. ตรวจสอบสิทธิ์และหาเจ้าของ 'token' จาก 'restaurant.verify_token_and_role()'\n
-        2. สร้าง `Order` ใหม่ประเภท GENERAL โดยผูกกับ `Member`\n
-        3. บันทึก Order ลงใน Restaurant ผ่าน `restaurant.add_order()`\n
-    [Returns]: Dictionary ข้อมูล Order ID และชื่อลูกค้า\n
+    
     """
+    # """
+    # [Intent]: เริ่มต้นการสั่งอาหารสำหรับลูกค้า (Member) ที่หน้าร้าน\n
+    # [State Change]: \n
+    #     1. ตรวจสอบสิทธิ์และหาเจ้าของ 'token' จาก 'restaurant.verify_token_and_role()'\n
+    #     2. สร้าง `Order` ใหม่ประเภท GENERAL โดยผูกกับ `Member`\n
+    #     3. บันทึก Order ลงใน Restaurant ผ่าน `restaurant.add_order()`\n
+    # [Returns]: Dictionary ข้อมูล Order ID และชื่อลูกค้า\n
+    # """
     try:
         current_customer = restaurant.verify_token_and_role(token=token, allowed_roles=["Member"])
         order = Order(OrderType.GENERAL, current_customer)
@@ -57,7 +64,11 @@ async def member_start_general_order(token: str):
             "Customer": current_customer.name
         }
     except HTTPException as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        return f"ไม่สามารถดำเนินการได้: {e.detail}"
+    except ValueError as e:
+        return f"ไม่สามารถดำเนินการได้: {str(e)}"
+    except Exception as e:
+        return f"ไม่สามารถดำเนินการได้: {str(e)}"
     
 @router.put("/orderitem/add", response_model=Union[Order.OrderDTO, dict])
 async def add_item_to_order(order_id: str, menu: str, quantity: int):
@@ -73,7 +84,7 @@ async def add_item_to_order(order_id: str, menu: str, quantity: int):
         current_menu = restaurant.search_menu_item_from_name(menu)
         current_order.add_order_item(current_menu, quantity)
     except ValueError as e:
-        return f"{e}"
+        return f"ไม่สามารถดำเนินการได้: {str(e)}"
         # raise HTTPException(status_code=400, detail=(str(e)))
     return current_order.order_to_dict()
 

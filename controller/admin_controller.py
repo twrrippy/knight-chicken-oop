@@ -262,48 +262,6 @@ async def staff_sign_up(
         return f"ไม่สามารถดำเนินการได้: {str(e)}"
 
 @mcp.tool
-@router.get("/stock/get-all-items", tags=["Stock"])
-async def get_all_item_names(
-    token: Annotated[str, Field(description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)")]
-):
-    """
-    ดึงรายชื่อวัตถุดิบทั้งหมดที่มีในสต็อก ต้องการสิทธ์พนักงาน
-    """
-    try:
-        restaurant.verify_token_and_role(token, ["Admin", "Staff"])
-        return {"items": restaurant.get_all_item_name()}
-    except HTTPException as e:
-        return f"ไม่สามารถดำเนินการได้: {e.detail}"
-    except ValueError as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
-    except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
-
-@mcp.tool
-@router.get("/stock/check/{item_name}", tags=["Stock"])
-async def get_stock(
-    token: Annotated[str, Field(description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)")],
-    item_name: Annotated[str, Field(description="ชื่อ item ได้จากการเรียกใช้ tool (get_all_item_names)")]
-):
-    """
-    ตรวจสอบจำนวน item ชนิดนั้นๆใน stock ต้องการสิทธ์พนักงาน
-    """
-    try:
-        restaurant.verify_token_and_role(token, ["Admin", "Staff"])
-        item_available = restaurant.check_stock(item_name, ItemStatus.AVAILABLE)
-        item_reserved = restaurant.check_stock(item_name, ItemStatus.RESERVED)
-        return {
-            "Available": item_available,
-            "Reserved": item_reserved
-        }
-    except HTTPException as e:
-        return f"ไม่สามารถดำเนินการได้: {e.detail}"
-    except ValueError as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
-    except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
-
-@mcp.tool
 @router.get("/queue/check", tags=["Queue"])
 async def check_queue(
     token: Annotated[str, Field(description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)")]
