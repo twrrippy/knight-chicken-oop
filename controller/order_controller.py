@@ -262,7 +262,7 @@ async def serve(
     )]
 ):
     try:
-        restaurant.verify_token_and_role(token,["Admin"])
+        restaurant.verify_token_and_role(token,["Admin","Staff"])
         order = restaurant.search_order_from_id(order_id)
         is_success = restaurant.serve_order(order)
         if not is_success:
