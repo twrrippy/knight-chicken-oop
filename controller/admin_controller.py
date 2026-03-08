@@ -152,14 +152,19 @@ async def logout(
         return {"message": "Logged out successfully"}
     raise HTTPException(status_code=400, detail="Invalid Token")
 
+@mcp.tool
 @router.post("/register/member", tags=["Registration"])
 async def member_sign_up(
-    username: str, 
-    password: str, 
-    display_name: str, 
-    phone: Optional[str] = None
+    token: Annotated[str, Field(description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)")],
+    username: Annotated[str, Field(description="ชื่อผู้ใช้งาน")], 
+    password: Annotated[str, Field(description="รหัสผ่าน")], 
+    display_name: Annotated[str, Field(description="ชื่อที่ต้องการใช้")], 
+    phone: Annotated[str, Field(description="เบอร์โทรศัพท์ มีความยาว 10 ตัว")]
 ):
-    """ลงทะเบียนลูกค้าใหม่: ระบบจะ Generate ID และตั้ง Tier เป็น Bronze ให้เอง"""
+    """
+    ลงทะเบียนสมัครสมาชิกสำหรับลูกค้าใหม่ ต้องการสิทธ์พนักงาน"
+    """
+    restaurant.verify_token_and_role(token, ["Admin", "Staff"])
     member = restaurant.register_member(username, password, display_name, phone)
     return {
         "message": "Welcome to Party Hub!",
@@ -168,9 +173,19 @@ async def member_sign_up(
         "tier": member.tier
     }
 
+@mcp.tool
 @router.post("/register/staff", tags=["Registration"])
-async def staff_sign_up(username: str, password: str, name: str, phone: str = "0000000000"):
-    """ลงทะเบียนพนักงานใหม่: ระบบจะ Generate ID (S-xxx) ให้อัตโนมัติ"""
+async def staff_sign_up(
+    token: Annotated[str, Field(description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)")],
+    username: Annotated[str, Field(description="ชื่อผู้ใช้งาน")], 
+    password: Annotated[str, Field(description="รหัสผ่าน")], 
+    name: Annotated[str, Field(description="ชื่อพนักงาน")], 
+    phone: Annotated[str, Field(description="เบอร์โทรศัพท์ มีความยาว 10 ตัว")]
+):
+    """
+    ลงทะเบียนพนักงานใหม่ ต้องการสิทธ์ ADMIN
+    """
+    restaurant.verify_token_and_role(token, ["Admin"])
     staff = restaurant.register_staff(username, password, name, phone)
     return {
         "message": "Staff registered successfully",
@@ -178,8 +193,27 @@ async def staff_sign_up(username: str, password: str, name: str, phone: str = "0
         "name": staff.name
     }
 
+@mcp.tool
+@router.get("/stock/get-all-items", tags=["Stock"])
+async def get_all_item_names(
+    token: Annotated[str, Field(description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)")]
+):
+    """
+    ดึงรายชื่อวัตถุดิบทั้งหมดที่มีในสต็อก ต้องการสิทธ์พนักงาน
+    """
+    restaurant.verify_token_and_role(token, ["Admin", "Staff"])
+    return {"items": restaurant.get_all_item_name()}
+
+@mcp.tool
 @router.get("/stock/check/{item_name}", tags=["Stock"])
-async def get_stock(item_name: str):
+async def get_stock(
+    token: Annotated[str, Field(description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)")],
+    item_name: Annotated[str, Field(description="ชื่อ item ได้จากการเรียกใช้ tool (get_all_item_names)")]
+):
+    """
+    ตรวจสอบจำนวน item ชนิดนั้นๆใน stock ต้องการสิทธ์พนักงาน
+    """
+    restaurant.verify_token_and_role(token, ["Admin", "Staff"])
     item_available = restaurant.check_stock(item_name, ItemStatus.AVAILABLE)
     item_reserved = restaurant.check_stock(item_name, ItemStatus.RESERVED)
     return {
@@ -188,11 +222,24 @@ async def get_stock(item_name: str):
     }
 
 @router.get("/queue/check", tags=["Queue"])
-async def check_queue():
+async def check_queue(
+    token: Annotated[str, Field(description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)")]
+):
+    """
+    ดูจำนวนคิวของออเดอร์ที่จ่ายเงินแล้ว และกำลังทำ ต้องการสิทธ์พนักงาน
+    """
+    restaurant.verify_token_and_role(token, ["Admin", "Staff"])
     return { "Queue": restaurant.check_queue}
 
 @router.get("/queue/get/{queue_order}", response_model=Union[Order.OrderDTO, dict], tags=["Queue"])
-async def get_queue(queue_order: int):
+async def get_queue(
+    token: Annotated[str, Field(description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)")],
+    queue_order: Annotated[int, Field(description="หมายเลขคิว ตามลำดับ 1-50")]
+):
+    """
+    ดูรายละเอียดออเดอร์ในคิว ต้องการสิทธ์พนักงาน
+    """
+    restaurant.verify_token_and_role(token, ["Admin", "Staff"])
     if queue_order > 50 or queue_order < 1:
         raise HTTPException(status_code=400, detail="Queue not Found")
     order = restaurant.get_queue(queue_order)

@@ -839,6 +839,12 @@ class Restaurant:
                 count_stock += 1
         return count_stock
     
+    def get_all_item_name(self) -> list[str]:
+        item_names = set()
+        for item in self.__stock:
+            item_names.add(item.name)
+        return list(item_names)
+    
     def get_menu(self):
         menu = []
         for each_menu in self.__menu:
