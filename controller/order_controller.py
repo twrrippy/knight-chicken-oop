@@ -40,6 +40,14 @@ async def guest_start_general_order():
     
 @router.post("/member/start/general")
 async def member_start_general_order(token: str):
+    """
+    [Intent]: เริ่มต้นการสั่งอาหารสำหรับลูกค้า (Member) ที่หน้าร้าน\n
+    [State Change]: \n
+        1. ตรวจสอบสิทธิ์และหาเจ้าของ 'token' จาก 'restaurant.verify_token_and_role()'\n
+        2. สร้าง `Order` ใหม่ประเภท GENERAL โดยผูกกับ `Member`\n
+        3. บันทึก Order ลงใน Restaurant ผ่าน `restaurant.add_order()`\n
+    [Returns]: Dictionary ข้อมูล Order ID และชื่อลูกค้า\n
+    """
     try:
         current_customer = restaurant.verify_token_and_role(token=token, allowed_roles=["Member"])
         order = Order(OrderType.GENERAL, current_customer)
@@ -117,7 +125,7 @@ async def check_and_reserve_stock(order_id: str, token: str):
     [Intent]: ขั้นตอน Pre-order เพื่อจองวัตถุดิบ/สินค้าก่อนการยืนยัน\n
     [Business Rules]: \n
         - หาก `restaurant.check_queue` >= 50 จะปฏิเสธการสั่ง\n
-        - ต้องตรวจสอบสิทธิ์ว่า `guest_id` ตรงกับเจ้าของ Order (`order.check_customer()`)\n
+        - ต้องตรวจสอบสิทธิ์ว่าเจ้าของ `token` ตรงกับเจ้าของ Order (`order.check_customer()`)\n
     [State Change]: เรียก `restaurant.reserve()` เพื่อจองสต็อก\n
     """
     if restaurant.check_queue >= 50:
