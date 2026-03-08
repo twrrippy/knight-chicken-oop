@@ -272,10 +272,7 @@ async def serve(
             )
         return order.order_to_dict()
     except Exception as e:
-        raise HTTPException(
-            status_code=400, 
-            detail=f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
-        )
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool()
 async def create_random_delivery_order(
