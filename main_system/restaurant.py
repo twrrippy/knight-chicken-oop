@@ -17,6 +17,7 @@ from pydantic import BaseModel
 import uuid
 import random
 import copy
+import asyncio
 
 class User(ABC):
     @staticmethod
@@ -572,8 +573,9 @@ class Order:
         subtotal = sum(item.price for item in self.__order_item_list)
         deposit = 0.0
 
+        booking_full_price = 0.0
         if self.__booking:
-            subtotal += self.__booking.full_price
+            booking_full_price = self.__booking.full_price
             deposit = self.__booking.deposit
 
         if self.__delivery:
@@ -588,6 +590,8 @@ class Order:
         teir_discount = 0.0
         if isinstance(self.__customer, Member):
             teir_discount = self.__customer.get_member_discount(subtotal)
+        
+        subtotal += booking_full_price
 
         discount = min(teir_discount + coupon_discount, subtotal)
 
@@ -646,6 +650,7 @@ class Order:
             
             if self.__delivery:
                 self.__delivery.mark_as_paid()
+                self.__delivery.request_rider()
 
             if coupon: coupon.mark_as_used()
 
@@ -1148,8 +1153,9 @@ class Restaurant:
             raise HTTPException(status_code=400, detail="Booking is not ready for check-in ")
         
         order = self.get_order(order_id)
-        if not order or order.booking != booking:
-            raise HTTPException(status_code=404, detail="Order not found or does not match booking")
+        if not order or order.customer != booking.member:
+            raise HTTPException(status_code=404, detail="Order not found or member does not match booking")
+        order.add_booking(booking)
 
         receipt_data = self.process_order_payment(order_id=order.id, coupon_code=coupon_code, method_name=pay_method, payment_details=payment_details)
 
@@ -1272,5 +1278,14 @@ class Restaurant:
         order = self.get_order(order_id)
         if order.status == OrderStatus.PAID: raise HTTPException(400, "Order Already Paid")
         return order.pre_calculate_totals(coupon_code)
+
+    async def simulate_delivery(self, order_id: str, delay_seconds: int = 10):
+        await asyncio.sleep(delay_seconds)
+        try:
+            order = self.get_order(order_id)
+            if order.delivery:
+                self.update_delivery_status(order.id, DeliveryStatus.DELIVERED)
+        except Exception as e:
+            print(f"Failed to auto-transition delivery {order.id}: {e}")
     
 restaurant = Restaurant()
