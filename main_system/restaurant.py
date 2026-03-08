@@ -86,6 +86,25 @@ class Member(Customer):
 
     def add_receipt(self, receipt: Receipt): self.__receipt_list.append(receipt)
     def add_coupon(self, coupon: Coupon): self.__coupon_list.append(coupon)
+    def add_points(self, points: int): 
+        if points <= 0:
+            raise ValueError("INVALID: Points")
+        self.__points += points
+
+    def check_and_issue_member_teir(self):
+        if self.__points >= 1500:
+            self.__tier = MemberTier.GOLD
+            self.__points = 0
+            return self.__tier
+        elif self.__points >= 800:
+            self.__tier = MemberTier.SILVER
+            self.__points = 0
+            return self.__tier
+        elif self.__points >= 300:
+            self.__tier = MemberTier.BRONZE
+            self.__points = 0
+            return self.__tier
+        return None
     
     def get_coupon_by_code(self, code: str):
         for coupon in self.__coupon_list:
@@ -100,6 +119,8 @@ class Member(Customer):
             case MemberTier.GOLD: return base_price * 0.15
         return 0.0
 
+    @property
+    def points(self) -> int: return self.__points
     @property
     def tier(self) -> MemberTier: return self.__tier
 
@@ -585,8 +606,7 @@ class Order:
             self.status = OrderStatus.PAIDED
 
             if self.__booking:
-                self.__booking.mark_checked_in()
-                self.__booking.room.mark_room_in_use()
+                self.__booking.mark_as_paid()
             
             if self.__delivery:
                 self.__delivery.mark_as_paid()
@@ -595,6 +615,8 @@ class Order:
 
             receipt = Receipt(self, method)
             if isinstance(self.__customer, Member):
+                deposit = self.__booking.deposit if self.__booking else 0.0
+                self.__customer.add_points(round((total_payable + deposit)/10))
                 self.__customer.add_receipt(receipt)
             return receipt
         else:
@@ -658,7 +680,8 @@ class Receipt:
             
             "customer_info": {
                 "name": order.customer.name,
-                "tier": order.customer.tier if isinstance(order.customer, Member) else "None"
+                "tier": order.customer.tier if isinstance(order.customer, Member) else "None",
+                "points": order.customer.points if isinstance(order.customer, Member) else 0
             },
             
             "order_summary": {
@@ -1008,10 +1031,6 @@ class Restaurant:
             return reward_coupon.code
             
         return None
-    
-    def check_and_issue_member_teir(self, order: 'Order'):
-        if not isinstance(order.customer, Member):
-            return None
 
     def get_payment_method(self, method_name: str) -> 'PaymentMethod':
         for s in self.__payment_method:
@@ -1194,10 +1213,16 @@ class Restaurant:
             
         receipt = order.execute_payment(method, payment_details, coupon_code)
         self.add_receipts(receipt)
+
+        teir_reward = None
+        if isinstance(order.customer, Member):
+            teir_reward = order.customer.check_and_issue_member_teir()
         
         reward_code = self.check_and_issue_reward(order)
         
         receipt_data = receipt.generate()
+        if teir_reward:
+            receipt_data["teir_issued"] = f"Congratulations! You received a new teir: {teir_reward}"
         if reward_code:
             receipt_data["reward_issued"] = f"Congratulations! You received a new coupon: {reward_code}"
             
