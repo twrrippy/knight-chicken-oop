@@ -150,6 +150,7 @@ async def custom_item_in_order(
     try:
         current_order = restaurant.search_order_from_id(order_id)
         current_order.custom(order_item_id, item_name, quantity)
+        current_order.update_price()
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
     return current_order.order_to_dict()

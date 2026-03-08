@@ -241,6 +241,8 @@ class SingleMenuItem(MenuItem):
         try:
             ingredient = self.find_ingredient_in_recipe_from_name(item_name)
             ingredient.custom(quantity)
+            menu = restaurant.search_menu_item_from_name(self.name)
+            self.update_price(menu)
         except ValueError as e:
             raise ValueError(str(e))
         except TypeError as e:
@@ -483,6 +485,7 @@ class Order:
             if order_item.status != OrderItemStatus.OUT_OF_STOCK and order_item.status != OrderItemStatus.CANCELED:
                 count_price += order_item.price
         self.__subtotal = count_price
+        return count_price
 
     def check_customer(self, customer: Customer):
         if self.__customer != customer:
@@ -972,21 +975,6 @@ class Restaurant:
                 if count == quantity:
                     break
         return True
-
-    def stock_reverse(self, item_name: str, quantity: int):
-        if quantity < 0:
-            raise ValueError("INVALID: Quantity")
-        if self.count_stock_item(item_name, ItemStatus.RESERVED) < quantity:
-            raise ValueError("Reverse")
-        count = 0
-        for item_index in range(len(self.__stock) - 1, -1, -1):
-            if count == quantity:
-                return True
-            item = self.__stock[item_index ]
-            if item.name == item_name and item.status == ItemStatus.RESERVED:
-                item.status == ItemStatus.AVAILABLE 
-                count += 1
-        return count == quantity
 
     def get_kitchen_queue(self):     
         queue_list = []

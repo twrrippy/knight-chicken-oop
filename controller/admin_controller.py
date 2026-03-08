@@ -256,7 +256,13 @@ async def get_queue(
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
 
 @router.put("/order/void", tags=["Order"])
-async def void_order(order_id: str, token: str):
+async def void_order(
+    order_id: Annotated[str, Field(description="รหัสออเดอร์(รูปแบบที่คาดหวัง: ORD-xxx)")],
+    token: Annotated[str, Field(description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)")]
+):
+    """
+    ยกเลิกออเดอร์ ที่ยังไม่จ่ายเงิน ต้องการสิทธิ ADMIN
+    """
     try:
         restaurant.verify_token_and_role(token=token, allowed_roles=["Admin"])
         order = restaurant.search_order_from_id(order_id)
