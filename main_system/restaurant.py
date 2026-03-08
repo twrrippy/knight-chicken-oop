@@ -906,7 +906,7 @@ class Restaurant:
     def stock_reverse(self, item_name: str, quantity: int):
         if quantity < 0:
             raise ValueError("INVALID: Quantity")
-        if self.check_stock(item_name, ItemStatus.RESERVED) < quantity:
+        if self.check_stock_item(item_name, ItemStatus.RESERVED) < quantity:
             raise ValueError("reverse thing you should not")
         count = 0
         for item_index in range(len(self.__stock) - 1, -1, -1):
@@ -940,7 +940,7 @@ class Restaurant:
     def stock_reverse(self, item_name: str, quantity: int):
         if quantity < 0:
             raise ValueError("INVALID: Quantity")
-        if self.check_stock(item_name, ItemStatus.RESERVED) < quantity:
+        if self.check_stock_item(item_name, ItemStatus.RESERVED) < quantity:
             raise ValueError("Reverse")
         count = 0
         for item_index in range(len(self.__stock) - 1, -1, -1):

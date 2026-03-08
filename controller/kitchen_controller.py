@@ -18,7 +18,7 @@ async def cook_order(
     """
     try:
         order = restaurant.search_order_from_id(order_id)
-        success = order.cook_order(order)
+        success = order.cook_order()
         if success:
             return {"message": "Cooking finished. Order is READY.", "status": order.status.value}
         else:
@@ -31,11 +31,7 @@ async def cook_order(
         return f"ไม่สามารถดำเนินการได้: {str(e)}"
     except ValueError as e:
         raise HTTPException(status_code=400, detail=(str(e)))
-    success = order.cook_order(  )
-    if success:
-        return {"message": "Cooking finished. Order is READY.", "status": order.status.value}
-    else:
-        raise HTTPException(status_code=400, detail=f"Cannot cook order. Current status: {order.status.value}")
+    
    
 @router.get("queue")
 async def view_kitchen_queue():
