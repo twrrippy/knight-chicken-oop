@@ -129,7 +129,7 @@ async def custom_item_in_order(
     order_id: Annotated[str, Field(
         description="รหัสออเดอร์(รูปแบบที่คาดหวัง: ORD-xxx)"
     )], 
-    order_item_id: Annotated[str, Field(
+    order_item_id: Annotated[int, Field(
         description="ลำดับของเมนูอาหาร (order_item) ที่ต้องการ custom ใน order"
     )], 
     item_name: Annotated[str, Field(
