@@ -22,7 +22,7 @@ async def cook_order(
     try:
         restaurant.verify_token_and_role(token, ["Admin"])
         order = restaurant.search_order_from_id(order_id)
-        success = order.cook_order(order)
+        success = order.cook_order()
         if success:
             return {"message": "Cooking finished. Order is READY.", "status": order.status.value}
         else:
@@ -33,3 +33,12 @@ async def cook_order(
         return f"ไม่สามารถดำเนินการได้: {str(e)}"
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {str(e)}"
+   
+@router.get("queue")
+async def view_kitchen_queue():
+    queue = restaurant.get_kitchen_queue()
+    if queue["total_queue"]==0:
+        return {"message": "No order in queue ","queue": queue}
+    return {"message": "Current queue ","queue": queue}
+    
+    

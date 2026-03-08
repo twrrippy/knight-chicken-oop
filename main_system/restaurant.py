@@ -431,10 +431,26 @@ class Order:
         current_order_item.status = OrderItemStatus.ADDED
         self.update_price()
     
+    def is_valid_order_item_id(self, order_item_id: int):
+        if order_item_id > self.OrderId_count or order_item_id < 0:
+            return False
+        return True
+    
+    def remove_order_item(self, order_item_id: int):
+        if not self.is_valid_order_item_id(order_item_id):
+            raise ValueError("Order Item NOT FOUND")
+        for e in range(len(self.__order_item_list)):
+            if self.__order_item_list[e].id == order_item_id:
+                self.__order_item_list.pop(e)
+                return
+        raise ValueError("Order Item NOT FOUND")
+
+    
     def search_order_item_from_id(self, order_item_id: int):
-        for order_item in self.__order_item_list:
-            if order_item.id == order_item_id:
-                return order_item
+        if self.is_valid_order_item_id(order_item_id):
+            for order_item in self.__order_item_list:
+                if order_item.id == order_item_id:
+                    return order_item
         raise ValueError("Order Item NOT FOUND")
 
     def custom(self,order_item_id: int, item_name: str, quantity: int):
@@ -900,7 +916,7 @@ class Restaurant:
     def stock_reverse(self, item_name: str, quantity: int):
         if quantity < 0:
             raise ValueError("INVALID: Quantity")
-        if self.check_stock(item_name, ItemStatus.RESERVED) < quantity:
+        if self.check_stock_item(item_name, ItemStatus.RESERVED) < quantity:
             raise ValueError("reverse thing you should not")
         count = 0
         for item_index in range(len(self.__stock) - 1, -1, -1):
@@ -934,7 +950,7 @@ class Restaurant:
     def stock_reverse(self, item_name: str, quantity: int):
         if quantity < 0:
             raise ValueError("INVALID: Quantity")
-        if self.check_stock(item_name, ItemStatus.RESERVED) < quantity:
+        if self.check_stock_item(item_name, ItemStatus.RESERVED) < quantity:
             raise ValueError("Reverse")
         count = 0
         for item_index in range(len(self.__stock) - 1, -1, -1):
@@ -945,6 +961,28 @@ class Restaurant:
                 item.status == ItemStatus.AVAILABLE 
                 count += 1
         return count == quantity
+
+    def get_kitchen_queue(self):     
+        queue_list = []
+        for order in self.__order_list:
+            if order.status == OrderStatus.PAIDED:
+                queue_list.append(
+                {"order_id": order.id,
+                 "order_type": order.order_type.value,
+                 "status":order.status.value,
+                 "items":[
+                     {"name": item.menu_item.name,
+                      "quantity": item.quantity,
+                      "status":item.status.value
+                     }
+                     for item in order.order_item
+                 ]}
+            )
+        return {
+            "total_queue": len(queue_list),
+            "order":queue_list
+        }
+        
                     
 
     def confirm(self, order:Order):
