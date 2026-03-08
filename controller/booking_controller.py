@@ -98,11 +98,22 @@ async def book_room(
 
 @mcp.tool
 @router.get("/preview_booking/{booking_id}")
-async def preview_booking(booking_id: str):
+async def preview_booking(
+    token: Annotated[str, Field(
+        description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)"
+    )],
+    booking_id: Annotated[str, Field(
+        description="รหัสการจอง (Format: BK-xxx)"
+    )]
+):
     """
-    
+    ดูรายละเอียดการจอง ต้องการสิทธ์พนักงาน
     """
-    return restaurant.preview_booking_details(booking_id)
+    try:
+        restaurant.verify_token_and_role(token, ["Admin", "Staff"])
+        return restaurant.preview_booking_details(booking_id)
+    except Exception as e:
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
 @router.post("/check-in/{booking_id}")
