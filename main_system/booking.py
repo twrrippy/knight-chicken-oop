@@ -99,6 +99,9 @@ class Booking:
             }
         }
 
+    def mark_as_paid(self):
+        self.__status = BookingStatus.PAID
+
     def mark_completed(self):
         self.__status = BookingStatus.COMPLETED
     

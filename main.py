@@ -35,7 +35,6 @@ async def get_menu():
 from mock_data import initialize_mock_data
 
 initialize_mock_data()
-print("Mock Data Initialized comprehensively from mock_data.py")
 
 # # ==========================================
 
