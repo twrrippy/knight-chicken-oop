@@ -490,7 +490,8 @@ class Order:
     def check_customer(self, customer: Customer):
         if self.__customer != customer:
             raise ValueError("Wrong Customer")
-
+        return True
+    
     def search_order_item_from_id(self, order_item_id: int):
         for order_item in self.__order_item_list:
             if order_item.id == order_item_id:
@@ -549,6 +550,16 @@ class Order:
             self.status = OrderStatus.READY
             return True
         return False
+
+    def serve_order(self):
+        if self.__status != OrderStatus.READY:
+            return False    
+        self.status = OrderStatus.SERVED
+        for item in self.__order_item_list:
+            item.status = OrderItemStatus.SERVED
+        return True
+            
+            
 
     def pre_calculate_totals(self, coupon_code: Optional[str] = None):
         coupon = None
@@ -997,15 +1008,20 @@ class Restaurant:
             "order":queue_list
         }
         
-                    
-
     def confirm(self, order:Order):
         try:
             confirmed_order = order.order_confirm()
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
         return confirmed_order
-
+    
+    def serve_order(self, order:Order):
+        try:
+            order = order.serve_order()
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        return order
+        
     def create_random_delivery_order(self):
         if not self.__delivery_providers:
             raise HTTPException(400, "No Delivery Providers Available")
@@ -1070,6 +1086,8 @@ class Restaurant:
         
         if new_status == DeliveryStatus.DRIVER_ASSIGNED:
             order.delivery.request_rider()
+        elif new_status == DeliveryStatus.IN_TRANSIT:
+            order.delivery.mark_in_transit()
         elif new_status == DeliveryStatus.DELIVERED:
             order.delivery.mark_delivered()
             order.status = OrderStatus.SERVED
@@ -1112,32 +1130,35 @@ class Restaurant:
             if s.name.lower() == method_name.lower(): return s
         raise HTTPException(status_code=400, detail="Unknown Payment Method")
     
-    def booking_room(self,token: str, member_id: str, room_id: str, hours: int, pay_method: str, start_time: datetime, payment_details: Dict[str, Any] = {}):
-        staff = self.verify_token_and_role(token, allowed_roles=["Staff", "Admin"])
-        if not staff:
-            raise HTTPException(status_code=401, detail="Unauthorized token")
-
+    def booking_room(self, member_id: str, room_id: str, hours: int, pay_method: str, start_time: datetime, payment_details: Dict[str, Any] = {}):
         member = self.get_member_by_id(member_id)
         if not member or not isinstance(member, Member):
             raise HTTPException(status_code=404, detail="Member not found")
-        
         room = self.get_room(room_id)
         if not room or not isinstance(room, Room):
             raise HTTPException(status_code=404, detail="Room not found")
-
         if not self.is_slot_avaliable(room, start_time, hours):
             raise HTTPException(status_code=400, detail="Time slot already occupied")
         
+        time_slot = TimeSlot(start_time, hours)
+        full_price = room.price_per_hour * time_slot.hours - member.get_member_discount(room.price_per_hour * time_slot.hours)
+        self.process_pay_deposit(full_price * 0.5, pay_method, payment_details)
+
         booking_id = f"BK-{self.__booking_counter:03d}"
         self.__booking_counter += 1
-        time_slot = TimeSlot(start_time, hours)
         booking = Booking(booking_id, member, room, time_slot)
-        
-        pay_med = self.get_payment_method(pay_method)
-        message = booking.pay_deposit(pay_med, payment_details)
-        
+        booking.mark_as_deposit_paid()
         self.add_booking(booking)
-        return message
+
+        return {
+                "booking_no": booking.id,
+                "date": SimulationClock.get_time().strftime("%Y-%m-%d %H:%M:%S"),
+                "merchant": "Knight Chicken Fast Food Co.",
+                "customer_info": {"name": booking.member.name, "tier": booking.member.tier},
+                "booking_details": booking.get_details(),
+                "financial_summary": {"subtotal": booking.full_price, "deposit paid": booking.deposit, "amount_due": booking.amount_due},
+                "payment_record": {"method": pay_method, "status": "deposit Paid"}
+                }
 
     def is_slot_avaliable(self, room, start, hours):
         end = start + timedelta(hours=hours)
@@ -1156,14 +1177,7 @@ class Restaurant:
                 b.mark_cancelled()
                 b.room.mark_room_available()
 
-    def check_in_booking(self, token: str, order_id: str, booking_id: str, coupon_code: str, pay_method: str, payment_details: Dict[str, Any] = {}):
-        session = self.__auth_manager.get_session(token)
-        if not session:
-            raise HTTPException(status_code=401, detail="Unauthorized token")
-        staff = self.get_staff(session.user_id)
-        if not isinstance(staff, Staff):
-            raise HTTPException(status_code=401, detail="Only Staff can handle check-in")
-
+    def check_in_booking(self, order_id: str, booking_id: str, coupon_code: str, pay_method: str, payment_details: Dict[str, Any] = {}):
         booking = self.get_booking(booking_id)
         if not booking:
             raise HTTPException(status_code=404, detail="Booking not found")
@@ -1179,7 +1193,6 @@ class Restaurant:
         receipt_data = self.process_order_payment(order_id=order.id, coupon_code=coupon_code, method_name=pay_method, payment_details=payment_details)
 
         booking.mark_checked_in()
-        booking.room.mark_room_in_use()
         return {"message": f"Booking {booking_id} checked in successfully",
                 "room_id": booking.room.id,
                 "member_name": booking.member.name,
@@ -1188,22 +1201,15 @@ class Restaurant:
                 "full_amount_paid": order.total_payable_amount
                 }
 
-    def check_out_booking(self, token: str, booking_id: str):
+    def check_out_booking(self, booking_id: str):
         # แบบที่ยังไม่เช็คเกินเวลา
-        session = self.__auth_manager.get_session(token)
-        if not session:
-            raise HTTPException(status_code=401, detail="Unauthorized token")
-        staff = self.get_staff(session.user_id)
-        if not isinstance(staff, Staff):
-            raise HTTPException(status_code=401, detail="Only Staff can handle check-out")
-
         booking = self.get_booking(booking_id)
         if not booking:
             raise HTTPException(status_code=404, detail="Booking not found")
         if booking.status != BookingStatus.CHECKED_IN:
             raise HTTPException(status_code=400, detail="Booking is not currently checked in")
         
-        booking.mark_checked_out()
+        booking.mark_completed()
         return {"message": f"Booking {booking_id} checked out successfully",
                 "room_id": booking.room.id,
                 "member_name": booking.member.name,
@@ -1234,7 +1240,7 @@ class Restaurant:
             raise HTTPException(400, "Username already exists")
         
         # ระบบสร้าง ID ให้อัตโนมัติ
-        new_id = f"M-{self.__member_counter:03d}" # ผลลัพธ์จะเป็น M-001, M-002...
+        new_id = f"M-{self.__member_counter:03d}" # ผลลัพธ์จะเป็น M-000, M-001, M-002...
         
         # สร้าง Member (Tier เริ่มต้นเป็น Bronze อัตโนมัติใน __init__)
         new_member = Member(new_id, name, MemberTier.BRONZE, username, password, phone)
@@ -1270,13 +1276,11 @@ class Restaurant:
         booking = self.get_booking(booking_id)
         return booking.get_details()
     
-    def process_pay_deposit(self, booking_id: str, method_name: str, payment_details: Dict[str, Any]):
-        booking = self.get_booking(booking_id)
+    def process_pay_deposit(self, deposit: float,  method_name: str, payment_details: Dict[str, Any]):
         method = self.get_payment_method(method_name)
-        if booking.status != BookingStatus.PENDING:
-            raise HTTPException(400, "Booking Already Paid")
-        
-        return booking.pay_deposit(method, payment_details)
+        success, note = method.pay(deposit, **payment_details)
+        if not success: raise HTTPException(400, note)
+        return success
     
     def process_order_payment(self, order_id: str, coupon_code: Optional[str], method_name: str, payment_details: Dict[str, Any]):
         method = self.get_payment_method(method_name)

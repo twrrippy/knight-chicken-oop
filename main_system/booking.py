@@ -71,49 +71,23 @@ class Booking:
         self.__time_slot = time_slot
         self.__status = BookingStatus.PENDING
 
-    def pay_deposit(self, method: PaymentMethod, payment_details: Dict[str, Any] = {}) -> Dict:
-        success, note = method.pay(self.deposit, **payment_details)
-        if not success: raise HTTPException(400, note)
+    def mark_as_deposit_paid(self):
         self.__status = BookingStatus.DEPOSIT_PAID
-        return {
-            "booking_no": self.id,
-            "date": SimulationClock.get_time().strftime("%Y-%m-%d %H:%M:%S"),
-            "merchant": "Knight Chicken Fast Food Co.",
-            
-            "customer_info": {
-                "name": self.member.name,
-                "tier": self.member.tier
-            },
-            
-            "booking_details": self.get_details(),
-            
-            "financial_summary": {
-                "subtotal": self.full_price,
-                "deposit paid": self.deposit,
-                "amount_due": self.amount_due
-            },
-            
-            "payment_record": {
-                "method": method.name,
-                "status": "deposit Paid"
-            }
-        }
 
     def mark_as_paid(self):
         self.__status = BookingStatus.PAID
 
     def mark_completed(self):
         self.__status = BookingStatus.COMPLETED
+        self.room.mark_room_cleaning()
     
     def mark_checked_in(self):
         self.__status = BookingStatus.CHECKED_IN
-
-    def mark_checked_out(self):
-        self.__status = BookingStatus.COMPLETED
-        self.room.mark_room_cleaning()
+        self.room.mark_room_in_use()
 
     def mark_cancelled(self):
         self.__status = BookingStatus.CANCELLED
+        self.room.mark_room_available()
 
     def get_details(self) -> Dict[str, Any]:
         return {
