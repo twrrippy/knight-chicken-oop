@@ -188,7 +188,7 @@ class MenuItem(ABC):
         current_status = MenuItemStatus.AVAILABLE
         custom = []
         for ingredient in self.all_ingredient:
-            if restaurant.check_stock(ingredient.item.name, ItemStatus.AVAILABLE) < ingredient.quantity:
+            if restaurant.count_stock_item(ingredient.item.name, ItemStatus.AVAILABLE) < ingredient.quantity:
                 current_status = MenuItemStatus.UNAVAILABLE
                 break
             if ingredient.type == IngredientType.CUSTOMIZABLE:
@@ -819,6 +819,12 @@ class Restaurant:
                 count_queue += 1
         return count_queue
     
+    # def search_item_in_stock_from_name(self, item_name: str) -> Item:
+    #     for item in self.__stock:
+    #         if item.name == item_name:
+    #             return item
+    #     raise ValueError("Item NOT FOUND. Please add new item to stock first.")
+        
     def add_stock(self, item: Item, quantity: int):
         for e in range(quantity):
             self.__stock.append(copy.deepcopy(item))
@@ -832,12 +838,36 @@ class Restaurant:
                 return order
         return False
     
-    def check_stock(self, item_name: str, status: ItemStatus):
+    def count_stock_item(self, item_name: str, status: ItemStatus):
         count_stock = 0
         for find in self.__stock:
             if find.name == item_name and find.status == status:
                 count_stock += 1
         return count_stock
+    
+    def check_stock_item(self, item_name: str):
+        item_available = self.count_stock_item(item_name, ItemStatus.AVAILABLE)
+        item_reserved = self.count_stock_item(item_name, ItemStatus.RESERVED)
+        return {
+            "Item": item_name,
+            "Available": item_available,
+            "Reserved": item_reserved
+        }
+    
+    def all_stock(self):
+        item_name_list = []
+        for item in self.__stock:
+            for name in item_name_list:
+                if item.name == name:
+                    break
+            else:
+                item_name_list.append(item.name)
+        item_list = []
+        for name in item_name_list:
+            item_list.append(self.check_stock_item(name))
+        return{
+            "Stock" : item_list
+        }
     
     def get_menu(self):
         menu = []
