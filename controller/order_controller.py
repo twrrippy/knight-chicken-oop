@@ -76,6 +76,21 @@ async def add_item_to_order(order_id: str, menu: str, quantity: int):
         return f"{e}"
         # raise HTTPException(status_code=400, detail=(str(e)))
     return current_order.order_to_dict()
+ 
+@router.put("/orderitem/remove", response_model=Union[Order.OrderDTO, dict])
+async def remove_item_in_order(order_id: str, order_item_id: int):
+    """
+    [Intent]: ลบรายการอาหาร (OrderItem) จากออเดอร์ (Order) ที่มีอยู่แล้ว\n
+    [Dependencies]: `restaurant.search_order_from_id()` เพื่อหา Order ปัจจุบัน\n
+    [State Change]: อัปเดตรายการอาหารภายในออเดอร์ ผ่าน `current_order.remove_order_item()`\n
+    """
+    try:
+        current_order = restaurant.search_order_from_id(order_id)
+        current_order.remove_order_item(order_item_id)
+    except ValueError as e:
+        return f"{e}"
+        # raise HTTPException(status_code=400, detail=(str(e)))
+    return current_order.order_to_dict()
 
 @router.put("/orderitem/custom", response_model=Union[Order.OrderDTO, dict])
 async def custom_item_in_order(order_id: str, order_item_id: int, item_name: str, quantity: int):

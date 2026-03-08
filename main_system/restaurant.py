@@ -431,10 +431,26 @@ class Order:
         current_order_item.status = OrderItemStatus.ADDED
         self.update_price()
     
+    def is_valid_order_item_id(self, order_item_id: int):
+        if order_item_id > self.OrderId_count or order_item_id < 0:
+            return False
+        return True
+    
+    def remove_order_item(self, order_item_id: int):
+        if not self.is_valid_order_item_id(order_item_id):
+            raise ValueError("Order Item NOT FOUND")
+        for e in range(len(self.__order_item_list)):
+            if self.__order_item_list[e].id == order_item_id:
+                self.__order_item_list.pop(e)
+                return
+        raise ValueError("Order Item NOT FOUND")
+
+    
     def search_order_item_from_id(self, order_item_id: int):
-        for order_item in self.__order_item_list:
-            if order_item.id == order_item_id:
-                return order_item
+        if self.is_valid_order_item_id(order_item_id):
+            for order_item in self.__order_item_list:
+                if order_item.id == order_item_id:
+                    return order_item
         raise ValueError("Order Item NOT FOUND")
 
     def custom(self,order_item_id: int, item_name: str, quantity: int):
