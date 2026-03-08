@@ -30,7 +30,8 @@ async def cook_order(
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
    
-@router.get("queue")
+@mcp.tool
+@router.get("/queue")
 async def view_kitchen_queue(
     token: Annotated[str, Field(
         description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)"

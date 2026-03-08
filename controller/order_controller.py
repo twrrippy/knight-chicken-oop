@@ -102,20 +102,25 @@ async def add_item_to_order(
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
     return current_order.order_to_dict()
- 
+
+@mcp.tool
 @router.put("/orderitem/remove", response_model=Union[Order.OrderDTO, dict])
-async def remove_item_in_order(order_id: str, order_item_id: int):
+async def remove_item_in_order(
+    order_id: Annotated[str, Field(
+        description="รหัสออเดอร์(รูปแบบที่คาดหวัง: ORD-xxx)"
+    )], 
+    order_item_id: Annotated[int, Field(
+        description="ลำดับของเมนูอาหาร (order_item) ที่ต้องการลบใน order"
+    )]
+):
     """
-    [Intent]: ลบรายการอาหาร (OrderItem) จากออเดอร์ (Order) ที่มีอยู่แล้ว\n
-    [Dependencies]: `restaurant.search_order_from_id()` เพื่อหา Order ปัจจุบัน\n
-    [State Change]: อัปเดตรายการอาหารภายในออเดอร์ ผ่าน `current_order.remove_order_item()`\n
+    ลบรายการอาหาร (OrderItem) จากออเดอร์ (Order) ที่มีอยู่แล้ว
     """
     try:
         current_order = restaurant.search_order_from_id(order_id)
         current_order.remove_order_item(order_item_id)
-    except ValueError as e:
-        return f"{e}"
-        # raise HTTPException(status_code=400, detail=(str(e)))
+    except Exception as e:
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
     return current_order.order_to_dict()
 
 @mcp.tool
