@@ -27,18 +27,25 @@ async def cook_order(
             return {"message": "Cooking finished. Order is READY.", "status": order.status.value}
         else:
             raise HTTPException(status_code=400, detail=f"Cannot cook order. Current status: {order.status.value}")
-    except HTTPException as e:
-        return f"ไม่สามารถดำเนินการได้: {e.detail}"
-    except ValueError as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {str(e)}"
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
    
 @router.get("queue")
-async def view_kitchen_queue():
-    queue = restaurant.get_kitchen_queue()
-    if queue["total_queue"]==0:
-        return {"message": "No order in queue ","queue": queue}
-    return {"message": "Current queue ","queue": queue}
+async def view_kitchen_queue(
+    token: Annotated[str, Field(
+        description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)"
+    )]
+):
+    """
+    View the kitchen queue (orders that are ready to be cooked).
+    """
+    try:
+        restaurant.verify_token_and_role(token, ["Admin"])
+        queue = restaurant.get_kitchen_queue()
+        if queue["total_queue"]==0:
+            return {"message": "No order in queue ","queue": queue}
+        return {"message": "Current queue ","queue": queue}
+    except Exception as e:
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
     
     
