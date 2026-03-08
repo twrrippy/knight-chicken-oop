@@ -1142,8 +1142,9 @@ class Restaurant:
             raise HTTPException(status_code=400, detail="Booking is not ready for check-in ")
         
         order = self.get_order(order_id)
-        if not order or order.booking != booking:
-            raise HTTPException(status_code=404, detail="Order not found or does not match booking")
+        if not order or order.customer != booking.member:
+            raise HTTPException(status_code=404, detail="Order not found or member does not match booking")
+        order.add_booking(booking)
 
         receipt_data = self.process_order_payment(order_id=order.id, coupon_code=coupon_code, method_name=pay_method, payment_details=payment_details)
 

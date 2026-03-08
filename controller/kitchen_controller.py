@@ -26,7 +26,7 @@ async def cook_order(
         success = order.cook_order()
         if success:
             if order.delivery:
-                asyncio.create_task(simulate_delivery(order_id))
+                asyncio.create_task(restaurant.simulate_delivery(order_id))
             return {"message": "Cooking finished. Order is READY.", "status": order.status.value}
         else:
             raise HTTPException(status_code=400, detail=f"Cannot cook order. Current status: {order.status.value}")
