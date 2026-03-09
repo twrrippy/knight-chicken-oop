@@ -422,10 +422,11 @@ class Order:
         food_list: list
         total_price: float
 
-    def add_order_item(self, menu: MenuItem, quantity: int):
+    def add_order_item(self, menu_name: str, quantity: int):
         if not (self.__status == OrderStatus.PENDING or self.__status == OrderStatus.RESERVED):
             raise ValueError(f"Can not add order item. ({self.__status})")
         try:
+            menu = restaurant.search_menu_item_from_name(menu_name)
             new_menu = copy.deepcopy(menu)
             current_order_item = OrderItem(self.__order_item_id_count, new_menu, quantity)
             self.__order_item_id_count += 1
@@ -465,6 +466,7 @@ class Order:
         try:
             order_item = self.search_order_item_from_id(order_item_id)
             order_item.custom_menu(item_name, quantity)
+            self.update_price()
         except ValueError as e:
             raise ValueError(str(e))
         except TypeError as e:
@@ -502,6 +504,7 @@ class Order:
             if order_item.status == OrderItemStatus.ADDED:
                 order_item.order_item_reserve()
         self.status = OrderStatus.RESERVED
+        self.update_price()
         return self
     
     def order_confirm(self):
@@ -534,7 +537,7 @@ class Order:
             "total_price": self.__subtotal
         }
         
-    def cook_order(self):
+    def cook(self):
         if self.__status not in [OrderStatus.RESERVED, OrderStatus.PAID]:
             return False
             
@@ -550,13 +553,13 @@ class Order:
             return True
         return False
 
-    def serve_order(self):
+    def serve(self) -> Order:
         if self.__status != OrderStatus.READY:
-            return False    
+            raise ValueError("Status is not READY") 
         self.status = OrderStatus.SERVED
         for item in self.__order_item_list:
             item.status = OrderItemStatus.SERVED
-        return True
+        return self
             
             
 
@@ -860,6 +863,23 @@ class Restaurant:
 
         return user    
     
+    def check_order_customer(self, order_id: str, token: str, allowed_roles: List[str]) -> Order:
+        try:
+            current_customer = restaurant.verify_token_and_role(token=token, allowed_roles=allowed_roles)
+            current_order = restaurant.search_order_from_id(order_id)
+            current_order.check_customer(current_customer)
+            return current_order
+        except Exception as e:
+            raise ValueError(str(e))
+    
+    def create_general_order(self, customer: Customer):
+        order = Order(customer)
+        restaurant.add_order(order)
+        return {
+            "Order ID": order.id,
+            "Customer": customer.name
+        }
+
     def add_menu(self, menu: MenuItem): self.__menu.append(menu)
     
     @property
@@ -942,8 +962,10 @@ class Restaurant:
         raise ValueError("Order NOT FOUND")
     #reserved while ordering
     def reserve(self, order: Order):
+        if restaurant.check_queue >= 50:
+            raise HTTPException(status_code=418, detail="Queue Overload")
         if order.status == OrderStatus.PENDING or order.status == OrderStatus.RESERVED:
-            return order.order_reserve()
+            return order.order_reserve().order_to_dict()
         else:
             raise ValueError(f"{order.status}")
     
@@ -974,6 +996,25 @@ class Restaurant:
                 item.status = ItemStatus.AVAILABLE
                 count += 1
     
+    def add_item_in_order(self, order: Order, menu: str, quantity: int):
+        try:
+            order.add_order_item(menu, quantity)
+            return order.order_to_dict()
+        except Exception as e:
+            raise ValueError(str(e))
+    def remove_item_in_order(self, order: Order, order_item_id: str):
+        try:
+            order.remove_order_item(order_item_id)
+            return order.order_to_dict()
+        except Exception as e:
+            raise ValueError(str(e))
+    def custom_item_in_order(self, order: Order, order_item_id: int, item_name: str, quantity: int):
+        try:
+            order.custom(order_item_id, item_name, quantity)
+            return order.order_to_dict()
+        except Exception as e:
+            raise ValueError(str(e))
+        
     def find_ingredient_in_stock(self, item_name: str):
         return sum(1 for item in self.__stock if item.name == item_name and item.status == ItemStatus.AVAILABLE)
 
@@ -1014,20 +1055,38 @@ class Restaurant:
             "total_queue": len(queue_list),
             "order":queue_list
         }
+    def display_kitchen_queue(self):
+        queue = restaurant.get_kitchen_queue()
+        if queue["total_queue"]==0:
+            return {"message": "No order in queue ","queue": queue}
+        return {"message": "Current queue ","queue": queue}
         
     def confirm(self, order:Order):
         try:
             confirmed_order = order.order_confirm()
+            return confirmed_order.order_to_dict()
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
-        return confirmed_order
     
-    def serve_order(self, order:Order):
+    def void_order_from_id(self, order_id: str):
+        order = restaurant.search_order_from_id(order_id)
+        order.void_order()
+    def serve_order(self, order_id: str):
         try:
-            order = order.serve_order()
+            order = restaurant.search_order_from_id(order_id)
+            return order.serve().order_to_dict()
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
-        return order
+    
+    def cook_order(self, order_id: str):
+        order = restaurant.search_order_from_id(order_id)
+        success = order.cook()
+        if success:
+            if order.delivery:
+                asyncio.create_task(restaurant.simulate_delivery(order_id))
+            return {"message": "Cooking finished. Order is READY.", "status": order.status.value}
+        else:
+            raise HTTPException(status_code=400, detail=f"Cannot cook order. Current status: {order.status.value}")
         
     def create_delivery_order(self, customer: 'User', provider_name: str, distance: float):
         provider = self.get_delivery_provider(provider_name)

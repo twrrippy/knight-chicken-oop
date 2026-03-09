@@ -28,12 +28,8 @@ async def start_general_order(
     """
     try:
         current_customer = restaurant.verify_token_and_role(token=token, allowed_roles=[UserRole.MEMBER, UserRole.GUEST])
-        order = Order(current_customer)
-        restaurant.add_order(order)
-        return {
-            "Order ID": order.id,
-            "Customer": current_customer.name
-        }
+        return restaurant.create_general_order(current_customer)
+        
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
 
@@ -79,14 +75,10 @@ async def add_item_to_order(
     เพิ่มเมนูอาหารพร้อมจำนวน ลงในออเดอร์ที่มีอยู่แล้ว 
     """
     try:
-        current_customer = restaurant.verify_token_and_role(token=token, allowed_roles=[UserRole.MEMBER, UserRole.GUEST])
-        current_order = restaurant.search_order_from_id(order_id)
-        current_order.check_customer(current_customer)
-        current_menu = restaurant.search_menu_item_from_name(menu)
-        current_order.add_order_item(current_menu, quantity)
+        current_order = restaurant.check_order_customer(order_id=order_id, token=token, allowed_roles=[UserRole.MEMBER, UserRole.GUEST])
+        return restaurant.add_item_in_order(current_order, menu, quantity)
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
-    return current_order.order_to_dict()
 
 @mcp.tool
 @router.put("/orderitem/remove")
@@ -105,13 +97,10 @@ async def remove_item_in_order(
     ลบรายการอาหาร (OrderItem) จากออเดอร์ (Order) ที่มีอยู่แล้ว
     """
     try:
-        current_customer = restaurant.verify_token_and_role(token=token, allowed_roles=[UserRole.MEMBER, UserRole.GUEST])
-        current_order = restaurant.search_order_from_id(order_id)
-        current_order.check_customer(current_customer)
-        current_order.remove_order_item(order_item_id)
+        current_order = restaurant.check_order_customer(order_id=order_id, token=token, allowed_roles=[UserRole.MEMBER, UserRole.GUEST])
+        return restaurant.remove_item_in_order(current_order, order_item_id)
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
-    return current_order.order_to_dict()
 
 @mcp.tool
 @router.put("/orderitem/custom")
@@ -141,11 +130,8 @@ async def custom_item_in_order(
     # [State Change]: ค้นหา Order ตาม ID และเรียกใช้ `current_order.custom()` เพื่อปรับจำนวนของ ingredient (ที่มี item ชื่อ item_name) ของ SingleMenuItem ใน OrderItem ที่มี order_item_id นั้นๆ\n
     # """
     try:
-        current_customer = restaurant.verify_token_and_role(token=token, allowed_roles=[UserRole.MEMBER, UserRole.GUEST])
-        current_order = restaurant.search_order_from_id(order_id)
-        current_order.check_customer(current_customer)
-        current_order.custom(order_item_id, item_name, quantity)
-        current_order.update_price()
+        current_order = restaurant.check_order_customer(order_id=order_id, token=token, allowed_roles=[UserRole.MEMBER, UserRole.GUEST])
+        return restaurant.custom_item_in_order(order=current_order, order_item_id=order_item_id, item_name=item_name, quantity=quantity)
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
     return current_order.order_to_dict()
@@ -164,18 +150,11 @@ async def check_and_reserve_stock(
     """
     ขั้นตอน Pre-order สำหรับสมาชิก เพื่อจองวัตถุดิบ/สินค้าก่อนการยืนยัน
     """
-    if restaurant.check_queue >= 50:
-        return f"Queue Overload"
-        # raise HTTPException(status_code=418, detail="Queue Overload")
     try:
-        current_customer = restaurant.verify_token_and_role(token=token, allowed_roles=[UserRole.MEMBER, UserRole.GUEST])
-        current_order = restaurant.search_order_from_id(order_id)
-        current_order.check_customer(current_customer)
-        reserved_order = restaurant.reserve(current_order)
-        reserved_order.update_price()
+        current_order = restaurant.check_order_customer(order_id=order_id, token=token, allowed_roles=[UserRole.MEMBER, UserRole.GUEST])
+        return restaurant.reserve(current_order)
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
-    return reserved_order.order_to_dict()
 
 @mcp.tool
 @router.put("/confirm")
@@ -191,13 +170,10 @@ async def confirm_order(
     ยืนยันคำสั่งซื้อในขั้นตอนสุดท้าย สำหรับสมาชิก (หลังจากการ reserve สำเร็จแล้ว)
     """
     try:
-        current_customer = restaurant.verify_token_and_role(token=token, allowed_roles=[UserRole.MEMBER, UserRole.GUEST])
-        current_order = restaurant.search_order_from_id(order_id)
-        current_order.check_customer(current_customer)
-        confirmed_order = restaurant.confirm(current_order)
+        current_order = restaurant.check_order_customer(order_id=order_id, token=token, allowed_roles=[UserRole.MEMBER, UserRole.GUEST])
+        return restaurant.confirm(current_order)
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
-    return confirmed_order.order_to_dict()
 
 @mcp.tool
 @router.put("/serve", response_model=Union[Order.OrderDTO, dict])
@@ -214,11 +190,7 @@ async def serve(
     """
     try:
         restaurant.verify_token_and_role(token,[UserRole.ADMIN,UserRole.STAFF])
-        order = restaurant.search_order_from_id(order_id)
-        is_success = restaurant.serve_order(order)
-        if not is_success:
-            return f"Status is not READY"
-        return order.order_to_dict()
+        return restaurant.serve_order(order_id)
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
 
