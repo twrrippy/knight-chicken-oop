@@ -25,7 +25,7 @@ async def check_stock_all(
     ดูรายการ item ใน stock ทั้งหมด ต้องการสิทธ์พนักงาน
     """
     try:
-        restaurant.verify_token_and_role(token, ["Admin", UserRole.STAFF])
+        restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
         return restaurant.all_stock()
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
@@ -40,7 +40,7 @@ async def check_stock_item(
     ดูจำนวนของ item ใน stock ต้องการสิทธ์พนักงาน
     """
     try:
-        restaurant.verify_token_and_role(token, ["Admin", UserRole.STAFF])
+        restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
         return restaurant.check_stock_item(item_name)
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
@@ -57,7 +57,7 @@ async def restock(
     restock item ต้องการสิทธ์พนักงาน
     """
     try:
-        restaurant.verify_token_and_role(token, ["Admin", UserRole.STAFF])
+        restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
         current_item = Item(item_name, price_per_unit)
         restaurant.add_stock(current_item, quantity)
     except Exception as e:
