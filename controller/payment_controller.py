@@ -32,9 +32,7 @@ async def confirm_order_pay(
     """
 
     try:
-        current_customer = restaurant.verify_token_and_role(token=token, allowed_roles=[UserRole.MEMBER, UserRole.GUEST])
-        current_order = restaurant.search_order_from_id(order_id)
-        current_order.check_customer(current_customer)
+        restaurant.check_order_customer(order_id=order_id, token=token, allowed_roles=[UserRole.MEMBER, UserRole.GUEST])
         result = restaurant.process_order_payment(order_id, coupon_code, method, payment_details)
         return result
     except Exception as e:
@@ -59,10 +57,7 @@ async def preview_order_bill(
     """
 
     try:
-        current_customer = restaurant.verify_token_and_role(token=token, allowed_roles=[UserRole.MEMBER, UserRole.GUEST])
-        current_order = restaurant.search_order_from_id(order_id)
-        current_order.check_customer(current_customer)
-        restaurant.verify_token_and_role(token=token, allowed_roles=[UserRole.MEMBER, UserRole.GUEST])
+        restaurant.check_order_customer(order_id=order_id, token=token, allowed_roles=[UserRole.MEMBER, UserRole.GUEST])
         result = restaurant.preview_order_bill(order_id, coupon_code)
         return result
     except Exception as e:

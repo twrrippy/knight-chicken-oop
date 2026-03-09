@@ -189,39 +189,39 @@ async def staff_sign_up(
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
 
-@mcp.tool
-@router.get("/queue/check", tags=["Queue"])
-async def check_queue(
-    token: Annotated[str, Field(description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)")]
-):
-    """
-    ดูจำนวนคิวของออเดอร์ที่จ่ายเงินแล้ว และกำลังทำ ต้องการสิทธ์พนักงาน
-    """
-    try:
-        restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
-        return {"Queue": restaurant.check_queue}
-    except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
+# @mcp.tool
+# @router.get("/queue/check", tags=["Queue"])
+# async def check_queue(
+#     token: Annotated[str, Field(description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)")]
+# ):
+#     """
+#     ดูจำนวนคิวของออเดอร์ที่จ่ายเงินแล้ว และกำลังทำ ต้องการสิทธ์พนักงาน
+#     """
+#     try:
+#         restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
+#         return {"Queue": restaurant.check_queue}
+#     except Exception as e:
+#         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
 
-@mcp.tool
-@router.get("/queue/get/{queue_order}", response_model=Union[Order.OrderDTO, dict], tags=["Queue"])
-async def get_queue(
-    token: Annotated[str, Field(description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)")],
-    queue_order: Annotated[int, Field(description="หมายเลขคิว ตามลำดับ 1-50")]
-):
-    """
-    ดูรายละเอียดออเดอร์ในคิว ต้องการสิทธ์พนักงาน
-    """
-    try:
-        restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
-        if queue_order > 50 or queue_order < 1:
-            return f"ไม่สามารถดำเนินการได้: Queue not Found"
-        order = restaurant.get_queue(queue_order)
-        if order == False:
-            return f"ไม่สามารถดำเนินการได้: Queue not Found"
-        return order.order_to_dict()
-    except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
+# @mcp.tool
+# @router.get("/queue/get/{queue_order}", response_model=Union[Order.OrderDTO, dict], tags=["Queue"])
+# async def get_queue(
+#     token: Annotated[str, Field(description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)")],
+#     queue_order: Annotated[int, Field(description="หมายเลขคิว ตามลำดับ 1-50")]
+# ):
+#     """
+#     ดูรายละเอียดออเดอร์ในคิว ต้องการสิทธ์พนักงาน
+#     """
+#     try:
+#         restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
+#         if queue_order > 50 or queue_order < 1:
+#             return f"ไม่สามารถดำเนินการได้: Queue not Found"
+#         order = restaurant.get_queue(queue_order)
+#         if order == False:
+#             return f"ไม่สามารถดำเนินการได้: Queue not Found"
+#         return order.order_to_dict()
+#     except Exception as e:
+#         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
 
 @router.put("/order/void", tags=["Order"])
 async def void_order(
@@ -233,8 +233,7 @@ async def void_order(
     """
     try:
         restaurant.verify_token_and_role(token=token, allowed_roles=[UserRole.ADMIN])
-        order = restaurant.search_order_from_id(order_id)
-        order.void_order()
+        restaurant.void_order_from_id(order_id)
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
     return {"message": "Voided order successfully"}
