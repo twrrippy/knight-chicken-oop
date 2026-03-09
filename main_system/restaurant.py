@@ -60,11 +60,11 @@ class Staff(User):
 class Customer(User):
     pass
 class Guest(Customer):
-    Guest_count = 0
+    __Guest_count = 0
     def __init__(self, id = None):
         if id == None:
-            self.__id = f"GUEST-{Guest.Guest_count:0{3}d}"
-            Guest.Guest_count += 1
+            self.__id = f"GUEST-{Guest.__Guest_count:0{3}d}"
+            Guest.__Guest_count += 1
         else: 
             self.__id = id
 
@@ -398,11 +398,11 @@ class OrderItem:
             self.status = OrderItemStatus.CANCELED
 
 class Order:
-    OrderId_count = 0
+    __OrderId_count = 0
 
     def __init__(self, customer: Customer):
-        self.__id = f"ORD-{Order.OrderId_count:0{3}d}"
-        Order.OrderId_count += 1
+        self.__id = f"ORD-{Order.__OrderId_count:0{3}d}"
+        Order.__OrderId_count += 1
         self.__customer: Customer = customer
         self.__order_item_list: List[OrderItem] = []
         self.__order_item_id_count = 0
