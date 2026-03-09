@@ -146,3 +146,23 @@ async def check_out(
         return payload
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
+
+@mcp.tool
+@router.post("/cancel/{booking_id}")
+async def cancel_booking(
+    token: Annotated[str, Field(
+        description="Token ของพนักงานผู้ทำรายการ"
+    )], 
+    booking_id: Annotated[str, Field(
+        description="รหัสการจองที่ต้องการยกเลิก (Format: BK-xxx)"
+    )]
+):
+    """
+    Cancel a room booking.
+    """
+    try:
+        restaurant.verify_token_and_role(token, ["Admin", "Staff"])
+        payload = restaurant.cancel_booking(booking_id=booking_id)
+        return payload
+    except Exception as e:
+        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"

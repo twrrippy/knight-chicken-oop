@@ -1185,6 +1185,18 @@ class Restaurant:
                 "member_name": booking.member.name,
                 "check_out_time": SimulationClock.get_time().strftime("%Y-%m-%d %H:%M:%S")}
 
+    def cancel_booking(self, booking_id):
+        booking = self.get_booking(booking_id)
+        if not booking:
+            raise HTTPException(status_code=404, detail="Booking not found")
+        if booking.status == BookingStatus.CHECKED_IN or booking.status == BookingStatus.CANCELLED or booking.status == BookingStatus.COMPLETE:
+            raise HTTPException(status_code=400, detail="Booking can't canceled")
+        booking.mark_cancelled()
+        return {"message": f"Booking {booking_id} cancelled successfully",
+                "room_id": booking.room.id,
+                "member_name": booking.member.name,
+                "cancel_time": SimulationClock.get_time().strftime("%Y-%m-%d %H:%M:%S")}
+
     def login(self, username, password):
         member = next((m for m in self.__member_list if m.check_identity(username, password)), None)
         staff = next((s for s in self.__staff_list if s.check_identity(username, password)), None)
