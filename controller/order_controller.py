@@ -208,13 +208,16 @@ async def update_delivery_status(
         description="Order ID of the delivery_order"
     )],
     new_status: Annotated[DeliveryStatus, Field(
-        description="New status to change to, e.g., Driver Assigned, Delivered, Canceled"
+        description="New status to change to. Note: Only 'Canceled' is allowed for manual updates."
     )]
 ):
     """
-    Update the status of a delivery_order.
+    Update the status of a delivery_order. Manual updates are restricted to 'Canceled' only.
     """
     try:
+        if new_status != DeliveryStatus.CANCELED:
+             return "Unable to proceed: Manual update is restricted to 'Canceled' only. Other statuses are managed automatically by the system."
+        
         restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
         return restaurant.update_delivery_status(order_id, new_status)
     except Exception as e:

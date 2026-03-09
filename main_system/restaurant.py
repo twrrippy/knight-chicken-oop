@@ -651,8 +651,9 @@ class Order:
                 self.__booking.mark_as_paid()
             
             if self.__delivery:
-                self.__delivery.mark_as_paid()
-                self.__delivery.request_rider()
+                restaurant.update_delivery_status(self.id, DeliveryStatus.PAID, _internal=True)
+                restaurant.update_delivery_status(self.id, DeliveryStatus.DRIVER_ASSIGNED, _internal=True)
+                asyncio.create_task(restaurant.simulate_delivery(self.id))
 
             if coupon: coupon.consume()
 
@@ -1109,11 +1110,14 @@ class Restaurant:
             "distance": distance
         }
 
-    def update_delivery_status(self, order_id: str, new_status: DeliveryStatus):
+    def update_delivery_status(self, order_id: str, new_status: DeliveryStatus, _internal: bool = False):
         order = self.get_order(order_id)
         if not order.delivery:
             raise HTTPException(400, "Order is not a delivery order")
         
+        if not _internal and new_status != DeliveryStatus.CANCELED:
+            raise HTTPException(400, f"Manual update to {new_status.value} is not allowed. Only 'Canceled' can be set manually.")
+
         if new_status == DeliveryStatus.DRIVER_ASSIGNED:
             order.delivery.request_rider()
         elif new_status == DeliveryStatus.IN_TRANSIT:
@@ -1124,6 +1128,8 @@ class Restaurant:
         elif new_status == DeliveryStatus.CANCELED:
             order.delivery.mark_canceled()
             order.status = OrderStatus.CANCELED
+        elif new_status == DeliveryStatus.PAID:
+            order.delivery.mark_as_paid()
         
         return {
             "message": f"Delivery status updated to {new_status.value}",
@@ -1355,13 +1361,15 @@ class Restaurant:
         if order.status == OrderStatus.PAID: raise HTTPException(400, "Order Already Paid")
         return order.pre_calculate_totals(coupon_code)
 
-    async def simulate_delivery(self, order_id: str, delay_seconds: int = 10):
-        await asyncio.sleep(delay_seconds)
+    async def simulate_delivery(self, order_id: str):
         try:
-            order = self.get_order(order_id)
-            if order.delivery:
-                self.update_delivery_status(order.id, DeliveryStatus.DELIVERED)
+            await asyncio.sleep(5)
+            self.update_delivery_status(order_id, DeliveryStatus.IN_TRANSIT, _internal=True)
+            
+            await asyncio.sleep(5)
+            self.update_delivery_status(order_id, DeliveryStatus.DELIVERED, _internal=True)
+            
         except Exception as e:
-            print(f"Failed to auto-transition delivery {order.id}: {e}")
+            print(f"Failed to auto-transition delivery {order_id}: {e}")
     
 restaurant = Restaurant()

@@ -223,6 +223,7 @@ async def staff_sign_up(
 #     except Exception as e:
 #         return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
 
+@mcp.tool
 @router.put("/order/void", tags=["Order"])
 async def void_order(
     order_id: Annotated[str, Field(description="Order ID (Expected format: ORD-xxx)")],

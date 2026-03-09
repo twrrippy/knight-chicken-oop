@@ -70,8 +70,8 @@ class DeliveryProvider(ABC):
         self._price_per_km = 0
 
     def request_rider(self, delivery: Delivery) -> Tuple[bool, str]:
-        if delivery.status != DeliveryStatus.PENDING:
-            raise HTTPException(400, "Delivery Already Assigned")
+        if delivery.status not in [DeliveryStatus.PENDING, DeliveryStatus.PAID]:
+            raise HTTPException(400, "Delivery Already Assigned or Invalid State")
 
         is_success = True
         rider_name = random.choice(self._riders_name)
