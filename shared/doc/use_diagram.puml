@@ -1,0 +1,64 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+
+' กำหนด Actor (มากกว่า 3 ตัว และมี Actor ภายนอก)
+actor "Customer" as cust
+actor "Guest" as guest
+actor "Member" as member
+actor "Staff" as staff
+actor "Simulation System" as clock
+actor "Delivery Platform" as delivery
+
+' Generalization (เงื่อนไขบังคับ 1 จุด)
+guest -up-|> cust
+member -up-|> cust
+
+rectangle "Knight Chicken Fast Food System" {
+    
+    ' Use Case สีฟ้าอ่อน (ธุรกรรมที่ซับซ้อน นำไปเขียน Sequence Diagram)
+    usecase "Start Order" as UC_StartOrder #LightBlue
+    usecase "Add Order Item\n(Reserve Stock)" as UC_AddItem #LightBlue
+    usecase "Confirm Order" as UC_Confirm #LightBlue
+    usecase "Book Party Room" as UC_BookRoom #LightBlue
+    usecase "Process Order Payment\n(Issue Receipt & Reward)" as UC_Payment #LightBlue
+    usecase "Create Delivery Order" as UC_Delivery #LightBlue
+    usecase "Process Kitchen Cooking\n(Consume Stock)" as UC_Cook #LightBlue
+    usecase "Auto Check No-Show\n(Cancel Booking)" as UC_AutoCancel #LightBlue
+    usecase "Pay Deposit" as UC_PayDeposit #LightBlue
+
+    ' Use Case สีเหลืองอ่อน (ทั่วไป ไม่ต้องเขียน Sequence Diagram)
+    usecase "Register / Login" as UC_Login #LightYellow
+    usecase "Check Room Availability" as UC_CheckRoom #LightYellow
+    usecase "Preview Order Bill" as UC_PreviewBill #LightYellow
+    usecase "Check Queue & Stock" as UC_CheckStock #LightYellow
+    usecase "Apply Menu Customization" as UC_Customize #LightYellow
+
+    ' --- การเชื่อมโยง Actor กับ Use Case ---
+    cust --> UC_StartOrder
+    cust --> UC_AddItem
+    cust --> UC_Confirm
+    cust --> UC_Login
+    cust --> UC_PreviewBill
+
+    staff --> UC_AddItem
+    staff --> UC_Confirm
+    staff --> UC_BookRoom
+    staff --> UC_Payment
+    staff --> UC_Cook
+    staff --> UC_CheckRoom
+    staff --> UC_CheckStock
+    staff --> UC_PreviewBill
+    staff --> UC_Login
+
+    clock --> UC_AutoCancel
+    delivery --> UC_Delivery
+
+    ' --- การเชื่อมโยง Include / Extend ---
+    UC_BookRoom .> UC_CheckRoom : <<include>>
+    UC_BookRoom .> UC_PayDeposit : <<include>>
+    UC_Payment .> UC_PreviewBill : <<include>>
+    UC_Customize .> UC_AddItem : <<extend>>
+}
+
+@enduml
