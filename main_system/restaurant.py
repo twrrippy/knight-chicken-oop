@@ -5,7 +5,7 @@ from main_system.external_platform.delivery_provider import DeliveryProvider, De
 from main_system.external_platform.payment_method import PaymentMethod
 from shared.utils.simulate import SimulationClock
 from main_system.coupon import Coupon, FixedAmountCoupon, PercentCoupon
-from main_system.enum import RoomStatus, RoomType, BookingStatus
+from main_system.enum import RoomStatus, RoomType, BookingStatus, UserRole
 from main_system.booking import Room, TimeSlot, Booking
 from typing import TYPE_CHECKING, Optional, List, Tuple, Dict, Any
 from fastapi import FastAPI, HTTPException, Query
@@ -62,20 +62,20 @@ class Customer(User):
     pass
 class Guest(Customer):
     Guest_count = 0
-    def __init__(self, name = None):
-        if name == None:
-            self.__name = f"GUEST-{Guest.Guest_count:0{3}d}"
+    def __init__(self, id = None):
+        if id == None:
+            self.__id = f"GUEST-{Guest.Guest_count:0{3}d}"
             Guest.Guest_count += 1
         else: 
-            self.__name = name
+            self.__id = id
 
     @property
-    def id(self): return f"GUEST"
+    def name(self): return f"GUEST"
     @property
-    def name(self): return self.__name
+    def id(self): return self.__id
 
     def __eq__(self, other):
-        return (type(other) is type(self)) and self.__name == other.name
+        return (type(other) is type(self)) and self.__id == other.id
 
 class Member(Customer):
     def __init__(self, id: str, name: str, tier: MemberTier, username: str, password: str, phone: str = ""):
@@ -401,10 +401,9 @@ class OrderItem:
 class Order:
     OrderId_count = 0
 
-    def __init__(self, type: OrderType, customer: Customer):
+    def __init__(self, customer: Customer):
         self.__id = f"ORD-{Order.OrderId_count:0{3}d}"
         Order.OrderId_count += 1
-        self.__type = type
         self.__customer: Customer = customer
         self.__order_item_list: List[OrderItem] = []
         self.__order_item_id_count = 0
@@ -529,7 +528,7 @@ class Order:
     def order_to_dict(self) -> dict:
         return {
             "order_id": self.__id,
-            "order_type": self.__type,
+            "order_type": self.order_type,
             "order_status": self.__status,
             "customer": self.__customer.name,
             "order_item_list": self.order_item_dict_list(),
@@ -848,11 +847,13 @@ class Restaurant:
         user = self.get_user_by_id(session.user_id)
         if isinstance(user, Staff):
             if user.is_admin:
-                user_role = "Admin"
+                user_role = UserRole.ADMIN
             else:
-                user_role = "Staff"
+                user_role = UserRole.STAFF
+        elif isinstance(user, Member):
+            user_role = UserRole.MEMBER
         else:
-            user_role = "Member"
+            user_role = UserRole.GUEST
         if user_role not in allowed_roles:
             raise HTTPException(status_code=403, detail=f"Access Forbidden: Requires one of {allowed_roles}")
 
@@ -1030,7 +1031,7 @@ class Restaurant:
     def create_delivery_order(self, customer: 'User', provider_name: str, distance: float):
         provider = self.get_delivery_provider(provider_name)
         
-        order = Order(OrderType.DELIVERY, customer)
+        order = Order(customer)
         
         delivery_id = f"DEL-{random.randint(1000, 9999)}"
         delivery = Delivery(delivery_id, provider, distance)
@@ -1192,6 +1193,10 @@ class Restaurant:
             return self.__auth_manager.create_session(staff.id)
         
         raise HTTPException(401, "Invalid username or password")
+    
+    def add_guest_session(self):
+        new_guest = Guest()
+        return self.__auth_manager.create_session(new_guest.id)
 
     def logout(self, token: str):
         session = self.__auth_manager.get_session(token)

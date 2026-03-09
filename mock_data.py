@@ -130,7 +130,7 @@ def initialize_mock_data():
     # 9. Orders Formulation
     
     # ORDER 1: General Order (Dine-in) - M-001 - COMPLETED
-    order_1 = Order(OrderType.GENERAL, mem1)
+    order_1 = Order(mem1)
     if not hasattr(order_1, "_Order__order_item_list"): order_1._Order__order_item_list = []
     order_1.add_order_item(burger, 2)
     order_1.add_order_item(cola, 2)
@@ -138,7 +138,7 @@ def initialize_mock_data():
     restaurant.add_order(order_1)
 
     # ORDER 2: General Order (Walk-in / Guest) - PENDING
-    order_2 = Order(OrderType.GENERAL, Guest())
+    order_2 = Order(Guest())
     if not hasattr(order_2, "_Order__order_item_list"): order_2._Order__order_item_list = []
     order_2.add_order_item(chicken_burger, 1)
     order_2.add_order_item(french_fries, 1)
@@ -147,7 +147,7 @@ def initialize_mock_data():
     restaurant.add_order(order_2)
 
     # ORDER 3: Delivery Order (Grab) - M-002 - PENDING
-    order_3 = Order(OrderType.DELIVERY, mem2)
+    order_3 = Order(mem2)
     if not hasattr(order_3, "_Order__order_item_list"): order_3._Order__order_item_list = []
     order_3.add_order_item(family_feast, 1)
     
@@ -158,7 +158,7 @@ def initialize_mock_data():
     restaurant.add_order(order_3)
 
     # ORDER 4: Delivery Order (LineMan) - Guest - IN TRANSIT
-    order_4 = Order(OrderType.DELIVERY, Guest())
+    order_4 = Order(Guest())
     if not hasattr(order_4, "_Order__order_item_list"): order_4._Order__order_item_list = []
     order_4.add_order_item(couple_steak_set, 1)
     
@@ -176,7 +176,7 @@ def initialize_mock_data():
     booking_5._Booking__status = BookingStatus.DEPOSIT_PAID
     restaurant.add_booking(booking_5)
 
-    order_5 = Order(OrderType.EVENT, mem3)
+    order_5 = Order(mem3)
     if not hasattr(order_5, "_Order__order_item_list"): order_5._Order__order_item_list = []
     order_5.add_order_item(party_chicken_set, 3)
     order_5.add_order_item(burger_combo, 2)
@@ -185,7 +185,7 @@ def initialize_mock_data():
     restaurant.add_order(order_5)
 
     # ORDER 6: General Order (Dine-in) - M-004 - COOKING
-    order_6 = Order(OrderType.GENERAL, mem4)
+    order_6 = Order(mem4)
     if not hasattr(order_6, "_Order__order_item_list"): order_6._Order__order_item_list = []
     order_6.add_order_item(burger, 1)
     order_6.add_order_item(cola, 1)
@@ -193,7 +193,7 @@ def initialize_mock_data():
     restaurant.add_order(order_6)
 
     # ORDER 7: General Order (Dine-in) - Guest - SERVED
-    order_7 = Order(OrderType.GENERAL, Guest())
+    order_7 = Order(Guest())
     if not hasattr(order_7, "_Order__order_item_list"): order_7._Order__order_item_list = []
     order_7.add_order_item(steak, 2)
     order_7.add_order_item(water_drink, 2)
@@ -201,7 +201,7 @@ def initialize_mock_data():
     restaurant.add_order(order_7)
 
     # ORDER 8: Delivery Order (ShopeeFood) - M-001 - CANCELLED
-    order_8 = Order(OrderType.DELIVERY, mem1)
+    order_8 = Order(mem1)
     if not hasattr(order_8, "_Order__order_item_list"): order_8._Order__order_item_list = []
     order_8.add_order_item(french_fries, 2)
     order_8.status = OrderStatus.CANCELED
@@ -214,7 +214,7 @@ def initialize_mock_data():
     booking_9._Booking__status = BookingStatus.DEPOSIT_PAID
     restaurant.add_booking(booking_9)
 
-    order_9 = Order(OrderType.EVENT, mem2)
+    order_9 = Order(mem2)
     if not hasattr(order_9, "_Order__order_item_list"): order_9._Order__order_item_list = []
     order_9.add_order_item(family_feast, 2)
     order_9.add_booking(booking_9)

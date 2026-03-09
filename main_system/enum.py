@@ -1,4 +1,10 @@
 from enum import Enum
+
+class UserRole(str, Enum):
+    ADMIN = "Admin"
+    STAFF = "Staff"
+    MEMBER = "Member"
+    GUEST = "Guest"
 class PlatformName(str, Enum):
     GRAB = "Grab"
     LINE_MAN = "Line Man"
