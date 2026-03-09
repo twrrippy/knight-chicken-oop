@@ -1,20 +1,16 @@
-from fastapi import APIRouter, HTTPException
-import asyncio
 from typing import Annotated
 from pydantic import Field
-from mcp_core import mcp
+from main_system.utils.mcp_core import mcp
 from main_system.restaurant import restaurant
 from main_system.utils.enum import UserRole
-router = APIRouter(prefix="/kitchen", tags=["Kitchen"])
 
 @mcp.tool
-@router.post("/cook/{order_id}")
 async def cook_order(
     token: Annotated[str, Field(
-        description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)"
+        description="Staff access token (obtained via the 'login' tool)"
     )],
     order_id: Annotated[str, Field(
-        description="รหัสออเดอร์ที่ต้องการทำอาหาร (Format: ORD-xxx)"
+        description="Order ID to start cooking (Format: ORD-xxx)"
     )]
 ):
     """
@@ -24,13 +20,12 @@ async def cook_order(
         restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
         return restaurant.cook_order(order_id)
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
+        return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
    
 @mcp.tool
-@router.get("/queue")
 async def view_kitchen_queue(
     token: Annotated[str, Field(
-        description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)"
+        description="Staff access token (obtained via the 'login' tool)"
     )]
 ):
     """
@@ -40,6 +35,6 @@ async def view_kitchen_queue(
         restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
         return restaurant.display_kitchen_queue()
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
+        return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
     
     

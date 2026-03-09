@@ -1,9 +1,9 @@
-from fastapi import APIRouter
+
 from main_system.restaurant import restaurant, Order, OrderItem, Guest
 from main_system.utils.enum import UserRole
 from typing import Union, Annotated
 import uuid
-from mcp_core import mcp
+from main_system.utils.mcp_core import mcp
 from pydantic import Field
 from main_system.utils.enum import DeliveryStatus
 
@@ -13,176 +13,168 @@ Order Controller Module
 - dinein Management: handle table reservations and seating arrangements
 - event Management: organize special events and promotions
 """
-router = APIRouter(prefix="/order", tags=["Order"])
-
 
 @mcp.tool
-@router.post("/start/general")
+
 async def start_general_order(
     token: Annotated[str, Field(
-        description="Token ของลูกค้า (ได้จากการเรียกใช้ tool login หรือ guest)"
+        description="Customer access token (obtained via 'login' tool or as guest)"
     )]
 ):
     """
-    เริ่มต้นการสั่งอาหารสำหรับลูกค้า ต้องการสิทธ์ Member หรือ Guest
+    Start ordering food for a customer. Requires Member or Guest access.
     """
     try:
         current_customer = restaurant.verify_token_and_role(token=token, allowed_roles=[UserRole.MEMBER, UserRole.GUEST])
         return restaurant.create_general_order(current_customer)
         
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
+        return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool()
-@router.post("/start/delivery")
+
 async def start_delivery_order(
     token: Annotated[str, Field(
-        description="Token ของลูกค้า (ได้จากการเรียกใช้ tool login หรือ guest)"
+        description="Customer access token (obtained via 'login' tool or as guest)"
     )],
     provider_name: Annotated[str, Field(
-        description="ชื่อ Delivery Provider เช่น Grab, LineMan, ShopeeFood"
+        description="Delivery Provider name, e.g., Grab, LineMan, ShopeeFood"
     )],
     distance: Annotated[float, Field(
-        description="ระยะทางจากร้านถึงลูกค้า (กิโลเมตร)"
+        description="Distance from restaurant to customer (kilometers)"
     )]
 ):
     """
-    เริ่มต้นการสั่งอาหารแบบ Delivery สำหรับลูกค้า ต้องการสิทธ์ Member หรือ Guest
+    Start ordering food via Delivery for a customer. Requires Member or Guest access.
     """
     try:
         current_customer = restaurant.verify_token_and_role(token=token, allowed_roles=[UserRole.MEMBER, UserRole.GUEST])
         return restaurant.create_delivery_order(current_customer, provider_name, distance)
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
+        return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool  
-@router.put("/orderitem/add")
+
 async def add_item_to_order(
     token: Annotated[str, Field(
-        description="Token ของลูกค้า (ได้จากการเรียกใช้ tool login หรือ guest)"
+        description="Customer access token (obtained via 'login' tool or as guest)"
     )],
     order_id: Annotated[str, Field(
-        description="รหัสออเดอร์(รูปแบบที่คาดหวัง: ORD-xxx)"
+        description="Order ID (Expected format: ORD-xxx)"
     )], 
     menu: Annotated[str, Field(
-        description="ชื่อเมนูอาหาร ได้จากการเรียกใช้ tool (get_menu)"
+        description="Menu item name, obtained via the 'get_menu' tool"
     )], 
     quantity: Annotated[int, Field(
-        description="จำนวนอาหารที่ต้องการเพิ่ม 1 ขึ้นไป"
+        description="Quantity of food to add (1 or more)"
     )]
 ):
     """
-    เพิ่มเมนูอาหารพร้อมจำนวน ลงในออเดอร์ที่มีอยู่แล้ว 
+    Add a menu item with quantity to an existing order.
     """
     try:
         current_order = restaurant.check_order_customer(order_id=order_id, token=token, allowed_roles=[UserRole.MEMBER, UserRole.GUEST])
         return restaurant.add_item_in_order(current_order, menu, quantity)
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
+        return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
-@router.put("/orderitem/remove")
+
 async def remove_item_in_order(
     token: Annotated[str, Field(
-        description="Token ของลูกค้า (ได้จากการเรียกใช้ tool login หรือ guest)"
+        description="Customer access token (obtained via 'login' tool or as guest)"
     )],
     order_id: Annotated[str, Field(
-        description="รหัสออเดอร์(รูปแบบที่คาดหวัง: ORD-xxx)"
+        description="Order ID (Expected format: ORD-xxx)"
     )], 
     order_item_id: Annotated[int, Field(
-        description="ลำดับของเมนูอาหาร (order_item) ที่ต้องการลบใน order"
+        description="Index of the menu item (order_item) to remove from the order"
     )]
 ):
     """
-    ลบรายการอาหาร (OrderItem) จากออเดอร์ (Order) ที่มีอยู่แล้ว
+    Remove a food item (OrderItem) from an existing order (Order).
     """
     try:
         current_order = restaurant.check_order_customer(order_id=order_id, token=token, allowed_roles=[UserRole.MEMBER, UserRole.GUEST])
         return restaurant.remove_item_in_order(current_order, order_item_id)
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
+        return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
-@router.put("/orderitem/custom")
+
 async def custom_item_in_order(
     token: Annotated[str, Field(
-        description="Token ของลูกค้า (ได้จากการเรียกใช้ tool login หรือ guest)"
+        description="Customer access token (obtained via 'login' tool or as guest)"
     )],
     order_id: Annotated[str, Field(
-        description="รหัสออเดอร์(รูปแบบที่คาดหวัง: ORD-xxx)"
+        description="Order ID (Expected format: ORD-xxx)"
     )], 
     order_item_id: Annotated[int, Field(
-        description="ลำดับของเมนูอาหาร (order_item) ที่ต้องการ custom ใน order"
+        description="Index of the menu item (order_item) to customize in the order"
     )], 
     item_name: Annotated[str, Field(
-        description="ชื่อของ item ที่ต้องการแก้"
+        description="Name of the item to modify"
     )], 
     quantity: Annotated[int, Field(
-        description="จำนวนของ item ที่ต้องการ"
+        description="Desired quantity of the item"
     )]
 ):
     """
-    ปรับแต่ง Ingredient ของเมนูอาหารที่อยู่ใน Order
+    Customize the ingredient of a menu item in an Order.
     """
-    # """
-    # [Intent]: ปรับแต่งส่วนผสม (Customizable Ingredient) ของเมนูอาหารที่อยู่ใน Order\n
-    # [Logic]: ใช้สำหรับเมนูประเภท SingleMenuItem ที่สืบทอดจาก MenuItem\n
-    # [State Change]: ค้นหา Order ตาม ID และเรียกใช้ `current_order.custom()` เพื่อปรับจำนวนของ ingredient (ที่มี item ชื่อ item_name) ของ SingleMenuItem ใน OrderItem ที่มี order_item_id นั้นๆ\n
-    # """
     try:
         current_order = restaurant.check_order_customer(order_id=order_id, token=token, allowed_roles=[UserRole.MEMBER, UserRole.GUEST])
         return restaurant.custom_item_in_order(order=current_order, order_item_id=order_item_id, item_name=item_name, quantity=quantity)
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
+        return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
     return current_order.order_to_dict()
     
 
 @mcp.tool
-@router.put("/ordering")
+
 async def check_and_reserve_stock(
     order_id: Annotated[str, Field(
-        description="รหัสออเดอร์(รูปแบบที่คาดหวัง: ORD-xxx)"
+        description="Order ID (Expected format: ORD-xxx)"
     )], 
     token: Annotated[str, Field(
-        description="Token ของลูกค้า (ได้จากการเรียกใช้ tool login หรือ guest)"
+        description="Customer access token (obtained via 'login' tool or as guest)"
     )]
 ):
     """
-    ขั้นตอน Pre-order สำหรับสมาชิก เพื่อจองวัตถุดิบ/สินค้าก่อนการยืนยัน
+    Pre-order step for members to reserve ingredients/products before confirmation.
     """
     try:
         current_order = restaurant.check_order_customer(order_id=order_id, token=token, allowed_roles=[UserRole.MEMBER, UserRole.GUEST])
         return restaurant.reserve(current_order)
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
+        return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
-@router.put("/confirm")
+
 async def confirm_order(
     order_id: Annotated[str, Field(
-        description="รหัสออเดอร์(รูปแบบที่คาดหวัง: ORD-xxx)"
+        description="Order ID (Expected format: ORD-xxx)"
     )], 
     token: Annotated[str, Field(
-        description="Token ของลูกค้า (ได้จากการเรียกใช้ tool login หรือ guest)"
+        description="Customer access token (obtained via 'login' tool or as guest)"
     )]
 ):
     """
-    ยืนยันคำสั่งซื้อในขั้นตอนสุดท้าย สำหรับสมาชิก (หลังจากการ reserve สำเร็จแล้ว)
+    Final confirmation of the order for members (after successful reservation).
     """
     try:
         current_order = restaurant.check_order_customer(order_id=order_id, token=token, allowed_roles=[UserRole.MEMBER, UserRole.GUEST])
         return restaurant.confirm(current_order)
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
+        return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
-@router.put("/serve", response_model=Union[Order.OrderDTO, dict])
 async def serve(
     order_id: Annotated[str, Field(
-        description="รหัสออเดอร์ที่ต้องการเสิร์ฟ (Format: ORD-xxx)"
+        description="Order ID to be served (Format: ORD-xxx)"
     )],
     token: Annotated[str, Field(
-        description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)"
+        description="Staff access token (obtained via the 'login' tool)"
     )]
 ):
     """
@@ -192,31 +184,29 @@ async def serve(
         restaurant.verify_token_and_role(token,[UserRole.ADMIN,UserRole.STAFF])
         return restaurant.serve_order(order_id)
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
-
-@router.get("/{order_id}")
-async def get_order_from_id(order_id: str):
-    current_order = restaurant.search_order_from_id(order_id)
-    return current_order.order_to_dict()
+        return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool()
 async def update_delivery_status(
     token: Annotated[str, Field(
-        description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)"
+        description="Staff access token (obtained via the 'login' tool)"
     )],
     order_id: Annotated[str, Field(
-        description="รหัสออเดอร์ของ delivery_order"
+        description="Order ID of the delivery_order"
     )],
     new_status: Annotated[DeliveryStatus, Field(
-        description="สถานะใหม่ที่ต้องการเปลี่ยน เช่น Driver Assigned, Delivered, Canceled"
+        description="New status to change to. Note: Only 'Canceled' is allowed for manual updates."
     )]
 ):
     """
-    อัปเดตสถานะของ delivery_order 
+    Update the status of a delivery_order. Manual updates are restricted to 'Canceled' only.
     """
     try:
+        if new_status != DeliveryStatus.CANCELED:
+             return "Unable to proceed: Manual update is restricted to 'Canceled' only. Other statuses are managed automatically by the system."
+        
         restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
         return restaurant.update_delivery_status(order_id, new_status)
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
+        return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
 
