@@ -39,6 +39,8 @@ class User(ABC):
     def name(self): return self.__name
     @property
     def phone_number(self): return self.__phone_number
+    @property
+    def username(self): return self.__username
     
     def check_username(self, username: str) -> bool:
         return self.__username == username
