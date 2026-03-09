@@ -248,3 +248,4 @@ async def update_delivery_status(
         return restaurant.update_delivery_status(order_id, new_status)
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
+

@@ -1108,7 +1108,9 @@ class Restaurant:
             raise HTTPException(status_code=404, detail="Room not found")
         if not self.is_slot_avaliable(room, start_time, hours):
             raise HTTPException(status_code=400, detail="Time slot already occupied")
-        
+        if start_time < SimulationClock.get_time():
+            raise HTTPException(status_code=400, detail="Invalid start time")
+
         time_slot = TimeSlot(start_time, hours)
         full_price = room.price_per_hour * time_slot.hours - member.get_member_discount(room.price_per_hour * time_slot.hours)
         self.process_pay_deposit(full_price * 0.5, pay_method, payment_details)
@@ -1148,13 +1150,15 @@ class Restaurant:
 
     def check_in_booking(self, order_id: str, booking_id: str, coupon_code: str, pay_method: str, payment_details: Dict[str, Any] = {}):
         booking = self.get_booking(booking_id)
+        
         if not booking:
             raise HTTPException(status_code=404, detail="Booking not found")
         if booking.status == BookingStatus.CANCELLED:
             raise HTTPException(status_code=400, detail="Booking is cancelled")
-        if booking.status != BookingStatus.DEPOSIT_PAID:
+        if booking.status == BookingStatus.CHECKED_IN:
+            raise HTTPException(status_code=400, detail="Booking already checked in")
+        if booking.status != BookingStatus.DEPOSIT_PAID or booking.time_slot.start_time > SimulationClock.get_time():
             raise HTTPException(status_code=400, detail="Booking is not ready for check-in ")
-        
         order = self.get_order(order_id)
         if not order or order.customer != booking.member:
             raise HTTPException(status_code=404, detail="Order not found or member does not match booking")
@@ -1184,6 +1188,18 @@ class Restaurant:
                 "room_id": booking.room.id,
                 "member_name": booking.member.name,
                 "check_out_time": SimulationClock.get_time().strftime("%Y-%m-%d %H:%M:%S")}
+
+    def cancel_booking(self, booking_id):
+        booking = self.get_booking(booking_id)
+        if not booking:
+            raise HTTPException(status_code=404, detail="Booking not found")
+        if booking.status == BookingStatus.CHECKED_IN or booking.status == BookingStatus.CANCELLED or booking.status == BookingStatus.COMPLETED:
+            raise HTTPException(status_code=400, detail="Booking can't canceled")
+        booking.mark_cancelled()
+        return {"message": f"Booking {booking_id} cancelled successfully",
+                "room_id": booking.room.id,
+                "member_name": booking.member.name,
+                "cancel_time": SimulationClock.get_time().strftime("%Y-%m-%d %H:%M:%S")}
 
     def login(self, username, password):
         member = next((m for m in self.__member_list if m.check_identity(username, password)), None)
