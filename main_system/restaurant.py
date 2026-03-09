@@ -437,7 +437,7 @@ class Order:
         self.update_price()
     
     def is_valid_order_item_id(self, order_item_id: int):
-        if order_item_id > self.OrderId_count or order_item_id < 0:
+        if order_item_id >= self.__order_item_id_count or order_item_id < 0:
             return False
         return True
     
