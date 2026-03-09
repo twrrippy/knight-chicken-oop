@@ -1106,7 +1106,9 @@ class Restaurant:
             raise HTTPException(status_code=404, detail="Room not found")
         if not self.is_slot_avaliable(room, start_time, hours):
             raise HTTPException(status_code=400, detail="Time slot already occupied")
-        
+        if start_time < SimulationClock.get_time():
+            raise HTTPException(status_code=400, detail="Invalid start time")
+
         time_slot = TimeSlot(start_time, hours)
         full_price = room.price_per_hour * time_slot.hours - member.get_member_discount(room.price_per_hour * time_slot.hours)
         self.process_pay_deposit(full_price * 0.5, pay_method, payment_details)
