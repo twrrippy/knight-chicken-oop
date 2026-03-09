@@ -1,9 +1,7 @@
 from main_system.utils.enum import PlatformName, DeliveryStatus
-from typing import TYPE_CHECKING, Tuple, Optional, Dict, Any
-from fastapi import HTTPException
+from typing import Tuple, Optional, Dict, Any
 import random
 from abc import ABC, abstractmethod
-
 
 class Delivery:
     def __init__(self, delivery_id: str, provider: 'DeliveryProvider', distance: float):
@@ -37,7 +35,7 @@ class Delivery:
             self.__tracking_id = tracking_id
             self.__status = DeliveryStatus.DRIVER_ASSIGNED
             return success, rider_name, tracking_id
-        raise HTTPException(400, "Rider Request Failed")
+        raise ValueError("Rider Request Failed")
 
     def mark_in_transit(self):
         self.__status = DeliveryStatus.IN_TRANSIT
@@ -71,7 +69,7 @@ class DeliveryProvider(ABC):
 
     def request_rider(self, delivery: Delivery) -> Tuple[bool, str]:
         if delivery.status not in [DeliveryStatus.PENDING, DeliveryStatus.PAID]:
-            raise HTTPException(400, "Delivery Already Assigned or Invalid State")
+            raise ValueError("Delivery Already Assigned or Invalid State")
 
         is_success = True
         rider_name = random.choice(self._riders_name)

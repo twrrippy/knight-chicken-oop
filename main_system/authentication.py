@@ -1,8 +1,6 @@
 from typing import Optional
 import uuid
-
 from main_system.utils.simulate import SimulationClock
-
 
 class Session:
     def __init__(self, user_id):
@@ -25,14 +23,12 @@ class Session:
     def check_token(self, token: str):
         return token == self.__token
 
-
 class AuthManager:
     """Class สำหรับจัดการ Authentication โดยเฉพาะ (Repository Pattern)"""
     def __init__(self):
         self.__sessions: list[Session] = []
 
     def create_session(self, user_id: str) -> Session:
-        # ลบ Session เก่าของ User คนนี้ก่อน (ถ้ามี) เพื่อให้ Login ได้ที่เดียว
         self.revoke_staff_sessions(user_id)
         
         new_session = Session(user_id)

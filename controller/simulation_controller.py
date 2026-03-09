@@ -1,12 +1,8 @@
-from fastapi import APIRouter
 from datetime import timedelta
-from mcp_core import mcp
+from main_system.utils.mcp_core import mcp
 from main_system.utils.simulate import SimulationClock
 
-router = APIRouter(prefix="/simulate", tags=["Simulation"])
-
 @mcp.tool()
-@router.post("/simulate/advance-time", tags=["Simulation"])
 async def advance_time(
     minutes: int
 ):

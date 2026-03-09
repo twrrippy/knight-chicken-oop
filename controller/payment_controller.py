@@ -1,14 +1,10 @@
-from fastapi import APIRouter
 from typing import Optional, Dict, Any, Annotated
 from pydantic import Field
 from main_system.restaurant import restaurant
 from main_system.utils.enum import UserRole
-from mcp_core import mcp
-router = APIRouter(prefix="/payment", tags=["Payment"])
-
+from main_system.utils.mcp_core import mcp
 
 @mcp.tool
-@router.post("/confirm_pay/{order_id}")
 async def confirm_order_pay(
     token: Annotated[str, Field(
         description="Customer access token (obtained via 'login' tool or as guest)"
@@ -39,7 +35,6 @@ async def confirm_order_pay(
         return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
-@router.post("/preview_order/{order_id}")
 async def preview_order_bill(
     token: Annotated[str, Field(
         description="Customer access token (obtained via 'login' tool or as guest)"

@@ -1,16 +1,11 @@
-from fastapi import APIRouter, HTTPException, status, Body
 from typing import Optional, Dict, Any, Annotated
 from datetime import datetime
 from pydantic import Field
-from mcp_core import mcp
+from main_system.utils.mcp_core import mcp
 from main_system.restaurant import restaurant
 from main_system.utils.enum import UserRole
 
-
-router = APIRouter(prefix="/booking", tags=["Booking"])
-
 @mcp.tool
-@router.post("/check-booking-availability")
 async def check_booking_availability(
     token: Annotated[str, Field(
         description="Staff access token (obtained via the 'login' tool)"
@@ -41,7 +36,6 @@ async def check_booking_availability(
         return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
-@router.post("/booking-room")
 async def book_room(
     token: Annotated[str, Field(
         description="Staff access token (obtained via the 'login' tool)"
@@ -76,7 +70,6 @@ async def book_room(
         return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
-@router.get("/preview_booking/{booking_id}")
 async def preview_booking(
     token: Annotated[str, Field(
         description="Staff access token (obtained via the 'login' tool)"
@@ -95,7 +88,6 @@ async def preview_booking(
         return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
-@router.post("/check-in/{booking_id}")
 async def check_in(token: str,
         order_id: Annotated[str, Field(
         description="Order ID (Format: ORD-xxx)"
@@ -124,7 +116,6 @@ async def check_in(token: str,
         return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
-@router.post("/check-out/{booking_id}")
 async def check_out(
     token: Annotated[str, Field(
         description="Staff access token performing the action"
@@ -144,7 +135,6 @@ async def check_out(
         return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
-@router.post("/cancel/{booking_id}")
 async def cancel_booking(
     token: Annotated[str, Field(
         description="Staff access token performing the action"

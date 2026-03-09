@@ -1,14 +1,10 @@
-from fastapi import APIRouter, HTTPException
-import asyncio
 from typing import Annotated
 from pydantic import Field
-from mcp_core import mcp
+from main_system.utils.mcp_core import mcp
 from main_system.restaurant import restaurant
 from main_system.utils.enum import UserRole
-router = APIRouter(prefix="/kitchen", tags=["Kitchen"])
 
 @mcp.tool
-@router.post("/cook/{order_id}")
 async def cook_order(
     token: Annotated[str, Field(
         description="Staff access token (obtained via the 'login' tool)"
@@ -27,7 +23,6 @@ async def cook_order(
         return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
    
 @mcp.tool
-@router.get("/queue")
 async def view_kitchen_queue(
     token: Annotated[str, Field(
         description="Staff access token (obtained via the 'login' tool)"

@@ -1,10 +1,9 @@
-from fastapi import APIRouter
 from main_system.restaurant import restaurant
 from main_system.ingredient import Item
 from main_system.utils.enum import UserRole
 from typing import Annotated
 from pydantic import Field
-from mcp_core import mcp
+from main_system.utils.mcp_core import mcp
 
 """
 Resource Controller Module
@@ -12,11 +11,7 @@ Resource Controller Module
 - menu Management: add, update, or remove menu items
 """
 
-router = APIRouter(prefix="/resource")
-
-
 @mcp.tool
-@router.get("/stock/all", tags=["Stock"])
 async def check_stock_all(
     token: Annotated[str, Field(description="Staff access token (obtained via the 'login' tool)")]
 ):  
@@ -30,7 +25,6 @@ async def check_stock_all(
         return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
-@router.get("/stock/check/{item_name}", tags=["Stock"])
 async def check_stock_item(
     token: Annotated[str, Field(description="Staff access token (obtained via the 'login' tool)")],
     item_name: Annotated[str, Field(description="Item name obtained via the 'check_stock_all' tool")]
@@ -45,7 +39,6 @@ async def check_stock_item(
         return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
-@router.post("/stock/add/item")
 async def restock(
     token: Annotated[str, Field(description="Staff access token (obtained via the 'login' tool)")],
     item_name: Annotated[str, Field(description="Item name obtained via the 'get_all_item_names' tool")],
@@ -61,11 +54,3 @@ async def restock(
         restaurant.add_stock(current_item, quantity)
     except Exception as e:
         return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
-    
-# @router.post("/stock/add/item")
-# async def restock(item_name: str, quantity: int):
-#     try:
-#         current_item = restaurant.search_item_in_stock_from_name(item_name)
-#         restaurant.add_stock(current_item, quantity)
-#     except ValueError as e:
-#         return {"message": e}

@@ -1,7 +1,6 @@
 from datetime import datetime,timedelta
 import main_system.restaurant
 
-
 class SimulationClock:
     """Control Over System Time for Testing Purposes"""
     _current_time = datetime.now()

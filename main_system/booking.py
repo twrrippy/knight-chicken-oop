@@ -1,12 +1,6 @@
 from datetime import datetime, timedelta
-import uuid
-from fastapi import HTTPException
 from typing import TYPE_CHECKING, Dict, Any
 from main_system.utils.enum import RoomStatus, RoomType, BookingStatus
-
-from main_system.utils.simulate import SimulationClock
-from main_system.external_platform.payment_method import PaymentMethod
-from main_system.utils.enum import MemberTier
 
 if TYPE_CHECKING:
     from main_system.restaurant import Member

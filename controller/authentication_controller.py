@@ -1,14 +1,9 @@
-from typing import Union, Annotated, Optional
+from typing import Annotated
 from pydantic import Field
-from mcp_core import mcp
-from main_system.restaurant import restaurant, Order
-from main_system.utils.enum import ItemStatus
-from fastapi import APIRouter, HTTPException
-
-router = APIRouter(prefix="/auth", tags=["Authentication"])
+from main_system.utils.mcp_core import mcp
+from main_system.restaurant import restaurant
 
 @mcp.tool
-@router.post("/login")
 async def login(
     username: Annotated[str, Field(description="Username")], 
     password: Annotated[str, Field(description="Password")]
@@ -24,7 +19,6 @@ async def login(
         return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
     
 @mcp.tool
-@router.post("/guest")
 async def guest_login():
     """
     Create a guest session and retrieve an access token.
@@ -37,7 +31,6 @@ async def guest_login():
         return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
-@router.post("/logout")
 async def logout(
     token: Annotated[str, Field(description="Token to invalidate")]
 ):

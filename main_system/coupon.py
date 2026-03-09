@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from fastapi import HTTPException
 from main_system.utils.enum import CouponStatus
 
 class Coupon(ABC):
@@ -49,7 +48,7 @@ class PercentCoupon(Coupon):
     def apply_coupon(self, base_price: float) -> float:
         if self.is_applicable(base_price):
             return base_price * (self.__percent / 100)
-        raise HTTPException(409, f"Does Not Meet Minimum Price {self.minimum_price}")
+        raise ValueError(f"Does Not Meet Minimum Price {self.minimum_price}")
 
 class FixedAmountCoupon(Coupon):
     def __init__(self, id: str, code: str, minimum_price: float, amount: float, max_usage: int = 1) -> None:
@@ -61,4 +60,4 @@ class FixedAmountCoupon(Coupon):
     def apply_coupon(self, base_price: float) -> float:
         if self.is_applicable(base_price):
             return self.__amount
-        raise HTTPException(409, f"Does Not Meet Minimum Price {self.minimum_price}")
+        raise ValueError(f"Does Not Meet Minimum Price {self.minimum_price}")
