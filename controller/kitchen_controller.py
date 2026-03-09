@@ -22,14 +22,7 @@ async def cook_order(
     """
     try:
         restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
-        order = restaurant.search_order_from_id(order_id)
-        success = order.cook_order()
-        if success:
-            if order.delivery:
-                asyncio.create_task(restaurant.simulate_delivery(order_id))
-            return {"message": "Cooking finished. Order is READY.", "status": order.status.value}
-        else:
-            raise HTTPException(status_code=400, detail=f"Cannot cook order. Current status: {order.status.value}")
+        return restaurant.cook_order(order_id)
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
    
@@ -45,10 +38,7 @@ async def view_kitchen_queue(
     """
     try:
         restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
-        queue = restaurant.get_kitchen_queue()
-        if queue["total_queue"]==0:
-            return {"message": "No order in queue ","queue": queue}
-        return {"message": "Current queue ","queue": queue}
+        return restaurant.display_kitchen_queue()
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
     
