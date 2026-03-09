@@ -653,7 +653,6 @@ class Order:
             if self.__delivery:
                 restaurant.update_delivery_status(self.id, DeliveryStatus.PAID, _internal=True)
                 restaurant.update_delivery_status(self.id, DeliveryStatus.DRIVER_ASSIGNED, _internal=True)
-                asyncio.create_task(restaurant.simulate_delivery(self.id))
 
             if coupon: coupon.consume()
 
