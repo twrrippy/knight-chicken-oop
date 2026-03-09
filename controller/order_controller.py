@@ -214,7 +214,7 @@ async def serve(
     Update status Order. Changes the order status from Ready to Served. 
     """
     try:
-        restaurant.verify_token_and_role(token,["Admin","Staff"])
+        restaurant.verify_token_and_role(token,[UserRole.ADMIN,UserRole.STAFF])
         order = restaurant.search_order_from_id(order_id)
         is_success = restaurant.serve_order(order)
         if not is_success:
@@ -244,7 +244,7 @@ async def update_delivery_status(
     อัปเดตสถานะของ delivery_order 
     """
     try:
-        restaurant.verify_token_and_role(token, ["Admin", "Staff"])
+        restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
         return restaurant.update_delivery_status(order_id, new_status)
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"

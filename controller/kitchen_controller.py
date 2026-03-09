@@ -5,6 +5,7 @@ from pydantic import Field
 from mcp_core import mcp
 from shared.utils.response import success_response_status, error_response_status
 from main_system.restaurant import restaurant
+from main_system.enum import UserRole
 router = APIRouter(prefix="/kitchen", tags=["Kitchen"])
 
 @mcp.tool
@@ -21,7 +22,7 @@ async def cook_order(
     Start cooking a specific order. Changes the order status to COOKING in the kitchen. 
     """
     try:
-        restaurant.verify_token_and_role(token, ["Admin", "Staff"])
+        restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
         order = restaurant.search_order_from_id(order_id)
         success = order.cook_order()
         if success:
@@ -44,7 +45,7 @@ async def view_kitchen_queue(
     View the kitchen queue (orders that are ready to be cooked).
     """
     try:
-        restaurant.verify_token_and_role(token, ["Admin", "Staff"])
+        restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
         queue = restaurant.get_kitchen_queue()
         if queue["total_queue"]==0:
             return {"message": "No order in queue ","queue": queue}

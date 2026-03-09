@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from pydantic import Field
 from mcp_core import mcp
 from main_system.restaurant import restaurant
+from main_system.enum import UserRole
 
 
 router = APIRouter(prefix="/booking", tags=["Booking"])
@@ -29,7 +30,7 @@ async def check_booking_availability(
     """
     try:
         # Validate the token (assuming you have a function to validate it)
-        staff = restaurant.verify_token_and_role(token, allowed_roles=["Admin", "Staff"])
+        staff = restaurant.verify_token_and_role(token, allowed_roles=[UserRole.ADMIN, UserRole.STAFF])
         if not staff:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token or insufficient permissions")
         room = restaurant.get_room(room_id)
@@ -73,7 +74,7 @@ async def book_room(
     Book a room and process the required 50% deposit payment. Do not calculate discounts yourself; the system handles it. Ask the user for room choice and payment details before calling.
     """
     try:
-        restaurant.verify_token_and_role(token, allowed_roles=["Staff", "Admin"])
+        restaurant.verify_token_and_role(token, allowed_roles=[UserRole.STAFF, UserRole.ADMIN])
         payload = restaurant.booking_room(member_id, room_id, hours, pay_method, start_time=start_time, payment_details=payment_details)
         return payload
     except Exception as e:
@@ -93,7 +94,7 @@ async def preview_booking(
     ดูรายละเอียดการจอง ต้องการสิทธ์พนักงาน
     """
     try:
-        restaurant.verify_token_and_role(token, ["Admin", "Staff"])
+        restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
         return restaurant.preview_booking_details(booking_id)
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
@@ -121,7 +122,7 @@ async def check_in(token: str,
     Check-in a customer to their booked room and process the payment for the remaining balance.
     """
     try:
-        restaurant.verify_token_and_role(token, ["Admin", "Staff"])
+        restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
         payload = restaurant.check_in_booking(order_id=order_id, booking_id=booking_id, coupon_code=coupon_code, pay_method=pay_method, payment_details=payment_details)
         return payload
     except Exception as e:
@@ -141,7 +142,7 @@ async def check_out(
     Check out a guest from their booking.
     """
     try:
-        restaurant.verify_token_and_role(token, ["Admin", "Staff"])
+        restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
         payload = restaurant.check_out_booking(booking_id=booking_id)
         return payload
     except Exception as e:
