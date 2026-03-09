@@ -1142,7 +1142,10 @@ class Restaurant:
     
         reward_coupon = None
 
-        if spending >= 3000:
+        if spending >= 5000:
+            code = f"RW20-{uuid.uuid4().hex[:6].upper()}"
+            reward_coupon = FixedAmountCoupon(f"CPN-{code}", code, 1000.0, 300.0, max_usage=2)
+        elif spending >= 3000:
             code = f"RW20-{uuid.uuid4().hex[:6].upper()}"
             reward_coupon = PercentCoupon(f"CPN-{code}", code, 1000.0, 20.0, max_usage=1)
         elif spending >= 1000:
@@ -1151,7 +1154,7 @@ class Restaurant:
 
         if reward_coupon:
             member.add_coupon(reward_coupon)
-            return reward_coupon.code
+            return reward_coupon
             
         return None
 
@@ -1337,13 +1340,13 @@ class Restaurant:
         if isinstance(order.customer, Member):
             teir_reward = order.customer.check_and_issue_member_teir()
         
-        reward_code = self.check_and_issue_reward(order)
+        reward_coupon = self.check_and_issue_reward(order)
         
         receipt_data = receipt.generate()
         if teir_reward:
             receipt_data["teir_issued"] = f"Congratulations! You received a new teir: {teir_reward}"
-        if reward_code:
-            receipt_data["reward_issued"] = f"Congratulations! You received a new coupon: {reward_code}"
+        if reward_coupon:
+            receipt_data["reward_issued"] = f"Congratulations! You received a new coupon: {reward_coupon.code} , Can Use for : {reward_coupon.max_usage} Times"
             
         return receipt_data
     
