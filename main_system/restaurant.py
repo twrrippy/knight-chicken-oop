@@ -1189,7 +1189,7 @@ class Restaurant:
         booking = self.get_booking(booking_id)
         if not booking:
             raise HTTPException(status_code=404, detail="Booking not found")
-        if booking.status == BookingStatus.CHECKED_IN or booking.status == BookingStatus.CANCELLED or booking.status == BookingStatus.COMPLETE:
+        if booking.status == BookingStatus.CHECKED_IN or booking.status == BookingStatus.CANCELLED or booking.status == BookingStatus.COMPLETED:
             raise HTTPException(status_code=400, detail="Booking can't canceled")
         booking.mark_cancelled()
         return {"message": f"Booking {booking_id} cancelled successfully",
