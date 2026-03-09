@@ -29,13 +29,8 @@ async def check_booking_availability(
     Check the availability of a room for a specific time period.
     """
     try:
-        # Validate the token (assuming you have a function to validate it)
         staff = restaurant.verify_token_and_role(token, allowed_roles=[UserRole.ADMIN, UserRole.STAFF])
-        if not staff:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token or insufficient permissions")
         room = restaurant.get_room(room_id)
-        if not room:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Room not found")
         is_available = restaurant.is_slot_avaliable(room, start_time, hours)
         return {"room_id": room_id,
                  "is_available": is_available,
