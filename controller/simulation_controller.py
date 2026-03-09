@@ -8,7 +8,9 @@ router = APIRouter(prefix="/simulate", tags=["Simulation"])
 
 @mcp.tool()
 @router.post("/simulate/advance-time", tags=["Simulation"])
-async def advance_time(minutes: int):
+async def advance_time(
+    minutes: int
+):
     """
     ขยับเวลาไปยังอนาคต โดยรับเวลามาเป็นหน่วย นาที
     """

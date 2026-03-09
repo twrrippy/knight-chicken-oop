@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from shared.utils.response import success_response_status, error_response_status
 from main_system.restaurant import restaurant
 from main_system.ingredient import Item
-from main_system.enum import ItemStatus
+from main_system.enum import ItemStatus, UserRole
 from typing import Annotated
 from pydantic import Field
 from mcp_core import mcp
@@ -25,7 +25,7 @@ async def check_stock_all(
     ดูรายการ item ใน stock ทั้งหมด ต้องการสิทธ์พนักงาน
     """
     try:
-        restaurant.verify_token_and_role(token, ["Admin", "Staff"])
+        restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
         return restaurant.all_stock()
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
@@ -40,7 +40,7 @@ async def check_stock_item(
     ดูจำนวนของ item ใน stock ต้องการสิทธ์พนักงาน
     """
     try:
-        restaurant.verify_token_and_role(token, ["Admin", "Staff"])
+        restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
         return restaurant.check_stock_item(item_name)
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
@@ -57,7 +57,7 @@ async def restock(
     restock item ต้องการสิทธ์พนักงาน
     """
     try:
-        restaurant.verify_token_and_role(token, ["Admin", "Staff"])
+        restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
         current_item = Item(item_name, price_per_unit)
         restaurant.add_stock(current_item, quantity)
     except Exception as e:

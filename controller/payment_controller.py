@@ -4,6 +4,7 @@ from pydantic import Field
 from fastapi import HTTPException, Query
 from shared.utils.response import success_response_status, error_response_status
 from main_system.restaurant import restaurant
+from main_system.enum import UserRole
 from mcp_core import mcp
 router = APIRouter(prefix="/payment", tags=["Payment"])
 
@@ -11,6 +12,9 @@ router = APIRouter(prefix="/payment", tags=["Payment"])
 @mcp.tool
 @router.post("/confirm_pay/{order_id}")
 async def confirm_order_pay(
+    token: Annotated[str, Field(
+        description="Token ของลูกค้า (ได้จากการเรียกใช้ tool login หรือ guest)"
+    )],
     order_id: Annotated[str, Field(
         description="รหัสออเดอร์ที่ต้องการชำระเงิน (รูปแบบที่คาดหวัง: ORD-xxx)"
     )],
@@ -30,6 +34,9 @@ async def confirm_order_pay(
     """
 
     try:
+        current_customer = restaurant.verify_token_and_role(token=token, allowed_roles=[UserRole.MEMBER, UserRole.GUEST])
+        current_order = restaurant.search_order_from_id(order_id)
+        current_order.check_customer(current_customer)
         result = restaurant.process_order_payment(order_id, coupon_code, method, payment_details)
         return result
     except Exception as e:
@@ -38,6 +45,9 @@ async def confirm_order_pay(
 @mcp.tool
 @router.post("/preview_order/{order_id}")
 async def preview_order_bill(
+    token: Annotated[str, Field(
+        description="Token ของลูกค้า (ได้จากการเรียกใช้ tool login หรือ guest)"
+    )],
     order_id: Annotated[str, Field(
         description="รหัสออเดอร์ที่ต้องการตรวจสอบยอด (รูปแบบที่คาดหวัง: ORD-xxx)"
     )],
@@ -51,6 +61,10 @@ async def preview_order_bill(
     """
 
     try:
+        current_customer = restaurant.verify_token_and_role(token=token, allowed_roles=[UserRole.MEMBER, UserRole.GUEST])
+        current_order = restaurant.search_order_from_id(order_id)
+        current_order.check_customer(current_customer)
+        restaurant.verify_token_and_role(token=token, allowed_roles=[UserRole.MEMBER, UserRole.GUEST])
         result = restaurant.preview_order_bill(order_id, coupon_code)
         return result
     except Exception as e:

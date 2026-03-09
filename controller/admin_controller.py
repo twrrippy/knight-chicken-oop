@@ -2,7 +2,7 @@ from typing import Union, Annotated, Optional
 from pydantic import Field
 from mcp_core import mcp
 from main_system.restaurant import restaurant, Order
-from main_system.enum import ItemStatus
+from main_system.enum import ItemStatus, UserRole
 from fastapi import APIRouter, HTTPException
 
 """Admin Controller Routes include:
@@ -25,7 +25,7 @@ async def get_all_receipts(
     Retrieve all payment receipts. Requires ADMIN access.
     """
     try:
-        restaurant.verify_token_and_role(token, ["Admin"])
+        restaurant.verify_token_and_role(token, [UserRole.ADMIN])
         return [r.generate() for r in restaurant.get_all_receipts()]
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
@@ -41,7 +41,7 @@ async def get_all_members(
     Retrieve a list of all registered members. Requires ADMIN access.
     """
     try:
-        restaurant.verify_token_and_role(token, ["Admin"])
+        restaurant.verify_token_and_role(token, [UserRole.ADMIN])
         return [
             {
                 "member_id": m.id,
@@ -63,7 +63,7 @@ async def get_all_rooms(
     Retrieve all rooms and their current statuses. Requires Staff access.
     """
     try:
-        restaurant.verify_token_and_role(token, ["Admin", "Staff"])
+        restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
         return [
             {
                 "room_id": r.id,
@@ -86,7 +86,7 @@ async def get_all_staff(
     Retrieve a list of all staff members. Requires ADMIN access.
     """
     try:
-        restaurant.verify_token_and_role(token, ["Admin"])
+        restaurant.verify_token_and_role(token, [UserRole.ADMIN])
         return [
             {
                 "staff_id": s.id,
@@ -107,7 +107,7 @@ async def get_all_orders(
     Retrieve all orders in the system. Requires ADMIN access.
     """
     try:
-        restaurant.verify_token_and_role(token, ["Admin"])
+        restaurant.verify_token_and_role(token, [UserRole.ADMIN])
         return [
             {
                 "order_id": o.id,
@@ -129,7 +129,7 @@ async def get_all_bookings(
     Retrieve all room bookings. Requires ADMIN access.
     """
     try:
-        restaurant.verify_token_and_role(token, ["Admin"])
+        restaurant.verify_token_and_role(token, [UserRole.ADMIN])
         return [
             {
                 "booking_id": b.id,
@@ -155,7 +155,7 @@ async def member_sign_up(
     ลงทะเบียนสมัครสมาชิกสำหรับลูกค้าใหม่ ต้องการสิทธ์พนักงาน
     """
     try:
-        restaurant.verify_token_and_role(token, ["Admin", "Staff"])
+        restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
         member = restaurant.register_member(username, password, display_name, phone)
         return {
             "message": "Welcome to Party Hub!",
@@ -179,7 +179,7 @@ async def staff_sign_up(
     ลงทะเบียนพนักงานใหม่ ต้องการสิทธ์ ADMIN
     """
     try:
-        restaurant.verify_token_and_role(token, ["Admin"])
+        restaurant.verify_token_and_role(token, [UserRole.ADMIN])
         staff = restaurant.register_staff(username, password, name, phone)
         return {
             "message": "Staff registered successfully",
@@ -198,7 +198,7 @@ async def check_queue(
     ดูจำนวนคิวของออเดอร์ที่จ่ายเงินแล้ว และกำลังทำ ต้องการสิทธ์พนักงาน
     """
     try:
-        restaurant.verify_token_and_role(token, ["Admin", "Staff"])
+        restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
         return {"Queue": restaurant.check_queue}
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
@@ -213,7 +213,7 @@ async def get_queue(
     ดูรายละเอียดออเดอร์ในคิว ต้องการสิทธ์พนักงาน
     """
     try:
-        restaurant.verify_token_and_role(token, ["Admin", "Staff"])
+        restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
         if queue_order > 50 or queue_order < 1:
             return f"ไม่สามารถดำเนินการได้: Queue not Found"
         order = restaurant.get_queue(queue_order)
@@ -232,7 +232,7 @@ async def void_order(
     ยกเลิกออเดอร์ ที่ยังไม่จ่ายเงิน ต้องการสิทธิ ADMIN
     """
     try:
-        restaurant.verify_token_and_role(token=token, allowed_roles=["Admin"])
+        restaurant.verify_token_and_role(token=token, allowed_roles=[UserRole.ADMIN])
         order = restaurant.search_order_from_id(order_id)
         order.void_order()
     except Exception as e:
