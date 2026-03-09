@@ -56,8 +56,6 @@ class Room:
     def id(self): return self.__room_id
     @property
     def status(self): return self.__status
-    @status.setter
-    def status(self, new_status: RoomStatus): self.__status = new_status
     @property
     def type(self): return self.__room_type
     @property
@@ -120,5 +118,3 @@ class Booking:
     def time_slot(self): return self.__time_slot
     @property
     def status(self): return self.__status
-    @status.setter
-    def status(self, new_status: BookingStatus): self.__status = new_status

@@ -53,9 +53,6 @@ class Staff(User):
     def __init__(self, id: str, name: str, phone_number: str, username: str="", password: str="", is_admin: Optional[bool] = False):
         super().__init__(id, name, phone_number, username, password)
         self.__is_admin = is_admin
-
-    def check_room_availability(self, room, start_time: datetime, hours: int) -> bool:
-        return restaurant.is_slot_available(room, start_time, hours)
     
     @property
     def is_admin(self) -> bool: return self.__is_admin
@@ -1103,11 +1100,7 @@ class Restaurant:
     
     def booking_room(self, member_id: str, room_id: str, hours: int, pay_method: str, start_time: datetime, payment_details: Dict[str, Any] = {}):
         member = self.get_member_by_id(member_id)
-        if not member or not isinstance(member, Member):
-            raise HTTPException(status_code=404, detail="Member not found")
         room = self.get_room(room_id)
-        if not room or not isinstance(room, Room):
-            raise HTTPException(status_code=404, detail="Room not found")
         if not self.is_slot_avaliable(room, start_time, hours):
             raise HTTPException(status_code=400, detail="Time slot already occupied")
         if start_time < SimulationClock.get_time():
@@ -1152,9 +1145,6 @@ class Restaurant:
 
     def check_in_booking(self, order_id: str, booking_id: str, coupon_code: str, pay_method: str, payment_details: Dict[str, Any] = {}):
         booking = self.get_booking(booking_id)
-        
-        if not booking:
-            raise HTTPException(status_code=404, detail="Booking not found")
         if booking.status == BookingStatus.CANCELLED:
             raise HTTPException(status_code=400, detail="Booking is cancelled")
         if booking.status == BookingStatus.CHECKED_IN:
@@ -1180,8 +1170,6 @@ class Restaurant:
     def check_out_booking(self, booking_id: str):
         # แบบที่ยังไม่เช็คเกินเวลา
         booking = self.get_booking(booking_id)
-        if not booking:
-            raise HTTPException(status_code=404, detail="Booking not found")
         if booking.status != BookingStatus.CHECKED_IN:
             raise HTTPException(status_code=400, detail="Booking is not currently checked in")
         
@@ -1193,8 +1181,6 @@ class Restaurant:
 
     def cancel_booking(self, booking_id):
         booking = self.get_booking(booking_id)
-        if not booking:
-            raise HTTPException(status_code=404, detail="Booking not found")
         if booking.status == BookingStatus.CHECKED_IN or booking.status == BookingStatus.CANCELLED or booking.status == BookingStatus.COMPLETED:
             raise HTTPException(status_code=400, detail="Booking can't canceled")
         booking.mark_cancelled()
