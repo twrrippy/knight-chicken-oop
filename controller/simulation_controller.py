@@ -11,7 +11,7 @@ async def advance_time(
     minutes: int
 ):
     """
-    ขยับเวลาไปยังอนาคต โดยรับเวลามาเป็นหน่วย นาที
+    Advance simulation time by a specified number of minutes.
     """
     new_time = SimulationClock.get_time() + timedelta(minutes=minutes)
     SimulationClock.set_time(new_time)
