@@ -25,9 +25,9 @@ async def login(
     
 @mcp.tool
 @router.post("/guest")
-async def continue_as_guest():
+async def guest_login():
     """
-    แจกโทเคนให้ Guest
+    Create a guest session and retrieve an access token.
     """
     try:
         session = restaurant.add_guest_session()

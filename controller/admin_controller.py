@@ -63,7 +63,7 @@ async def get_all_rooms(
     Retrieve all rooms and their current statuses. Requires Staff access.
     """
     try:
-        restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.Staff])
+        restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
         return [
             {
                 "room_id": r.id,
@@ -155,7 +155,7 @@ async def member_sign_up(
     ลงทะเบียนสมัครสมาชิกสำหรับลูกค้าใหม่ ต้องการสิทธ์พนักงาน
     """
     try:
-        restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.Staff])
+        restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
         member = restaurant.register_member(username, password, display_name, phone)
         return {
             "message": "Welcome to Party Hub!",
@@ -198,7 +198,7 @@ async def check_queue(
     ดูจำนวนคิวของออเดอร์ที่จ่ายเงินแล้ว และกำลังทำ ต้องการสิทธ์พนักงาน
     """
     try:
-        restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.Staff])
+        restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
         return {"Queue": restaurant.check_queue}
     except Exception as e:
         return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
@@ -213,7 +213,7 @@ async def get_queue(
     ดูรายละเอียดออเดอร์ในคิว ต้องการสิทธ์พนักงาน
     """
     try:
-        restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.Staff])
+        restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
         if queue_order > 50 or queue_order < 1:
             return f"ไม่สามารถดำเนินการได้: Queue not Found"
         order = restaurant.get_queue(queue_order)

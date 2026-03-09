@@ -839,7 +839,7 @@ class Restaurant:
             if m.id == id: return m
         for s in self.__staff_list:
             if s.id == id: return s
-        raise HTTPException(404, "User Not Found")
+        return None
 
     def verify_token_and_role(self, token: str, allowed_roles: List[str]) -> User:
         session = self.__auth_manager.get_session(token)
@@ -856,6 +856,8 @@ class Restaurant:
             user_role = UserRole.MEMBER
         else:
             user_role = UserRole.GUEST
+            return Guest(session.user_id)
+        
         if user_role not in allowed_roles:
             raise HTTPException(status_code=403, detail=f"Access Forbidden: Requires one of {allowed_roles}")
 
