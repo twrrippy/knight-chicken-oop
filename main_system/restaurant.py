@@ -584,7 +584,7 @@ class Order:
 
         coupon_discount = 0.0
         if coupon:
-             if coupon.status != CouponStatus.AVAILABLE:
+             if not coupon.is_available():
                 raise HTTPException(409, "Coupon Not Available")
              coupon_discount = coupon.apply_coupon(subtotal)
         
@@ -611,6 +611,7 @@ class Order:
             "Delivery": self.__delivery.get_details() if self.__delivery else "None",
             "Total Price Before Discount": subtotal,
             "Coupon Code": coupon.code if coupon else "None",
+            "Coupon Remaining Usage": (coupon.max_usage - coupon.used_count) if coupon else "None",
             "Coupon Discount": coupon_discount,
             "Tier Discount": teir_discount,
             "Total Discounted": discount,
@@ -653,7 +654,7 @@ class Order:
                 self.__delivery.mark_as_paid()
                 self.__delivery.request_rider()
 
-            if coupon: coupon.mark_as_used()
+            if coupon: coupon.consume()
 
             receipt = Receipt(self, method)
             if isinstance(self.__customer, Member):
@@ -723,6 +724,7 @@ class Receipt:
     def generate(self):
         order = self.order
         coupon_code = order.coupon_used.code if order.coupon_used else "None"
+        coupon_remaining = (order.coupon_used.max_usage - order.coupon_used.used_count) if order.coupon_used else "None"
         deposit_deducted = order.booking.deposit if order.booking else 0.0
         
         return {
@@ -750,6 +752,7 @@ class Receipt:
             "financial_summary": {
                 "subtotal": order.subtotal,
                 "coupon_applied": coupon_code,
+                "coupon_remaining_usage": coupon_remaining,
                 "discount_amount": order.discount,
                 "deposit_deducted": deposit_deducted,
                 "net_amount_due": order.total_payable_amount
@@ -1141,10 +1144,10 @@ class Restaurant:
 
         if spending >= 3000:
             code = f"RW20-{uuid.uuid4().hex[:6].upper()}"
-            reward_coupon = PercentCoupon(f"CPN-{code}", code, 1000.0, 20.0)
+            reward_coupon = PercentCoupon(f"CPN-{code}", code, 1000.0, 20.0, max_usage=1)
         elif spending >= 1000:
             code = f"RWF100-{uuid.uuid4().hex[:6].upper()}"
-            reward_coupon = FixedAmountCoupon(f"CPN-{code}", code, 500.0, 100.0)
+            reward_coupon = FixedAmountCoupon(f"CPN-{code}", code, 500.0, 100.0, max_usage=1)
 
         if reward_coupon:
             member.add_coupon(reward_coupon)

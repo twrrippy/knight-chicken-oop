@@ -96,10 +96,10 @@ def initialize_mock_data():
         restaurant.add_menu(set_menu)
 
     # 5. Coupons
-    cpn_20pct = PercentCoupon("CPN-01", "DISCOUNT20", 200.0, 20.0)
-    cpn_10pct = PercentCoupon("CPN-02", "SAVE10", 100.0, 10.0)
-    cpn_50thb = FixedAmountCoupon("CPN-03", "MINUS50", 150.0, 50.0)
-    cpn_100thb = FixedAmountCoupon("CPN-04", "MINUS100", 300.0, 100.0)
+    cpn_20pct = PercentCoupon("CPN-01", "DISCOUNT20", 200.0, 20.0, max_usage=100)
+    cpn_10pct = PercentCoupon("CPN-02", "SAVE10", 100.0, 10.0, max_usage=100)
+    cpn_50thb = FixedAmountCoupon("CPN-03", "MINUS50", 150.0, 50.0, max_usage=100)
+    cpn_100thb = FixedAmountCoupon("CPN-04", "MINUS100", 300.0, 100.0, max_usage=100)
     
     mem1.add_coupon(cpn_20pct)
     mem2.add_coupon(cpn_50thb)
