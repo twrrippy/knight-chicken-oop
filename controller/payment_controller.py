@@ -1,8 +1,6 @@
 from fastapi import APIRouter
-from typing import Optional, List, Tuple, Dict, Any, Annotated
+from typing import Optional, Dict, Any, Annotated
 from pydantic import Field
-from fastapi import HTTPException, Query
-from shared.utils.response import success_response_status, error_response_status
 from main_system.restaurant import restaurant
 from main_system.enum import UserRole
 from mcp_core import mcp

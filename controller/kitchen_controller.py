@@ -3,7 +3,6 @@ import asyncio
 from typing import Annotated
 from pydantic import Field
 from mcp_core import mcp
-from shared.utils.response import success_response_status, error_response_status
 from main_system.restaurant import restaurant
 from main_system.enum import UserRole
 router = APIRouter(prefix="/kitchen", tags=["Kitchen"])
