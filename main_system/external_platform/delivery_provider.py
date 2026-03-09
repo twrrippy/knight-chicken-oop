@@ -1,4 +1,4 @@
-from main_system.enum import PlatformName, DeliveryStatus
+from main_system.utils.enum import PlatformName, DeliveryStatus
 from typing import TYPE_CHECKING, Tuple, Optional, Dict, Any
 from fastapi import HTTPException
 import random

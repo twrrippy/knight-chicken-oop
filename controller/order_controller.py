@@ -1,11 +1,11 @@
 from fastapi import APIRouter
 from main_system.restaurant import restaurant, Order, OrderItem, Guest
-from main_system.enum import UserRole
+from main_system.utils.enum import UserRole
 from typing import Union, Annotated
 import uuid
 from mcp_core import mcp
 from pydantic import Field
-from main_system.enum import DeliveryStatus
+from main_system.utils.enum import DeliveryStatus
 
 """
 Order Controller Module

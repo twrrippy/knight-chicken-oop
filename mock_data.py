@@ -1,30 +1,30 @@
 from datetime import timedelta, datetime
 from main_system.coupon import PercentCoupon, FixedAmountCoupon
-from main_system.enum import MemberTier, OrderType, OrderStatus, RoomType, PlatformName, BookingStatus, IngredientType, DeliveryStatus
+from main_system.utils.enum import MemberTier, OrderType, OrderStatus, RoomType, PlatformName, BookingStatus, IngredientType, DeliveryStatus
 from main_system.restaurant import Order, Staff, Member, Food, Ingredient, Item, Guest
 from main_system.restaurant import SingleMenuItem, SetMenuItem
 from main_system.external_platform.payment_method import Cash, QRCode, CreditCard
 from main_system.booking import Room, TimeSlot, Booking
 from main_system.external_platform.delivery_provider import Delivery, GrabDeliveryProvider, LineManDeliveryProvider, ShopeeFoodDeliveryProvider
 from main_system.restaurant import restaurant
-from shared.utils.simulate import SimulationClock
+from main_system.utils.simulate import SimulationClock
 
 def initialize_mock_data():
     # 1. Staff
-    staff1 = Staff("S-001", "Alice Staff", "0801234567", "alice", "password")
-    staff2 = Staff("S-002", "Bob Waiter", "0801234568", "bob", "password")
-    staff3 = Staff("S-003", "Charlie Chef", "0801234569", "charlie", "password")
-    admin1 = Staff("A-001", "Admin User", "0807654321", "admin", "admin", is_admin=True)
-    admin2 = Staff("A-002", "Super Admin", "0807654322", "super", "admin", is_admin=True)
+    staff1 = Staff("S-101", "Alice Staff", "0801234567", "alice", "password")
+    staff2 = Staff("S-102", "Bob Waiter", "0801234568", "bob", "password")
+    staff3 = Staff("S-103", "Charlie Chef", "0801234569", "charlie", "password")
+    admin1 = Staff("A-101", "Admin User", "0807654321", "admin", "admin", is_admin=True)
+    admin2 = Staff("A-102", "Super Admin", "0807654322", "super", "admin", is_admin=True)
     
     for s in [staff1, staff2, staff3, admin1, admin2]:
         restaurant.add_staff(s)
 
     # 2. Members
-    mem1 = Member("M-001", "David Silver", MemberTier.SILVER, "david", "password", "0812345678")
-    mem2 = Member("M-002", "Eve Gold", MemberTier.GOLD, "eve", "password", "0812345679")
-    mem3 = Member("M-003", "Frank Plat", MemberTier.GENERAL, "frank", "password", "0812345670")
-    mem4 = Member("M-004", "Grace New", MemberTier.SILVER, "grace", "password", "0812345671")
+    mem1 = Member("M-101", "David Silver", MemberTier.SILVER, "david", "password", "0812345678")
+    mem2 = Member("M-102", "Eve Gold", MemberTier.GOLD, "eve", "password", "0812345679")
+    mem3 = Member("M-103", "Frank Plat", MemberTier.GENERAL, "frank", "password", "0812345670")
+    mem4 = Member("M-104", "Grace New", MemberTier.SILVER, "grace", "password", "0812345671")
     
     for m in [mem1, mem2, mem3, mem4]:
         restaurant.add_member(m)

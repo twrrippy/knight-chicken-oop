@@ -2,7 +2,7 @@ from fastapi import APIRouter
 from typing import Optional, Dict, Any, Annotated
 from pydantic import Field
 from main_system.restaurant import restaurant
-from main_system.enum import UserRole
+from main_system.utils.enum import UserRole
 from mcp_core import mcp
 router = APIRouter(prefix="/payment", tags=["Payment"])
 

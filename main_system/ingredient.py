@@ -1,4 +1,4 @@
-from main_system.enum import ItemStatus, IngredientType
+from main_system.utils.enum import ItemStatus, IngredientType
 from pydantic import BaseModel
 from datetime import timedelta
 from abc import ABC, abstractmethod

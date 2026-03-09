@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from fastapi import HTTPException
-from main_system.enum import CouponStatus
+from main_system.utils.enum import CouponStatus
 
 class Coupon(ABC):
     def __init__(self, id, code, minimum_price) -> None:

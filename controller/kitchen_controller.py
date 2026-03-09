@@ -4,7 +4,7 @@ from typing import Annotated
 from pydantic import Field
 from mcp_core import mcp
 from main_system.restaurant import restaurant
-from main_system.enum import UserRole
+from main_system.utils.enum import UserRole
 router = APIRouter(prefix="/kitchen", tags=["Kitchen"])
 
 @mcp.tool

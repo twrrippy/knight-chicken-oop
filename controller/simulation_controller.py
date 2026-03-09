@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from datetime import timedelta
 from mcp_core import mcp
-from shared.utils.simulate import SimulationClock
+from main_system.utils.simulate import SimulationClock
 
 router = APIRouter(prefix="/simulate", tags=["Simulation"])
 

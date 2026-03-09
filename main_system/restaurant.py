@@ -3,15 +3,15 @@ from main_system.authentication import AuthManager
 from main_system.ingredient import Item, Ingredient
 from main_system.external_platform.delivery_provider import DeliveryProvider, Delivery
 from main_system.external_platform.payment_method import PaymentMethod
-from shared.utils.simulate import SimulationClock
+from main_system.utils.simulate import SimulationClock
 from main_system.coupon import Coupon, FixedAmountCoupon, PercentCoupon
-from main_system.enum import RoomStatus, RoomType, BookingStatus, UserRole
+from main_system.utils.enum import RoomStatus, RoomType, BookingStatus, UserRole
 from main_system.booking import Room, TimeSlot, Booking
 from typing import TYPE_CHECKING, Optional, List, Tuple, Dict, Any
 from fastapi import FastAPI, HTTPException, Query
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
-from main_system.enum import Enum, MemberTier, MenuItemStatus, ItemStatus, IngredientType, CouponStatus, OrderStatus, OrderType, OrderItemStatus, DeliveryStatus
+from main_system.utils.enum import Enum, MemberTier, MenuItemStatus, ItemStatus, IngredientType, CouponStatus, OrderStatus, OrderType, OrderItemStatus, DeliveryStatus
 from fastmcp import FastMCP
 from pydantic import BaseModel
 import uuid

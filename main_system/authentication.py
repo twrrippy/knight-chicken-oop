@@ -1,7 +1,7 @@
 from typing import Optional
 import uuid
 
-from shared.utils.simulate import SimulationClock
+from main_system.utils.simulate import SimulationClock
 
 
 class Session:

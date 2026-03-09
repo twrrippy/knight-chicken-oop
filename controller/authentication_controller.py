@@ -2,7 +2,7 @@ from typing import Union, Annotated, Optional
 from pydantic import Field
 from mcp_core import mcp
 from main_system.restaurant import restaurant, Order
-from main_system.enum import ItemStatus
+from main_system.utils.enum import ItemStatus
 from fastapi import APIRouter, HTTPException
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
