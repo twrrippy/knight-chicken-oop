@@ -70,7 +70,7 @@ activate R
         R --X S : raise HTTPException(400, "Room not available")
     end
 
-    R -> TS ** : create(start_time, hours)
+    R -> TS : create(start_time, hours)
     activate TS
         TS --> R : time_slot_obj
     deactivate TS
@@ -104,7 +104,7 @@ activate R
     R -> R : booking_id = f"BK-{self._booking_counter:03d}"
     R -> R : self._booking_counter += 1
     
-    R -> B ** : create(booking_id, member_obj, room_obj, time_slot_obj)
+    R -> B : create(booking_id, member_obj, room_obj, time_slot_obj)
     activate B
         B -> B : mark_deposit_paid()
         note right of B : BookingStatus -> DEPOSIT_PAID
