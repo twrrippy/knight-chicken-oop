@@ -105,8 +105,9 @@ activate R
             alt success is True
                 O -> RCT  : create(payment_data)
                 activate RCT
-                O --> R : receipt_obj
+                RCT --> O : receipt_obj
                 deactivate RCT
+                O --> R : add_receipt(receipt_data)
             else success is False
                 R --X S : raise ValueError("Payment failed: " + note)
             end
