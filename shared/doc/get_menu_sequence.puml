@@ -1,11 +1,11 @@
 @startuml
-actor Caller
+actor Customer
 participant "Restaurant" as Restaurant
 participant "MenuItem" as MenuItem
 participant "Ingredient" as Ingredient
 participant "Item" as Item
 
-Caller -> Restaurant : get_menu()
+Customer -> Restaurant : get_menu()
 activate Restaurant
 
 loop for each m in __menu
@@ -53,7 +53,7 @@ loop for each m in __menu
     deactivate MenuItem
 end
 
-Restaurant --> Caller : return {"menu": menu_list}
+Restaurant --> Customer : return {"menu": menu_list}
 deactivate Restaurant
 
 @enduml
