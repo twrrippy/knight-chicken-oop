@@ -1,0 +1,165 @@
+@startuml SequenceDiagram
+skinparam maxmessagesize 100
+
+actor "Customer" as Client
+participant "Restaurant" as rest
+participant "AuthManager" as Auth
+participant "Session" as SS
+participant "Order" as ord
+participant "OrderItem" as oi
+participant "SingleMenuItem" as smi
+participant "Ingredient" as ing
+
+Client -> rest : custom_item_in_order(token, order_id, order_item_id, item_name, quantity)
+activate rest
+
+== Authentication & Order Retrieval ==
+rest -> rest : check_order_customer(order_id, token, allowed_roles)
+activate rest
+
+rest -> rest : verify_token_and_role(token, ["staff", "admin"])
+activate rest
+rest -> Auth : get_session(token)
+activate Auth
+
+loop for s in self.__sessions
+    Auth -> SS : check_token(token)
+    activate SS
+    SS --> Auth : True / False
+    deactivate SS
+
+    alt token matched
+        Auth -> SS : is_active
+        activate SS
+        SS --> Auth : True / False
+        deactivate SS
+    end
+end
+
+Auth --> rest : session_obj / None
+deactivate Auth
+deactivate rest
+
+alt session_obj is None OR role not in ["staff", "admin"]
+    rest --> Client : return "Unauthorized"
+else Authorized
+    rest -> ord : check_customer(current_customer)
+    activate ord
+    
+    alt self.__customer != current_customer
+        ord --> Client : raise ValueError("Wrong Customer")
+        ' deactivate ord
+    else validation successful
+        ord --> rest : return Order
+        deactivate ord
+        
+        ' Deactivate the check_order_customer internal call
+        deactivate rest 
+
+        == Customization Process ==
+        rest -> ord : custom(order_item_id, item_name, quantity)
+        activate ord
+        
+        ' Detailed search_order_item_from_id logic
+        ord -> ord : search_order_item_from_id(order_item_id)
+        activate ord
+        ord -> ord : is_valid_order_item_id(order_item_id)
+        loop for order_item in self.__order_item_list
+            alt order_item.id == order_item_id
+                ord --> ord : return order_item
+            end
+        end
+        
+        alt order_item not found
+            ord --> Client : raise ValueError("Order Item NOT FOUND")
+            ' deactivate ord
+        else order_item found
+            deactivate ord
+
+            ord -> oi : custom_menu(item_name, quantity)
+            activate oi
+
+            oi -> smi : custom_ingredient(item_name, quantity)
+            activate smi
+            
+            ' Detailed find_ingredient_in_recipe logic
+            smi -> smi : find_ingredient_in_recipe_from_name(item_name)
+            activate smi
+            loop for find_ingredient in self.__recipe
+                alt find_ingredient.item.name == item_name
+                    smi --> smi : return find_ingredient
+                end
+            end
+            
+            alt ingredient not found
+                smi --> Client : raise ValueError("INVALID: Item")
+                ' deactivate smi
+            else ingredient found
+                deactivate smi
+
+                smi -> ing : custom(quantity)
+                activate ing
+                
+                ' Detailed modify and is_valid_quantity logic
+                ing -> ing : modify(quantity)
+                activate ing
+                ing -> ing : is_valid_quantity(quantity)
+                activate ing
+                ing --> ing : return quantity >= 0
+                deactivate ing
+                
+                alt quantity < 0
+                    ing --> Client : raise ValueError("INVALID: Quantity")
+                    ' deactivate ing
+                else quantity >= 0
+                    ing -> ing : self.__quantity = quantity
+                    deactivate ing
+                    ing --> smi : return true
+                    deactivate ing
+
+                    == Price Updates ==
+                    ' Detailed search_menu_item_from_name logic
+                    smi -> rest : search_menu_item_from_name(self.name)
+                    activate rest
+                    loop for menu_item in self.__menu
+                        alt menu_item.name == menu_item_name
+                            rest --> smi : return menu_item
+                        end
+                    end
+                    
+                    alt menu item not found
+                        rest --> Client : raise ValueError("Menu NOT FOUND")
+                        ' deactivate rest
+                    else menu item found
+                        deactivate rest
+
+                        smi -> smi : update_price(menu)
+                        smi --> oi : return True
+                        deactivate smi
+
+                        oi --> ord: return True
+                        deactivate oi
+
+                        ord -> ord : update_price()
+                        ord --> rest: return True
+                        deactivate ord
+
+                        ' == Dictionary Conversion & Return ==
+                        rest -> ord : order_to_dict()
+                        activate ord
+                        
+                        ord --> rest : order_dict
+                        deactivate ord
+
+                        rest --> Client : return order_dict
+                        deactivate rest
+                    end ' End menu item found
+                end ' End quantity >= 0
+            end ' End ingredient found
+        end ' End order_item found
+    end ' End validation successful
+end ' End Authorized
+
+deactivate rest
+
+@enduml
