@@ -147,7 +147,7 @@ async def cancel_booking(
     Cancel a room booking.
     """
     try:
-        restaurant.verify_token_and_role(token, ["Admin", "Staff"])
+        restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
         payload = restaurant.cancel_booking(booking_id=booking_id)
         return payload
     except Exception as e:
