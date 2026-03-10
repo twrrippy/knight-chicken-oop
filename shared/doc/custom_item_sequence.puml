@@ -40,7 +40,7 @@ Auth --> rest : session_obj / None
 deactivate Auth
 deactivate rest
 
-alt session_obj is None OR role not in ["staff", "admin"]
+alt session_obj is None OR role not in ["Guest", "Member"]
     rest --> Client : return "Unauthorized"
 else Authorized
     rest -> ord : check_customer(current_customer)

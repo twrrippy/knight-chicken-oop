@@ -1,0 +1,168 @@
+@startuml SequenceDiagram
+skinparam maxmessagesize 500
+scale 1000 width
+
+actor Guest
+participant Restaurant
+participant AuthManager as Auth
+participant Session as SS
+participant Customer
+participant Order
+participant OrderItem
+participant MenuItem
+participant Ingredient
+participant Item
+
+Guest -> Restaurant : ordering (customer, order_id)
+activate Restaurant
+activate Guest
+
+Restaurant -> Restaurant : check\nqueue
+
+alt queue overload
+    Restaurant --> Guest : denied queue overload
+else else
+== Authentication & Order Retrieval ==
+Restaurant -> Restaurant : check_order_customer(order_id, token, allowed_roles)
+activate Restaurant
+
+Restaurant -> Restaurant : verify_token_and_role(token, ["staff", "admin"])
+activate Restaurant
+Restaurant -> Auth : get_session(token)
+activate Auth
+
+loop for s in self.__sessions
+    Auth -> SS : check_token(token)
+    activate SS
+    SS --> Auth : True / False
+    deactivate SS
+
+    alt token matched
+        Auth -> SS : is_active
+        activate SS
+        SS --> Auth : True / False
+        deactivate SS
+    end
+end
+
+Auth --> Restaurant : session_obj / None
+deactivate Auth
+deactivate Restaurant 
+
+alt session_obj is None OR role not in ["Guest", "Member"]
+    Restaurant --> Guest : return "Unauthorized"
+else Authorized
+    Restaurant -> Order : check_customer(current_customer)
+    activate Order
+    
+    alt self.__customer != current_customer
+        Order --> Guest : raise ValueError("Wrong Customer")
+        ' deactivate ord
+    else validation successful
+        Order --> Restaurant : return Order
+        deactivate Order
+        
+        ' Deactivate the check_order_customer internal call
+        deactivate Restaurant
+    alt order not found
+        Order --> Restaurant : return false
+        deactivate Order
+        Restaurant --> Guest : denied order not found
+    else
+        Restaurant -> Order : reserve order (order)
+        activate Order
+
+        loop every order item in order
+            Order -> OrderItem : reserve
+            activate OrderItem
+
+            OrderItem -> MenuItem : get all ingredient
+            activate MenuItem
+            MenuItem --> OrderItem : return all ingredient
+            deactivate MenuItem
+
+            loop every ingredient in all ingredient
+                OrderItem -> Ingredient : get ingredient info
+                activate Ingredient
+                Ingredient --> OrderItem : return item, quantity
+                deactivate Ingredient
+
+                OrderItem -> Restaurant : reserve (item, quantity)
+                activate Restaurant
+
+                loop every item in stock
+                    Restaurant -> Item : get item name
+                    activate Item
+                    Item --> Restaurant : return item name
+                    deactivate Item
+
+                    opt item name matched
+                        Restaurant -> Restaurant : reserve (item)
+                    end
+
+                    break reserved success
+                        Restaurant --> OrderItem : return true
+                    end
+                end
+
+                break out of stock
+                    loop every item in stock
+                        Restaurant -> Item : get item name
+                        activate Item
+                        Item --> Restaurant : return item name
+                        deactivate Item
+
+                        opt item name matched
+                            Restaurant -> Restaurant : reverse (item)
+                        end
+                        break reversed every item that have been reserved
+                            Restaurant --> OrderItem : return false
+                        end
+                    end
+                    loop every ingredient that have been reserved
+                        OrderItem -> Ingredient : get ingredient info
+                        activate Ingredient
+                        Ingredient --> OrderItem : return item, quantity
+                        deactivate Ingredient
+
+                        OrderItem -> Restaurant : reverse (item, quantity)
+                        activate Restaurant
+
+                        loop every item in stock
+                            Restaurant -> Item : get item name
+                            activate Item
+                            Item --> Restaurant : return item name
+                            deactivate Item
+
+                            opt item name matched
+                                Restaurant -> Restaurant : reverse (item)
+                            end
+
+                            break reversed success
+                                Restaurant --> OrderItem : return true
+                                deactivate Restaurant
+                                deactivate Restaurant
+                            end
+                        end
+                    end
+                    OrderItem -> OrderItem : update status\nout of stock
+                end
+                opt reserved successfully
+                    OrderItem -> OrderItem : update status\navailable
+                end
+            end
+            OrderItem --> Order : return orderitem
+            deactivate OrderItem
+        end
+
+        Order --> Restaurant : return order
+        deactivate Order
+
+        Restaurant --> Guest : return order
+        deactivate Guest
+        deactivate Restaurant
+    end
+    end
+end
+
+@enduml
