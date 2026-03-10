@@ -1,0 +1,59 @@
+@startuml
+actor Caller
+participant "Restaurant" as Restaurant
+participant "MenuItem" as MenuItem
+participant "Ingredient" as Ingredient
+participant "Item" as Item
+
+Caller -> Restaurant : get_menu()
+activate Restaurant
+
+loop for each m in __menu
+    Restaurant -> MenuItem : to_dict_menu()
+    activate MenuItem
+    
+    MenuItem -> MenuItem : get all_ingredient
+    
+    loop for each ing in all_ingredient
+        MenuItem -> Ingredient : get item
+        activate Ingredient
+        
+        Ingredient -> Item : get name
+        activate Item
+        Item --> Ingredient : return name
+        deactivate Item
+        
+        Ingredient --> MenuItem : return item.name
+        deactivate Ingredient
+        
+        MenuItem -> Restaurant : count_stock_item(item.name, ItemStatus.AVAILABLE)
+        activate Restaurant
+        Restaurant --> MenuItem : return stock_count
+        deactivate Restaurant
+        
+        alt stock_count < ing.quantity
+            MenuItem -> MenuItem : status = UNAVAILABLE
+            Break loop if out of stock
+        else stock_count >= ing.quantity
+            MenuItem -> Ingredient : get type
+            activate Ingredient
+            Ingredient --> MenuItem : return type
+            deactivate Ingredient
+            
+            opt type == CUSTOMIZABLE
+                MenuItem -> Ingredient : get ingredient_to_dict
+                activate Ingredient
+                Ingredient --> MenuItem : return dict_data
+                deactivate Ingredient
+            end
+        end
+    end
+    
+    MenuItem --> Restaurant : return dict (name, price, status, customizable)
+    deactivate MenuItem
+end
+
+Restaurant --> Caller : return {"menu": menu_list}
+deactivate Restaurant
+
+@enduml

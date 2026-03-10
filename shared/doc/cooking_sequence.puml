@@ -1,0 +1,91 @@
+@startuml
+actor Staff
+participant "Restaurant" as R
+participant "Order" as O
+participant "OrderItem" as OI
+participant "MenuItem" as MI
+participant "Ingredient" as ING
+participant "Item" as ITM
+
+' --- Check Queue Phase ---
+Staff -> R: get_kitchen_queue()
+activate R
+R --> Staff: return list of queue (total_queue, order_list)
+deactivate R
+
+' Staff เลือก order_id จากคิวมาทำ
+note over Staff, R: Staff selects an order from the queue
+
+' --- Cooking Phase ---
+Staff -> R: cooking_order(order_id)
+activate R
+
+' ค้นหา Order
+R -> R: get_order(order_id)
+
+alt order not found
+    R --> Staff: return Error: Order Not Found
+else order found
+    R -> O: cook_order()
+    activate O
+    
+    alt status not in [RESERVED, PAID]
+        O --> R: return False
+    else status is valid
+        O -> O: status = OrderStatus.COOKING
+        
+        loop For each item in order_item_list
+            opt item.status == OrderItemStatus.RESERVED
+                O -> OI: process_cooking()
+                activate OI
+                
+                ' ดึงข้อมูลวัตถุดิบจากเมนู
+                OI -> MI: get all_ingredient
+                activate MI
+                MI --> OI: return List<Ingredient>
+                deactivate MI
+                
+                ' วนลูปหักวัตถุดิบแต่ละชนิด
+                loop For each Ingredient
+                    OI -> ING: get quantity, item
+                    activate ING
+                    
+                    ING -> ITM: get name
+                    activate ITM
+                    ITM --> ING: return name
+                    deactivate ITM
+                    
+                    ING --> OI: return item.name, quantity
+                    deactivate ING
+                    
+                    ' หักสต๊อกผ่าน Restaurant
+                    OI -> R: consume_reserved_ingredient(item_name, total_quantity)
+                    activate R
+                    R -> R: find_item_in_reserved(item_name)
+                    
+                    alt reserved items < total_quantity
+                        R --> OI: return False
+                    else sufficient reserved items
+                        R -> R: pop() items from __stock
+                        R --> OI: return True
+                    end
+                    deactivate R
+                end
+                
+                OI -> OI: status = OrderItemStatus.READY
+                OI --> O: return True
+                deactivate OI
+            end
+        end
+        
+        alt all items successfully cooked
+            O -> O: status = OrderStatus.READY
+        end
+        
+        O --> R: return True
+    end
+    deactivate O
+    R --> Staff: return Success / Failure
+end
+deactivate R
+@enduml
