@@ -116,6 +116,7 @@ activate R
 
     == 5. Status & Reward Update ==
     R -> B : mark_checked_in()
+    note right of B : BookingStatus -> CHECKED_IN
     activate B
         B -> RM : mark_room_in_use()
         note right of RM : RoomStatus -> IN_USE
