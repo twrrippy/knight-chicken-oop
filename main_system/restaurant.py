@@ -1310,8 +1310,8 @@ class Restaurant:
         order = self.get_order(order_id)
         
             
-        if order.status == OrderStatus.PAID: 
-            raise ValueError("Order Already Paid")
+        if order.status != OrderStatus.CONFIRMED: 
+            raise ValueError("Order is Not CONFIRMED or Already Paid")
             
         receipt = order.execute_payment(method, payment_details, coupon_code)
         self.add_receipts(receipt)
