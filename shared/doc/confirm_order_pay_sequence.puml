@@ -1,4 +1,4 @@
-@startuml process_order_payment_sequence
+@startuml confirm_order_pay
 skinparam style strictuml
 skinparam sequenceMessageAlignment center
 

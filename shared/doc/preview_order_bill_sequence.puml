@@ -11,49 +11,51 @@ participant "Booking"
 participant "Delivery"
 participant "Coupon"
 
-Customer -> Restaurant : check_order_customer(token, order_id, coupon_code)
+Customer -> Restaurant : preview_order_bill(token, order_id, coupon_code)
 activate Restaurant
+
     == Authentication ==
 
-    Restaurant -> Restaurant : verify_token_and_role(token, ["Member", "Guest"])
-    
-    Restaurant -> Order : search_order_from_id(order_id)
-    activate Order
-      Order --> Restaurant : order_obj
-    deactivate Order
-    
-    Restaurant -> Order : check_customer(current_customer)
-    activate Order
-      alt Wrong Customer
-        Order --> Restaurant : False
-        Restaurant --> Customer : [Error] Wrong Customer
-      else Valid Customer
-        Order --> Restaurant : True
-      end
-    deactivate Order
-
-    Restaurant -> Order : get_order(order_id)
-    activate Order
-      Order --> Restaurant : order_obj
-    deactivate Order
-    
-    alt OrderStatus is Paid
-      Restaurant --> Customer : [Error] Order Already Paid
+    Restaurant -> Restaurant : check_order_customer(order_id, token, allowed_roles=[MEMBER, GUEST])
+    alt Unauthorized User 
+      Restaurant --X Customer : [Error] Unauthorized User
     end
 
-    == Calculate Bill Process ==
+    == Preview Bill Process ==
+
+    loop for order in order_list
+      Restaurant -> Restaurant : search_order_from_id(order_id)
+    end
+    
+    Restaurant -> Order: get_status
+    activate Order
+    Order --> Restaurant : status
+    deactivate Order
+    
+    alt if status is PAID:
+      Restaurant --X Customer : [Error] Order Already Paid
+    end
+
     Restaurant -> Order : pre_calculate_totals(coupon_code)
     activate Order
 
-      opt coupon_code is provided
-        alt Customer is not Member
-          Order --> Restaurant : [Error] Only members can use coupons
-          Restaurant --> Customer : [Error] Only members can use coupons
-        else Customer is Member
+      alt if coupon_code is provided:
+        alt if Customer is Member:
           Order -> Member: get_coupon_by_code(coupon_code)
           activate Member
-            Member --> Order: coupon_obj
+            loop for coupon in coupon_list
+              alt if coupon_code == coupon.code:
+                Member --> Order : coupon_obj
+              else
+                Member --X Order : Coupon Not Found
+                Order --X Restaurant : Coupon Not Found
+                Restaurant --X Customer : [Error] Coupon Not Found
+              end
+            end
           deactivate Member
+        else
+          Order --X Restaurant : Only members can use coupons
+          Restaurant --X Customer : [Error] Only members can use coupons
         end
       end
 
@@ -62,11 +64,10 @@ activate Restaurant
           activate OrderItem
           OrderItem --> Order : price
           deactivate OrderItem
+          Order -> Order: subtotal += item_price
       end
 
-      Order -> Order: subtotal = sum(all_item_price)
-
-      opt order has Booking
+      alt if order has Booking:
         Order -> Booking: get_full_price()
         activate Booking
           Booking --> Order: full_price
@@ -79,7 +80,7 @@ activate Restaurant
         Order -> Order: subtotal += full_price
       end
 
-      opt order has Delivery
+      alt if order has Delivery:
         Order -> Delivery: get_fee()
         activate Delivery
           Delivery --> Order: fee
@@ -87,14 +88,14 @@ activate Restaurant
         Order -> Order: subtotal += fee
       end
 
-      opt coupon_obj exists
+      alt if coupon_obj exists:
         Order -> Coupon: is_available()
         activate Coupon
-          alt Not Available
-            Coupon --> Order: False
-            Order --> Restaurant: [Error] Coupon Not Available
-            Restaurant --> Customer: [Error] Coupon Not Available
-          else Available
+          alt if Not Available:
+            Coupon --X Order: False
+            Order --X Restaurant: [Error] Coupon Not Available
+            Restaurant --X Customer: [Error] Coupon Not Available
+          else
             Coupon --> Order: True
           end
         deactivate Coupon
@@ -106,7 +107,7 @@ activate Restaurant
         deactivate Coupon
       end
 
-      opt Customer is Member
+      alt if Customer is Member:
         Order -> Member: get_tier_discount(subtotal)
         activate Member
           Member --> Order: tier_discount
@@ -114,11 +115,14 @@ activate Restaurant
       end
 
       Order -> Order: discount = min(tier_discount + coupon_discount, subtotal)
-      Order -> Order: final_price = subtotal - discount - deposit_price
+      Order -> Order: deposit = booking.deposit if booking else 0.0
+      Order -> Order: final_price = subtotal - discount - deposit
 
-      Order --> Restaurant: Bill_info_dict
+      Order --> Restaurant: info
     deactivate Order
     
-    Restaurant --> Customer : return Bill Details
+    Restaurant -> Restaurant : generate_bill_data(info)
+    Restaurant --> Customer : bill_data
+
 deactivate Restaurant
 @enduml
