@@ -44,7 +44,7 @@ activate R
     end
 
     == 2. Booking Validation (Loop & States) ==
-    loop for each booking in self._bookings
+    loop for each booking in self.__booking_list
         R -> B : check_id(booking_id)
         activate B
         B --> R : booking_obj / None
@@ -70,11 +70,21 @@ activate R
 
     == 3. Order Match ==
     R -> R : order = get_order(order_id)
-    R -> O : customer
+    loop for each order in self.__order_list
+        R -> O : check_id(order_id)
+        activate O
+        O --> R : order_obj / None
+        deactivate O
+    end
+    
+    alt order_obj is None
+        R --X S : raise LookupError("Order not found")
+    end
+    R -> O : order.get_customer()
     activate O
     O --> R : order_customer
     deactivate O
-    R -> B : member
+    R -> B : booking.get_member()   
     activate B
     B --> R : booking_member
     deactivate B
@@ -116,6 +126,7 @@ activate R
 
     == 5. Status & Reward Update ==
     R -> B : mark_checked_in()
+    note right of B : BookingStatus -> CHECKED_IN
     activate B
         B -> RM : mark_room_in_use()
         note right of RM : RoomStatus -> IN_USE
