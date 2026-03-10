@@ -17,33 +17,29 @@ activate Restaurant
 
     == Authentication ==
 
-    Restaurant -> Restaurant : verify_token_and_role(token, ["Member", "Guest"])
+    Restaurant -> Restaurant : check_order_customer(order_id, token, allowed_roles= MEMBER, GUEST])
+    alt Wrong Customer
+      Restaurant --X Customer : [Error] Wrong Customer
+    end
     
-    Restaurant -> Order : search_order_from_id(order_id)
-    activate Order
-      Order --> Restaurant : order_obj
-    deactivate Order
+    == Payment Process ==
     
-    Restaurant -> Order : check_customer(current_customer)
-    activate Order
-      alt Wrong Customer
-        Order --> Restaurant : False
-        Restaurant --> Customer : [Error] Wrong Customer
-      else Valid Customer
-        Order --> Restaurant : True
-      end
-    deactivate Order
+    loop for method in payment_methods
+      Restaurant -> Restaurant : get_payment_method(method_name)
+    end
 
-    Restaurant -> Order : get_order(order_id)
+    loop for order in order_list
+      Restaurant -> Restaurant : search_order_from_id(order_id)
+    end
+    
+    Restaurant -> Order: get_status
     activate Order
-      Order --> Restaurant : order_obj
+    Order --> Restaurant : status
     deactivate Order
     
     alt OrderStatus is Paid
-      Restaurant --> Customer : [Error] Order Already Paid
+      Restaurant --X Customer : [Error] Order Already Paid
     end
-
-    == Payment Process ==
 
     Restaurant -> Restaurant : get_payment_method(method_name)
     activate Restaurant
