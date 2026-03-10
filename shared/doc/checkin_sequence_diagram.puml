@@ -1,6 +1,8 @@
 @startuml
 skinparam style strictuml
 skinparam sequenceMessageAlignment center
+scale 1000 width
+skinparam maxMessageSize 250
 
 ' --- Participants ระดับเดียวกันด้านบน ---
 actor "Staff/Admin" as S
