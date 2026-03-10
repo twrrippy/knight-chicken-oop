@@ -12,3 +12,10 @@ async def advance_time(
     new_time = SimulationClock.get_time() + timedelta(minutes=minutes)
     SimulationClock.set_time(new_time)
     return {"current_simulation_time": SimulationClock.get_time().strftime("%Y-%m-%d %H:%M:%S")}
+
+@mcp.tool()
+async def get_current_time():
+    """
+    Get the current simulation time.
+    """
+    return {"current_simulation_time": SimulationClock.get_time().strftime("%Y-%m-%d %H:%M:%S")}
