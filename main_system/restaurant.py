@@ -1236,6 +1236,11 @@ class Restaurant:
                 "room_id": booking.room.id,
                 "member_name": booking.member.name,
                 "cancel_time": SimulationClock.get_time().strftime("%Y-%m-%d %H:%M:%S")}
+    
+    def mark_room_as_cleaned(self, room_id: str):
+        room = self.get_room(room_id)
+        room.mark_room_available()
+        return {"message": f"Room {room_id} marked as cleaned and available"}
 
     def login(self, username, password):
         member = next((m for m in self.__member_list if m.check_identity(username, password)), None)

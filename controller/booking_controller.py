@@ -82,7 +82,7 @@ async def preview_booking(
     Preview booking details. Requires Staff access.
     """
     try:
-        restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
+        restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF, UserRole.MEMBER])
         return restaurant.preview_booking_details(booking_id)
     except Exception as e:
         return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
@@ -147,8 +147,27 @@ async def cancel_booking(
     Cancel a room booking.
     """
     try:
-        restaurant.verify_token_and_role(token, ["Admin", "Staff"])
+        restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
         payload = restaurant.cancel_booking(booking_id=booking_id)
+        return payload
+    except Exception as e:
+        return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
+
+@mcp.tool
+async def cleaning_room(
+    token: Annotated[str, Field(
+        description="Staff access token performing the action"
+    )], 
+    room_id: Annotated[str, Field(
+        description="Room ID to clean (Format: RM-xxx)"
+    )]
+):
+    """
+    Mark a room as being cleaned.
+    """
+    try:
+        restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
+        payload = restaurant.mark_room_as_cleaned(room_id=room_id)
         return payload
     except Exception as e:
         return f"Unable to proceed: {getattr(e, 'detail', str(e))}"

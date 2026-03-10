@@ -1,0 +1,99 @@
+@startuml
+skinparam style strictuml
+skinparam sequenceMessageAlignment center
+
+' --- ประกาศ Participants ทั้งหมดไว้ด้านบนสุดเพื่อให้ระดับเดียวกัน ---
+actor "Staff/Admin" as S
+participant "Restaurant" as R << (C,#ADD1B2) >>
+participant "Member" as M << (C,#ADD1B2) >>
+participant "Room" as RM << (C,#ADD1B2) >>
+participant "TimeSlot" as TS << (C,#ADD1B2) >>
+participant "PaymentMethod" as PM << (C,#ADD1B2) >>
+participant "Booking" as B << (C,#ADD1B2) >>
+
+' --- เริ่มต้น Logic ---
+S -> R : booking_room(token, member_id, room_id, start_time, hours, pay_med, pay_detailed)
+activate R
+
+    == Security Check ==
+    R -> R : verify_token_and_role(token, allowed_roles=["staff", "admin"])
+    alt token invalid / no permission
+        R --X S : raise HTTPException(401, "Unauthorized")
+    end
+
+    == Search & Retrieval (Loops) ==
+    
+    loop for each member in self._members
+        R -> M : check_id(member_id)
+        M --> R : member_obj / None
+    end
+    alt member_obj is None
+        R --X S : raise HTTPException(404, "Member not found")
+    end
+
+    loop for each room in self._rooms
+        R -> RM : check_id(room_id)
+        RM --> R : room_obj / None
+    end
+    alt room_obj is None
+        R --X S : raise HTTPException(404, "Room not found")
+    end
+
+    == Validation ==
+    R -> R : is_slot_available(room_obj, start_time, hours)
+    note right of R : เช็ควันเวลาจองย้อนหลัง\nและเช็คว่าห้องว่างไหม
+    alt invalid time / room busy
+        R --X S : raise HTTPException(400, "Time slot already occupied")
+    end
+
+    == Calculation & Payment ==
+    
+    ' ใช้การลากไปที่ TS ที่ประกาศไว้ด้านบนแล้ว
+    R -> TS : create(start_time, hours)
+    activate TS
+        TS -> TS : endtime = start_time + hours
+        TS --> R : time_slot
+    deactivate TS
+    
+    R -> RM : get_price_per_hour()
+    RM --> R : price_per_hour
+    
+    R -> M : get_member_discount(price_per_hour * hours)
+    activate M
+        M --> R : discount_amount
+    deactivate M
+    
+    note over R : full_price = (price_per_hour * hours) - discount_amount
+
+    R -> R : process_pay_deposit(full_price * 0.5, pay_med, pay_detailed)
+    activate R #LightBlue
+        
+        R -> PM : get_payment_method(pay_med)
+        activate PM
+        PM --> R : method
+        R -> PM : method.pay(amount, pay_detailed)
+        PM --> R : success(True/False) , note
+        deactivate PM
+        alt success is False
+            R --X S : raise HTTPException(402, note="Payment failed: " + note)
+        end
+    deactivate R
+
+    == Create & Store Booking ==
+    
+    R -> R : booking_id = f"BK-{self._booking_counter:03d}"
+    R -> R : self.__booking_counter += 1
+    
+    ' ลากไปที่ B ที่ประกาศไว้ด้านบนแล้ว
+    R -> B : create(booking_id, member, room, time_slot)
+    activate B
+        B -> B : mark_as_deposit_paid()
+        B --> R : booking_instance
+    deactivate B
+    
+    R -> R : self._bookings.append(booking_instance)
+    
+    R --> S : return {"message": "Success", "booking_id": id}
+
+deactivate R
+@enduml
