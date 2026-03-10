@@ -13,6 +13,7 @@ participant "Coupon"
 
 Customer -> Restaurant : check_order_customer(token, order_id, coupon_code)
 activate Restaurant
+    == Authentication ==
 
     Restaurant -> Restaurant : verify_token_and_role(token, ["Member", "Guest"])
     

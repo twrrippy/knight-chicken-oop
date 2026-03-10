@@ -1,0 +1,194 @@
+@startuml process_order_payment_sequence
+skinparam style strictuml
+skinparam sequenceMessageAlignment center
+
+actor "Customer"
+participant "Restaurant"
+participant "Order"
+participant "Member"
+participant "PaymentMethod"
+participant "Booking"
+participant "Delivery"
+participant "Coupon"
+participant "Receipt"
+
+Customer -> Restaurant : process_order_payment(order_id, coupon_code, method_name, payment_details)
+activate Restaurant
+
+    == Authentication ==
+
+    Restaurant -> Restaurant : verify_token_and_role(token, ["Member", "Guest"])
+    
+    Restaurant -> Order : search_order_from_id(order_id)
+    activate Order
+      Order --> Restaurant : order_obj
+    deactivate Order
+    
+    Restaurant -> Order : check_customer(current_customer)
+    activate Order
+      alt Wrong Customer
+        Order --> Restaurant : False
+        Restaurant --> Customer : [Error] Wrong Customer
+      else Valid Customer
+        Order --> Restaurant : True
+      end
+    deactivate Order
+
+    Restaurant -> Order : get_order(order_id)
+    activate Order
+      Order --> Restaurant : order_obj
+    deactivate Order
+    
+    alt OrderStatus is Paid
+      Restaurant --> Customer : [Error] Order Already Paid
+    end
+
+    == Payment Process ==
+
+    Restaurant -> Restaurant : get_payment_method(method_name)
+    activate Restaurant
+      Restaurant --> Restaurant : method
+    deactivate Restaurant
+    
+    Restaurant -> Restaurant : get_order(order_id)
+    activate Restaurant
+      Restaurant --> Restaurant : order
+    deactivate Restaurant
+
+    alt if OrderStatus is Paid:
+      Restaurant --X Customer : Order Already Paid
+    end
+
+    Restaurant -> Order : execute_payment(method, payment_details, coupon_code)
+    activate Order
+
+      alt if coupon_code is provided:
+        alt if Customer is Member:
+          Order -> Member : get_coupon_by_code(coupon_code)
+          activate Member
+            Member --> Order : coupon
+          deactivate Member
+        else
+          Order --X Restaurant : Only members can use coupons
+        end
+      end
+
+      Order -> Order : calculate_totals(coupon_code)
+      activate Order
+        Order -> Order : pre_calculate_totals(coupon_code)
+        Order -> Order : update subtotal, discount, final_price
+        
+        alt if coupon_code and Customer is Member:
+          Order -> Member : get_coupon_by_code(coupon_code)
+          activate Member
+            Member --> Order : __coupon_used
+          deactivate Member
+        end
+        Order --> Order : info
+      deactivate Order
+
+      Order -> Order : total_payable = info["Final Price"]
+
+      alt if total_payable > 0:
+        Order -> PaymentMethod : pay(total_payable, payment_details)
+        activate PaymentMethod
+          PaymentMethod --> Order : success, note
+        deactivate PaymentMethod
+      else
+        Order -> Order : success = True
+        Order -> Order : note = "Payment Done"
+      end
+
+      alt if not success:
+        Order --X Restaurant : Payment Failed (note)
+      end
+
+      Order -> Order : status = PAID
+
+      alt if order have Booking:
+        Order -> Booking : mark_as_paid()
+        activate Booking
+          Booking --> Order : 
+        deactivate Booking
+      end
+
+      alt if order have Delivery:
+        Order -> Restaurant : update_delivery_status(order_id, PAID, _internal=True)
+        activate Restaurant
+          Restaurant -> Delivery : mark_as_paid()
+          activate Delivery
+            Delivery --> Restaurant : 
+          deactivate Delivery
+          Restaurant --> Order : 
+        deactivate Restaurant
+        
+        Order -> Restaurant : update_delivery_status(order_id, DRIVER_ASSIGNED, _internal=True)
+        activate Restaurant
+          Restaurant -> Delivery : request_rider()
+          activate Delivery
+            Delivery --> Restaurant : 
+          deactivate Delivery
+          Restaurant --> Order : 
+        deactivate Restaurant
+      end
+
+      alt if coupon:
+        Order -> Coupon : consume()
+        activate Coupon
+          Coupon --> Order : 
+        deactivate Coupon
+      end
+
+      Order -> Receipt ** : Receipt(self, method)
+      activate Receipt
+        Receipt --> Order : receipt_obj
+      deactivate Receipt
+
+      alt if Customer is Member:
+        Order -> Order : deposit = booking.deposit if booking else 0.0
+        Order -> Order : points = round((total_payable + deposit) / 10)
+        
+        Order -> Member : add_points(points)
+        activate Member
+          Member --> Order : 
+        deactivate Member
+        
+        Order -> Member : add_receipt(receipt_obj)
+        activate Member
+          Member --> Order : 
+        deactivate Member
+      end
+
+      Order --> Restaurant : receipt_obj
+    deactivate Order
+
+    Restaurant -> Restaurant : add_receipts(receipt_obj)
+
+    alt if Customer is Member:
+      Restaurant -> Member : check_and_issue_member_teir()
+      activate Member
+        Member --> Restaurant : teir_reward
+      deactivate Member
+    end
+
+    Restaurant -> Restaurant : check_and_issue_reward(order)
+    activate Restaurant
+      Restaurant --> Restaurant : reward_coupon
+    deactivate Restaurant
+
+    Restaurant -> Receipt : generate()
+    activate Receipt
+      Receipt --> Restaurant : receipt_data
+    deactivate Receipt
+
+    alt if teir_reward:
+      Restaurant -> Restaurant : add teir_issued to receipt_data
+    end
+
+    alt if reward_coupon:
+      Restaurant -> Restaurant : add reward_issued to receipt_data
+    end
+
+    Restaurant --> Customer : receipt_data
+deactivate Restaurant
+@enduml
