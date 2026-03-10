@@ -2,77 +2,134 @@
 skinparam Linetype ortho
 
 class Restaurant{
-    - member : list of Member
-    - order_list : list of Order
-    - stock : list of Item
-    - coupon_list : list of Coupon
-    - receipt_log : list of Receipt
-    - room : list of Room
-    - staff : list of Staff
-    - menu : list of MenuItem
-    - payment_gateway : PaymentMethod
-    - booking_list : list of Booking
-    - deliveryproviders : list of DeliveryProvider
-    + add_coupon(Coupon)
-    + get_coupon_by_code(code)
-    + booking_room(staff_id, member_id, room_id, amount_paid, start_time, hours)
+    - menu: List[MenuItem]
+    - stock: List[Item]
+    - receipt_list: List[Receipt]
+    - coupon_list: List[Coupon]
+    - member_list: List[Member]
+    - staff_list: List[Staff]
+    - booking_list: List[Booking]
+    - order_list: List[Order]  
+    - payment_method: List[PaymentMethod]
+    - room_list: List[Room]
+    - delivery_providers: List[DeliveryProvider]
+    - auth_manager : AuthManager
+    - member_counter: int
+    - staff_counter: int
+    - booking_counter: int
+    + add_delivery_provider(provider: DeliveryProvider)
+    + get_delivery_provider(provider_name: str) : DeliveryProvider
+    + add_room(room: Room)
+    + get_room(room_id: str) : Room
     + add_booking(booking: Booking)
-    + is_slot_available(room, start, hours)
+    + get_booking(booking_id: str) : Booking
+    + add_order(order: Order)
+    + get_order(order_id: str) : Order
+    + add_payment_method(method: PaymentMethod)
+    + get_payment_method(method_name: str) : PaymentMethod
+    + add_receipts(receipt: Receipt)
+    + get_receipts_by_order_id(order_id: str) : Receipt
+    + add_member(member: Member)
+    + get_member_by_id(member_id: str) : Member
+    + add_coupon(coupon: Coupon)
+    + get_coupon(code: str) : Coupon
+    + add_staff(staff: Staff)
+    + get_staff(id: str) : Staff
+    + get_user_by_id(id: str) : User
+    + verify_token_and_role(token: str, allowed_roles: List[str]) : User
+    + check_order_customer(order_id: str, token: str, allowed_roles: List[str]) : Order
+    + create_general_order(customer: Customer)
+    + add_menu(menu: MenuItem)
+    + check_queue() : int
+    + add_stock(item: Item, quantity: int)
+    + get_queue(queue_order: int) : Order | False
+    + count_stock_item(item_name: str, status: ItemStatus) : int
+    + check_stock_item(item_name: str) : dict
+    + all_stock() : dict
+    + get_menu() : dict
+    + search_menu_item_from_name(name: str) : MenuItem
+    + search_order_from_id(order_id: str) : Order
+    + reserve(order: Order)
+    + stock_reserve(item_name: str, quantity: int) -> bool
+    + stock_reverse(item_name: str, quantity: int)
+    + add_item_in_order(order: Order, menu: str, quantity: int)
+    + remove_item_in_order(order: Order, order_item_id: str)
+    + custom_item_in_order(order: Order, order_item_id: int, item_name: str, quantity: int)
+    + find_ingredient_in_stock(item_name: str) : int
+    + find_item_in_reserved(item_name: str) : int
+    + consume_reserved_ingredient(item_name: str, quantity: int) -> bool
+    + get_kitchen_queue()
+    + display_kitchen_queue()
+    + confirm(order:Order)
+    + void_order_from_id(order_id: str)
+    + serve_order(order_id: str)
+    + cook_order(order_id: str)
+    + create_delivery_order(customer: 'User', provider_name: str, distance: float)
+    + update_delivery_status(order_id: str, new_status: DeliveryStatus, _internal: bool = False)
+    + check_and_issue_reward(order: Order)
+    + get_payment_method(method_name: str) : PaymentMethod
+    + booking_room(member_id: str, room_id: str, hours: int, pay_method: str, start_time: datetime, payment_details: Dict)
+    + is_slot_available(room: Room, start: datetime, hours: int) : bool
     + auto_check_no_show()
-    + get_bookings_by_status(status): List[Booking]
-    + get_booking_by_id(booking_id)
-    + give_coupon(Customer, Coupon)
-    + find_item_in_reserved(Item)
-    + create_delivery_order()
-    + process_order_payment(order_id, staff_id, coupon, method, details) : Dict
-    + preview_order_bill(order_id, staff_id, coupon) : Dict
-    + check_and_issue_reward(order: Order) : str
+    + check_in_booking(order_id: str, booking_id: str, coupon_code: str, pay_method: str, payment_details: Dict)
+    + check_out_booking(booking_id: str)
+    + cancel_booking(booking_id: str)
+    + mark_room_cleaning(room_id: str)
+    + login(username: str, password: str) : Session
+    + logout(token: str) : bool
+    + add_guest_session() : Session
+    + register_member(username: str, password: str, name: str, phone: str) : Member
+    + register_staff(username: str, password: str, name: str, phone: str) : Staff
+    + get_all_members() : List[Member]
+    + get_all_staff() : List[Staff]
+    + get_all_rooms() : List[Room]
+    + get_all_receipts() : List[Receipt]
+    + get_all_orders() : List[Order]
+    + get_all_bookings() : List[Booking]
+    + get_all_coupons() : List[Coupon]
+    + preview_booking_details(booking_id: str) : dict
+    + process_pay_deposit(deposit: float, method_name: str, payment_details: Dict) : bool
+    + process_order_payment(order_id: str, coupon_code: Optional[str], method_name: str, payment_details: Dict) : bool
+    + preview_order_bill(order_id: str, coupon_code: Optional[str]) : dict
+    + simulate_delivery(order_id: str)
 }
 Customer --|> User
 Staff --|> User
 class User{
     - id : string
     - name : string
+    - phoneNumber : string
     - username : string
     - password : string
-    - phoneNumber : string
-    + get_id()
-    + get_name()
+    + is_valid_phone_number(phone_number: str) : bool
+    + check_username(username)
+    + check_identity(username, password)
 }
 Restaurant o-- Member
 Member--|>Customer
 Guest--|>Customer
 class Customer {
-    <<Abstract>>
-    + request_bill()
 }
 class Guest {
-    + register()
+    + Guest_count: int
+    - id : string
 }
 class Member{
     - coupon_list : list[Coupon]
     - receipt_list : list[Recipt]
     - tier : MemberTier
-    + add_receipt(receipt)
-    + add_coupon(Coupon)
-    + get_tier()
+    - points : int
+    + add_receipt(receipt: Receipt)
+    + add_coupon(coupon: Coupon)
+    + add_points(points: int)
+    + check_and_issue_member_tier()
+    + get_coupon_by_code(code: str) : Coupon
+    + get_member_discount(base_price: float) : float
 }
 
 Restaurant o-- Staff
 class Staff{
-    - username
-    - password
-    - role : StaffRole
-    + login()
-    + logout()
-    + create_order()
-    + check_room_availability(room, start, hours)
-    + check_in_booking(booking_id)
-    + check_out_booking(booking_id)
-    + view_queue()
-    + update_food_status()
-    + report_waste() 
-    + void_bill()  
+    - is_admin: bool
 }
 
 Restaurant o-- Order
@@ -90,31 +147,52 @@ SingleMenuItem <-- Food
 Food --o SetMenuItem
 
 class Order{
+    + Order_count: int
     - id:  string
-    - type : OrderType
     - customer : Customer
-    - order_list : list of OrderItem
-    - sub_total_price : float
+    - order_item_list : list of OrderItem
+    - order_item_id_counter : int
+    - status: OrderStatus
     - status_start : datetime
+    - coupon_used : Optional[Coupon]
+    - booking : Optional[Booking]
+    - delivery : Optional[Delivery]
+    - subtotal : float
     - discount : float
     - final_price : float
-    - booking : Booking
-    - delivery : Delivery
-    - status : OrderStatus
-    + update_status(OrderStatus)
-    + pre_calculate_totals(coupon: Coupon)
-    + calculate_totals(coupon: Coupon)
-    + execute_payment(method: PaymentMethod, details: Dict, coupon: str) : Receipt
-    + booking() : Booking
-    + pre_calculate_totals(coupon: Coupon)
+    + add_order_item(menu: MenuItem, quantity: int)
+    + is_valid_order_item_id(order_item_id: int) : bool
+    + remove_order_item(order_item_id: int)
+    + search_order_item_from_id(order_item_id: int) : OrderItem
+    + custom(order_item_id: int, item_name: str, quantity: int)
+    + add_booking(booking: Booking)
+    + add_delivery(delivery: Delivery)
+    + update_price()
+    + check_customer(customer: Customer)
+    + order_reserve()
+    + order_confirm()
+    + order_item_dict_list() : list
+    + order_to_dict() : dict
+    + cook(): bool
+    + serve(): Order
+    + pre_calculate_totals(coupon_code: Optional[str])
+    + calculate_totals(coupon_code: Optional[str])
+    + execute_payment(method: PaymentMethod, payment_details: Dict, coupon_code: Optional[str]) : Receipt
+    + void_order()
 }
 class OrderItem{
     - id : int 
     - menu_item : MenuItem
     - quantity : int
     - status : OrderItemStatus
-    + update_status(OrderItemStatus)
-    + get_details() : Dict<str, Any>
+    + is_valid_quantity(quantity: int) : bool
+    + custom_menu(item_name: str, quantity: int)
+    + order_item_reserve()
+    + order_item_reverse(ingredient: Ingredient)
+    + order_item_to_dict() : dict
+    + get_details() : dict
+    + process_cooking() : bool
+    + cancel_reservation()
 }
 
 abstract class MenuItem{
@@ -123,17 +201,23 @@ abstract class MenuItem{
     - cooking_time : datetime
     - menu_item_status : MenuItemStatus
     + update_status(MenuItemStatus)
-    + get_all_ingredient()
+    + all_ingredient()
+    + calculate_price()
     + update_price()
+    + to_dict_order()
+    + to_dict_menu()
 }
 class SingleMenuItem{
     - recipe : list of Ingredient
-    + custom_add(Item)
-    + custom_sub(Item)
+    + find_ingredient_in_recipe(name)
+    + find_ingredient_in_recipe_from_name(item_name: str)
+    + calculate_price(original_menu: MenuItem)
+    + custom_ingredient(item_name: str, quantity: int)
 }
 class SetMenuItem{
     - items : list of Food
-    + get_all_ingredient()
+    + find_ingredient_in_recipe(item: Item)
+    + calculate_price(original_menu: MenuItem)
 }
 class Food{
     - item : SingleMenuItem
@@ -143,12 +227,15 @@ class Ingredient{
     - item : Item
     - quantity : int
     - type : IngredientType
-    + custom_add()
-    + custom_sub()
+    + is_valid_quantity(quantity: int) : bool
+    + modify(quantity: int)
+    + custom(quantity: int)
 }
 class Item{
     - name : string
     - price : float
+    - status : ItemStatus
+    + is_valid_price(price: float) : bool
 }
 
 
@@ -159,11 +246,13 @@ Coupon --o Member
 
 class Room{
     - room_id : str
-    - name : str
+    - room_type : RoomType
     - status : RoomStatus
-    - capacity : int
     - price_per_hour : float
-    + update_status(RoomStatus)
+    - capacity : int
+    + mark_room_cleaning()
+    + mark_room_in_use()
+    + mark_room_available()
 }
 Restaurant o-- Room
 Restaurant o-- Booking
@@ -171,16 +260,17 @@ Booking --> Member
 Booking --> Room
 Booking *-- TimeSlot
 class Booking{
-    - booking_id : str
+    - id : str
     - member : Member
     - room : Room
     - time_slot : TimeSlot
     - status : BookingStatus
-    - total_price : float
-    - deposit_price : float
-    + add_order(Order)
-    + add_time_slot(room, start_time, hours)
-    + get_details() : Dict<str, Any>
+    + mark_deposit_paid()
+    + mark_as_paid()
+    + mark_completed()
+    + mark_checked_in()
+    + mark_cancelled()
+    + get_details() : dict
 }
 class TimeSlot{
     - start_time : datetime
@@ -192,9 +282,12 @@ abstract class Coupon{
     - code : str
     - minimum_price : float
     - status : CouponStatus
+    - max_usege : int
+    - used_count : int
     + {abstract} apply_coupon(base_price: float) : float
     + is_applicable(base_price: float) : bool
-    + mark_as_used()
+    + is_available() : bool
+    + consume()
 }
 class PercentCoupon{
     - percent : int
@@ -207,22 +300,24 @@ class FixedAmountCoupon{
 
 Delivery <-- Order
 class Delivery{
-    delivery_id : str
-    - platform : DeliveryPlatform
-    - commission_rate : float
+    - delivery_id : str
+    - provider : DeliveryProvider
     - distance : float
     - status : DeliveryStatus
-    - delivery_status : finding_driver, driver_assigned, driver_at _store, out_for_delivery, delivered
-    - delivery_status : DeliveryStatus
-    + update_status(DeliveryStatus)
-    + fee() : float
+    - tracking_id : Optional[str]
+    - rider_name : Optional[str]
+    + request_rider()
+    + mark_in_transit()
+    + mark_delivered()
+    + mark_as_paid()
+    + mark_canceled()
+    + get_details() : dict
 }
 PaymentMethod <-- Restaurant
 abstract class PaymentMethod{
     - id : str
     - name : str
-    + get_method(name:str)
-    + get_name() : abstract
+    + {abstract} name()
     + {abstract} pay(amount: float, kwargs) : Tuple<bool, str>
 }
 
@@ -231,11 +326,11 @@ DeliveryProvider --o Restaurant
 
 abstract class DeliveryProvider{
     - platform_name : str
-    - riders : list of rider_name
-    - commission_rate : float
-    + assign_rider() : str
-    + update_status(DeliveryStatus)
-    + fee() : float
+    - riders_name : list of rider_name
+    - minimum_fee : float
+    - price_per_km : float
+    + request_rider(delivery: Delivery) : Tuple[bool, str]
+    + {abstract} calculate_fee(distance_km: float) : float
 }
 
 GrabDeliveryProvider --|> DeliveryProvider
@@ -277,11 +372,27 @@ Order <-- Receipt
 class Receipt{
     - id : str
     - order : Order
-    - timestamp : datetime
     - method : PaymentMethod
+    - timestamp : datetime
+    + generate() : dict
 }
 
-
+Session --o AuthManager
+Restaurant --> AuthManager
+class Session{
+    - token : str
+    - user_id : str
+    - login_time : datetime
+    - is_active : bool
+    + invalidate()
+    + check_token(token: str) : bool
+}
+class AuthManager{
+    - sessions : list of Session
+    + create_session(user_id: str) : Session
+    + get_session(token: str) : Session | None
+    + revoke_staff_sessions(user_id: str)
+}
 
 package "Enums" {
     enum OrderType {
@@ -290,10 +401,20 @@ package "Enums" {
         EVENT
     }
     enum OrderStatus {
-        NONE
+        PENDING
         RESERVED
         CONFIRMED
-        PAIDED
+        PAID
+        COOKING
+        READY
+        SERVED
+        CANCELED
+    }
+    enum OrderItemStatus{
+        PENDING
+        ADDED
+        RESERVED
+        OUT_OF_STOCK
         COOKING
         READY
         SERVED
@@ -301,8 +422,7 @@ package "Enums" {
     }
     enum MenuItemStatus{
         AVAILABLE
-        OUT_OF_STOCK
-        DELETED
+        UNAVAILABLE
     }
     enum IngredientType{
         STRICT
@@ -311,9 +431,10 @@ package "Enums" {
     enum BookingStatus {
         PENDING
         DEPOSIT_PAID
+        PAID
         CHECKED_IN
         COMPLETED
-        CANCELLED
+        CANCELED
     }
     enum RoomStatus {
         AVAILABLE
@@ -326,6 +447,7 @@ package "Enums" {
         HALL
     }
     enum MemberTier {
+        GENERAL
         BRONZE
         SILVER
         GOLD
@@ -335,12 +457,34 @@ package "Enums" {
         NOT_AVAILABLE
     }
     enum DeliveryStatus{
-        FINDING_DRIVER
+        PENDING
+        PAID
         DRIVER_ASSIGNED
-        DRIVER_AT_STORE
-        OUT_FOR_DELIVERY
+        IN_TRANSIT
         DELIVERED
+        CANCELED
     }
+    enum UserRole {
+        ADMIN
+        STAFF
+        MEMBER
+        GUEST
+    }
+    enum PlatformName{
+        GRAB
+        LINE_MAN
+        SHOPEE_FOOD
+    }
+    enum TransactionStatus{
+        PENDING
+        FAILED
+        SUCCESS
+    }
+    enum ItemStatus{
+        AVAILABLE
+        RESERVED
+    }
+
 }
 
 @enduml

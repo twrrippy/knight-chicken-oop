@@ -1310,8 +1310,8 @@ class Restaurant:
         order = self.get_order(order_id)
         
             
-        if order.status == OrderStatus.PAID: 
-            raise ValueError("Order Already Paid")
+        if order.status != OrderStatus.CONFIRMED: 
+            raise ValueError("Order is Not CONFIRMED or Already Paid")
             
         receipt = order.execute_payment(method, payment_details, coupon_code)
         self.add_receipts(receipt)
@@ -1332,7 +1332,8 @@ class Restaurant:
     
     def preview_order_bill(self, order_id: str, coupon_code: Optional[str]):
         order = self.get_order(order_id)
-        if order.status == OrderStatus.PAID: raise ValueError("Order Already Paid")
+        if order.status != OrderStatus.CONFIRMED: 
+            raise ValueError("Order is Not CONFIRMED or Already Paid")
         return order.pre_calculate_totals(coupon_code)
 
     async def simulate_delivery(self, order_id: str):
