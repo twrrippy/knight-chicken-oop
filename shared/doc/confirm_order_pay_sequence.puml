@@ -12,14 +12,14 @@ participant "Delivery"
 participant "Coupon"
 participant "Receipt"
 
-Customer -> Restaurant : process_order_payment(order_id, coupon_code, method_name, payment_details)
+Customer -> Restaurant : confirm_order_pay(token, order_id, method, coupon_code, payment_details)
 activate Restaurant
 
     == Authentication ==
 
     Restaurant -> Restaurant : check_order_customer(order_id, token, allowed_roles= MEMBER, GUEST])
-    alt Wrong Customer
-      Restaurant --X Customer : [Error] Wrong Customer
+    alt Unauthorized User 
+      Restaurant --X Customer : [Error] Unauthorized User
     end
     
     == Payment Process ==
@@ -37,22 +37,8 @@ activate Restaurant
     Order --> Restaurant : status
     deactivate Order
     
-    alt OrderStatus is Paid
-      Restaurant --X Customer : [Error] Order Already Paid
-    end
-
-    Restaurant -> Restaurant : get_payment_method(method_name)
-    activate Restaurant
-      Restaurant --> Restaurant : method
-    deactivate Restaurant
-    
-    Restaurant -> Restaurant : get_order(order_id)
-    activate Restaurant
-      Restaurant --> Restaurant : order
-    deactivate Restaurant
-
-    alt if OrderStatus is Paid:
-      Restaurant --X Customer : Order Already Paid
+    alt OrderStatus is not CONFIRMED
+      Restaurant --X Customer : [Error] Order is Not CONFIRMED or Already Paid
     end
 
     Restaurant -> Order : execute_payment(method, payment_details, coupon_code)
@@ -62,10 +48,19 @@ activate Restaurant
         alt if Customer is Member:
           Order -> Member : get_coupon_by_code(coupon_code)
           activate Member
-            Member --> Order : coupon
+            loop for coupon in coupon_list
+              alt if coupon_code == coupon.code:
+                Member --> Order : coupon
+              else
+                Member --X Order : Coupon Not Found
+                Order --X Restaurant : Coupon Not Found
+                Restaurant --X Customer : [Error] Coupon Not Found
+              end
+            end
           deactivate Member
         else
           Order --X Restaurant : Only members can use coupons
+          Restaurant --X Customer : [Error] Only members can use coupons
         end
       end
 
@@ -73,13 +68,6 @@ activate Restaurant
       activate Order
         Order -> Order : pre_calculate_totals(coupon_code)
         Order -> Order : update subtotal, discount, final_price
-        
-        alt if coupon_code and Customer is Member:
-          Order -> Member : get_coupon_by_code(coupon_code)
-          activate Member
-            Member --> Order : __coupon_used
-          deactivate Member
-        end
         Order --> Order : info
       deactivate Order
 
@@ -97,6 +85,7 @@ activate Restaurant
 
       alt if not success:
         Order --X Restaurant : Payment Failed (note)
+        Restaurant --X Customer : [Error] Payment Failed (note)
       end
 
       Order -> Order : status = PAID
@@ -122,9 +111,9 @@ activate Restaurant
         activate Restaurant
           Restaurant -> Delivery : request_rider()
           activate Delivery
-            Delivery --> Restaurant : 
+            Delivery --> Restaurant : rider_name, tracking_id
           deactivate Delivery
-          Restaurant --> Order : 
+          Restaurant --> Order : rider_name, tracking_id
         deactivate Restaurant
       end
 
