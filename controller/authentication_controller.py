@@ -1,17 +1,12 @@
-from typing import Union, Annotated, Optional
+from typing import Annotated
 from pydantic import Field
-from mcp_core import mcp
-from main_system.restaurant import restaurant, Order
-from main_system.utils.enum import ItemStatus
-from fastapi import APIRouter, HTTPException
-
-router = APIRouter(prefix="/auth", tags=["Authentication"])
+from main_system.utils.mcp_core import mcp
+from main_system.restaurant import restaurant
 
 @mcp.tool
-@router.post("/login")
 async def login(
-    username: Annotated[str, Field(description="ชื่อผู้ใช้งาน")], 
-    password: Annotated[str, Field(description="รหัสผ่าน")]
+    username: Annotated[str, Field(description="Username")], 
+    password: Annotated[str, Field(description="Password")]
 ):
     """
     Authenticate a user or staff member and retrieve an access token.
@@ -21,10 +16,9 @@ async def login(
         token = session.token
         return {"access_token": token, "token_type": "bearer"}
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
+        return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
     
 @mcp.tool
-@router.post("/guest")
 async def guest_login():
     """
     Create a guest session and retrieve an access token.
@@ -34,12 +28,11 @@ async def guest_login():
         token = session.token
         return {"access_token": token, "token_type": "bearer"}
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
+        return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
-@router.post("/logout")
 async def logout(
-    token: Annotated[str, Field(description="Token ที่ต้องการทำลาย")]
+    token: Annotated[str, Field(description="Token to invalidate")]
 ):
     """
     Invalidate the current access token and log out the user.
@@ -48,6 +41,6 @@ async def logout(
         success = restaurant.logout(token)
         if success:
             return {"message": "Logged out successfully"}
-        return f"ไม่สามารถดำเนินการได้: Invalid Token"
+        return f"Unable to proceed: Invalid Token"
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
+        return f"Unable to proceed: {getattr(e, 'detail', str(e))}"

@@ -1,29 +1,25 @@
-from fastapi import APIRouter
 from typing import Optional, Dict, Any, Annotated
 from pydantic import Field
 from main_system.restaurant import restaurant
 from main_system.utils.enum import UserRole
-from mcp_core import mcp
-router = APIRouter(prefix="/payment", tags=["Payment"])
-
+from main_system.utils.mcp_core import mcp
 
 @mcp.tool
-@router.post("/confirm_pay/{order_id}")
 async def confirm_order_pay(
     token: Annotated[str, Field(
-        description="Token ของลูกค้า (ได้จากการเรียกใช้ tool login หรือ guest)"
+        description="Customer access token (obtained via 'login' tool or as guest)"
     )],
     order_id: Annotated[str, Field(
-        description="รหัสออเดอร์ที่ต้องการชำระเงิน (รูปแบบที่คาดหวัง: ORD-xxx)"
+        description="Order ID to be paid (Expected format: ORD-xxx)"
     )],
     method: Annotated[str, Field(
-        description='วิธีการชำระเงิน รองรับเฉพาะ "qrcode", "creditcard" หรือ "cash"'
+        description='Payment method. Only supports "qrcode", "creditcard", or "cash"'
     )],
     coupon_code: Annotated[Optional[str], Field(
-        description="โค้ดคูปองส่วนลดที่ต้องการใช้งาน (ถ้ามี)"
+        description="Discount coupon code to use (if any)"
     )] = None,
     payment_details: Annotated[Dict[str, Any], Field(
-        description='ข้อมูลเพิ่มเติมที่บังคับใช้ตามประเภทการจ่ายเงิน: กรณี qrcode ต้องระบุ {"account_number": "xxx"}, กรณี creditcard ต้องระบุ {"card_number": "...", "cvv": "..."}, กรณี cash ต้องระบุ {"cash_received": xxx}'
+        description='Additional required information depending on payment method: For qrcode, specify {"account_number": "xxx"}. For creditcard, specify {"card_number": "...", "cvv": "..."}. For cash, specify {"cash_received": xxx}.'
     )] = {}
 ):
 
@@ -32,25 +28,22 @@ async def confirm_order_pay(
     """
 
     try:
-        current_customer = restaurant.verify_token_and_role(token=token, allowed_roles=[UserRole.MEMBER, UserRole.GUEST])
-        current_order = restaurant.search_order_from_id(order_id)
-        current_order.check_customer(current_customer)
+        restaurant.check_order_customer(order_id=order_id, token=token, allowed_roles=[UserRole.MEMBER, UserRole.GUEST])
         result = restaurant.process_order_payment(order_id, coupon_code, method, payment_details)
         return result
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
+        return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
-@router.post("/preview_order/{order_id}")
 async def preview_order_bill(
     token: Annotated[str, Field(
-        description="Token ของลูกค้า (ได้จากการเรียกใช้ tool login หรือ guest)"
+        description="Customer access token (obtained via 'login' tool or as guest)"
     )],
     order_id: Annotated[str, Field(
-        description="รหัสออเดอร์ที่ต้องการตรวจสอบยอด (รูปแบบที่คาดหวัง: ORD-xxx)"
+        description="Order ID to preview bill for (Expected format: ORD-xxx)"
     )],
     coupon_code: Annotated[Optional[str], Field(
-        description="โค้ดคูปองส่วนลดที่ต้องการทดลองคำนวณเพื่อดูยอดก่อนจ่ายจริง (ถ้ามี)"
+        description="Discount coupon code to trial calculate before actual payment (if any)"
     )] = None
 ):
 
@@ -59,11 +52,8 @@ async def preview_order_bill(
     """
 
     try:
-        current_customer = restaurant.verify_token_and_role(token=token, allowed_roles=[UserRole.MEMBER, UserRole.GUEST])
-        current_order = restaurant.search_order_from_id(order_id)
-        current_order.check_customer(current_customer)
-        restaurant.verify_token_and_role(token=token, allowed_roles=[UserRole.MEMBER, UserRole.GUEST])
+        restaurant.check_order_customer(order_id=order_id, token=token, allowed_roles=[UserRole.MEMBER, UserRole.GUEST])
         result = restaurant.preview_order_bill(order_id, coupon_code)
         return result
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
+        return f"Unable to proceed: {getattr(e, 'detail', str(e))}"

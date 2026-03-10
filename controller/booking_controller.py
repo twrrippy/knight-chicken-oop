@@ -1,28 +1,23 @@
-from fastapi import APIRouter, HTTPException, status, Body
 from typing import Optional, Dict, Any, Annotated
 from datetime import datetime
 from pydantic import Field
-from mcp_core import mcp
+from main_system.utils.mcp_core import mcp
 from main_system.restaurant import restaurant
 from main_system.utils.enum import UserRole
 
-
-router = APIRouter(prefix="/booking", tags=["Booking"])
-
 @mcp.tool
-@router.post("/check-booking-availability")
 async def check_booking_availability(
     token: Annotated[str, Field(
-        description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)"
+        description="Staff access token (obtained via the 'login' tool)"
     )],
     room_id: Annotated[str, Field(
-        description="รหัสห้องที่ต้องการจอง ได้จากการใช้ tool (get_all_rooms)"
+        description="Room ID to book, obtained via the 'get_all_rooms' tool"
     )],
     start_time: Annotated[datetime, Field(
-        description="วันและเวลาที่ต้องการเริ่มใช้งาน (รูปแบบ: YYYY-MM-DD HH:MM:SS)"
+        description="Start date and time (Format: YYYY-MM-DD HH:MM:SS)"
     )],
     hours: Annotated[int, Field(
-        description="จำนวนชั่วโมงที่ต้องการใช้งาน (จำนวนเต็ม)"
+        description="Number of hours to book (Integer)"
     )]
 ):
     """
@@ -38,31 +33,30 @@ async def check_booking_availability(
                  "deposit_required": f"{room.price_per_hour * hours * 0.5} THB with no discount"
                 }
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
+        return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
-@router.post("/booking-room")
 async def book_room(
     token: Annotated[str, Field(
-        description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)"
+        description="Staff access token (obtained via the 'login' tool)"
     )],
     member_id: Annotated[str, Field(
-        description="รหัสสมาชิก (Format: M-xxx)"
+        description="Member ID (Format: M-xxx)"
     )], 
     room_id: Annotated[str, Field(
-        description="รหัสห้องที่ต้องการจอง ได้จากการใช้ tool (get_all_rooms)"
+        description="Room ID to book, obtained via the 'get_all_rooms' tool"
     )], 
     start_time: Annotated[datetime, Field(
-        description="วันและเวลาที่ต้องการเริ่มใช้งาน (รูปแบบ: YYYY-MM-DD HH:MM:SS)"
+        description="Start date and time (Format: YYYY-MM-DD HH:MM:SS)"
     )],
     hours: Annotated[int, Field(
-        description="จำนวนชั่วโมงที่ต้องการใช้งาน (จำนวนเต็ม)"
+        description="Number of hours to book (Integer)"
     )], 
     pay_method: Annotated[str, Field(
-        description='วิธีการชำระเงิน รองรับเฉพาะ "qrcode", "creditcard" หรือ "cash"'
+        description='Payment method. Only supports "qrcode", "creditcard", or "cash"'
     )],
     payment_details: Annotated[Dict[str, Any], Field(
-        description='ข้อมูลเพิ่มเติมที่บังคับใช้ตามประเภทการจ่ายเงิน: กรณี qrcode ต้องระบุ {"account_number": "xxx"}, กรณี creditcard ต้องระบุ {"card_number": "...", "cvv": "..."}, กรณี cash ต้องระบุ {"cash_received": xxx}'
+        description='Additional required information depending on payment method: For qrcode, specify {"account_number": "xxx"}. For creditcard, specify {"card_number": "...", "cvv": "..."}. For cash, specify {"cash_received": xxx}.'
     )] = {}
 ):
     """
@@ -73,44 +67,42 @@ async def book_room(
         payload = restaurant.booking_room(member_id, room_id, hours, pay_method, start_time=start_time, payment_details=payment_details)
         return payload
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
+        return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
-@router.get("/preview_booking/{booking_id}")
 async def preview_booking(
     token: Annotated[str, Field(
-        description="Token ของพนักงาน (ได้จากการเรียกใช้ tool login)"
+        description="Staff access token (obtained via the 'login' tool)"
     )],
     booking_id: Annotated[str, Field(
-        description="รหัสการจอง (Format: BK-xxx)"
+        description="Booking ID (Format: BK-xxx)"
     )]
 ):
     """
-    ดูรายละเอียดการจอง ต้องการสิทธ์พนักงาน
+    Preview booking details. Requires Staff access.
     """
     try:
         restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
         return restaurant.preview_booking_details(booking_id)
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
+        return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
-@router.post("/check-in/{booking_id}")
 async def check_in(token: str,
         order_id: Annotated[str, Field(
-        description="รหัสออเดอร์ (Format: ORD-xxx)"
+        description="Order ID (Format: ORD-xxx)"
     )], 
         booking_id: Annotated[str, Field(
-        description="รหัสการจอง (Format: BK-xxx)"
+        description="Booking ID (Format: BK-xxx)"
     )], 
         pay_method: Annotated[str, Field(
-        description='วิธีการชำระเงิน รองรับเฉพาะ "qrcode", "creditcard" หรือ "cash"'
+        description='Payment method. Only supports "qrcode", "creditcard", or "cash"'
     )], 
         coupon_code: Annotated[Optional[str], Field(
-        description="โค้ดคูปองส่วนลดที่ต้องการใช้งาน (ถ้ามี)"
+        description="Discount coupon code to use (if any)"
     )] = None, 
         payment_details: Annotated[Dict[str, Any], Field(
-        description='ข้อมูลเพิ่มเติมที่บังคับใช้ตามประเภทการจ่ายเงิน: กรณี qrcode ต้องระบุ {"account_number": "xxx"}, กรณี creditcard ต้องระบุ {"card_number": "...", "cvv": "..."}, กรณี cash ต้องระบุ {"cash_received": xxx}'
+        description='Additional required information depending on payment method: For qrcode, specify {"account_number": "xxx"}. For creditcard, specify {"card_number": "...", "cvv": "..."}. For cash, specify {"cash_received": xxx}.'
     )] = {}
 ):
     """
@@ -121,16 +113,15 @@ async def check_in(token: str,
         payload = restaurant.check_in_booking(order_id=order_id, booking_id=booking_id, coupon_code=coupon_code, pay_method=pay_method, payment_details=payment_details)
         return payload
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
+        return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
-@router.post("/check-out/{booking_id}")
 async def check_out(
     token: Annotated[str, Field(
-        description="Token ของพนักงานผู้ทำรายการ"
+        description="Staff access token performing the action"
     )], 
     booking_id: Annotated[str, Field(
-        description="รหัสการจองที่ต้องการเช็คเอาท์ (Format: BK-xxx)"
+        description="Booking ID to check out (Format: BK-xxx)"
     )]
 ):
     """
@@ -141,16 +132,15 @@ async def check_out(
         payload = restaurant.check_out_booking(booking_id=booking_id)
         return payload
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
+        return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
 
 @mcp.tool
-@router.post("/cancel/{booking_id}")
 async def cancel_booking(
     token: Annotated[str, Field(
-        description="Token ของพนักงานผู้ทำรายการ"
+        description="Staff access token performing the action"
     )], 
     booking_id: Annotated[str, Field(
-        description="รหัสการจองที่ต้องการยกเลิก (Format: BK-xxx)"
+        description="Booking ID to cancel (Format: BK-xxx)"
     )]
 ):
     """
@@ -161,4 +151,4 @@ async def cancel_booking(
         payload = restaurant.cancel_booking(booking_id=booking_id)
         return payload
     except Exception as e:
-        return f"ไม่สามารถดำเนินการได้: {getattr(e, 'detail', str(e))}"
+        return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
