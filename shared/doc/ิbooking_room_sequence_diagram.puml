@@ -2,9 +2,11 @@
 skinparam style strictuml
 skinparam sequenceMessageAlignment center
 
-' --- ประกาศ Participants ทั้งหมดไว้ด้านบนสุดเพื่อให้ระดับเดียวกัน ---
+' --- Participants ประกาศไว้ด้านบนเพื่อให้ระดับเดียวกัน ---
 actor "Staff/Admin" as S
 participant "Restaurant" as R << (C,#ADD1B2) >>
+participant "AuthManager" as Auth << (C,#ADD1B2) >>
+participant "Session" as SS << (C,#ADD1B2) >>
 participant "Member" as M << (C,#ADD1B2) >>
 participant "Room" as RM << (C,#ADD1B2) >>
 participant "TimeSlot" as TS << (C,#ADD1B2) >>
@@ -15,85 +17,131 @@ participant "Booking" as B << (C,#ADD1B2) >>
 S -> R : booking_room(token, member_id, room_id, start_time, hours, pay_med, pay_detailed)
 activate R
 
-    == Security Check ==
-    R -> R : verify_token_and_role(token, allowed_roles=["staff", "admin"])
-    alt token invalid / no permission
+    == 1. Security Check (AuthManager) ==
+    R -> R : verify_token_and_role(token, ["staff", "admin"])
+    R -> Auth : get_session(token)
+    activate Auth
+        
+        loop for s in self.__sessions
+            Auth -> SS : check_token(token)
+            activate SS
+            SS --> Auth : True / False
+            
+            alt token matched
+                Auth -> SS : is_active
+                SS --> Auth : True / False
+            deactivate SS    
+            end
+        end
+        
+        Auth --> R : session_obj / None
+    deactivate Auth
+    
+    alt session_obj is None OR role not in ["staff", "admin"]
         R --X S : raise HTTPException(401, "Unauthorized")
     end
 
-    == Search & Retrieval (Loops) ==
-    
-    loop for each member in self._members
+    == 2. Data Retrieval (Loops) ==
+    loop for each member in self.__member_list
         R -> M : check_id(member_id)
+        activate M
         M --> R : member_obj / None
+        deactivate M
     end
     alt member_obj is None
         R --X S : raise HTTPException(404, "Member not found")
     end
 
-    loop for each room in self._rooms
+    loop for each room in self.__room_list
         R -> RM : check_id(room_id)
+        activate RM
         RM --> R : room_obj / None
+        deactivate RM
     end
     alt room_obj is None
         R --X S : raise HTTPException(404, "Room not found")
     end
 
-    == Validation ==
+    == 3. Validation & TimeSlot Creation ==
     R -> R : is_slot_available(room_obj, start_time, hours)
-    note right of R : เช็ควันเวลาจองย้อนหลัง\nและเช็คว่าห้องว่างไหม
-    alt invalid time / room busy
-        R --X S : raise HTTPException(400, "Time slot already occupied")
+    activate R #DarkSalmon
+    note right of R : Verify: Time not in past\n& Room status is AVAILABLE.
+        
+        loop for b in self.__booking_list
+            R -> B : b.room.id == room.id
+            alt same room
+                R -> B : b.status
+                activate B
+                B --> R : status
+                deactivate B
+                
+                alt status not in [CANCELLED, COMPLETED]
+                    R -> B : b.time_slot
+                    activate B
+                    B -> TS : get_start_and_end()
+                    activate TS
+                    TS --> B : b_start, b_end
+                    deactivate TS
+                    deactivate B
+                    
+                    note right of R : Check overlapping:\nstart < b_end AND end > b_start
+                    alt overlapping detected
+                        R --> R : return False
+                    end
+                end
+            end
+        end
+        R --> R : return True
+    deactivate R
+    
+   alt is_slot_available is False
+        R --X S : raise HTTPException(400, "Slot already occupied or invalid")
     end
 
-    == Calculation & Payment ==
-    
-    ' ใช้การลากไปที่ TS ที่ประกาศไว้ด้านบนแล้ว
     R -> TS : create(start_time, hours)
     activate TS
-        TS -> TS : endtime = start_time + hours
-        TS --> R : time_slot
+        TS --> R : time_slot_obj
     deactivate TS
-    
-    R -> RM : get_price_per_hour()
-    RM --> R : price_per_hour
-    
-    R -> M : get_member_discount(price_per_hour * hours)
+
+    == 4. Price Calculation & Payment ==
+    R -> RM : price_per_hour
+    activate RM
+        RM --> R : rate
+    deactivate RM
+
+    R -> M : get_member_discount(rate * hours)
     activate M
         M --> R : discount_amount
     deactivate M
     
-    note over R : full_price = (price_per_hour * hours) - discount_amount
+    note over R : full_price = (rate * hours) - discount_amount
 
     R -> R : process_pay_deposit(full_price * 0.5, pay_med, pay_detailed)
     activate R #LightBlue
-        
-        R -> PM : get_payment_method(pay_med)
+        R -> PM : pay(amount, pay_detailed)
         activate PM
-        PM --> R : method
-        R -> PM : method.pay(amount, pay_detailed)
-        PM --> R : success(True/False) , note
+            PM --> R : success, note
         deactivate PM
+        
         alt success is False
-            R --X S : raise HTTPException(402, note="Payment failed: " + note)
+            R --X S : raise HTTPException(402, "Payment failed: " + note)
         end
     deactivate R
 
-    == Create & Store Booking ==
-    
+    == 5. Finalize Booking ==
     R -> R : booking_id = f"BK-{self._booking_counter:03d}"
-    R -> R : self.__booking_counter += 1
+    R -> R : self._booking_counter += 1
     
-    ' ลากไปที่ B ที่ประกาศไว้ด้านบนแล้ว
-    R -> B : create(booking_id, member, room, time_slot)
+    R -> B : create(booking_id, member_obj, room_obj, time_slot_obj)
     activate B
-        B -> B : mark_as_deposit_paid()
+        B -> B : mark_deposit_paid()
+        note right of B : BookingStatus -> DEPOSIT_PAID
         B --> R : booking_instance
     deactivate B
     
     R -> R : self._bookings.append(booking_instance)
     
-    R --> S : return {"message": "Success", "booking_id": id}
+    R --> S : return {"message": "Booking successful", "id": booking_id}
 
 deactivate R
 @enduml
