@@ -1,8 +1,11 @@
 @startuml SequenceDiagram
-skinparam maxmessagesize 200
+skinparam maxmessagesize 500
+scale 1000 width
 
 actor Guest
 participant Restaurant
+participant AuthManager as Auth
+participant Session as SS
 participant Customer
 participant Order
 participant OrderItem
@@ -19,24 +22,48 @@ Restaurant -> Restaurant : check\nqueue
 alt queue overload
     Restaurant --> Guest : denied queue overload
 else else
-    loop every order in order_list
-        Restaurant -> Customer : get customer info
-        activate Customer
-        Customer --> Restaurant : return customer info
-        deactivate Customer
+== Authentication & Order Retrieval ==
+Restaurant -> Restaurant : check_order_customer(order_id, token, allowed_roles)
+activate Restaurant
 
-        Restaurant -> Order : check (order_id, customer)
-        activate Order
-        Order -> Customer : get customer info
-        activate Customer
-        Customer --> Order : return customer info
-        deactivate Customer
+Restaurant -> Restaurant : verify_token_and_role(token, ["staff", "admin"])
+activate Restaurant
+Restaurant -> Auth : get_session(token)
+activate Auth
 
-        break matched order_id and customer
-            Order --> Restaurant : return order
-        end
+loop for s in self.__sessions
+    Auth -> SS : check_token(token)
+    activate SS
+    SS --> Auth : True / False
+    deactivate SS
+
+    alt token matched
+        Auth -> SS : is_active
+        activate SS
+        SS --> Auth : True / False
+        deactivate SS
     end
+end
 
+Auth --> Restaurant : session_obj / None
+deactivate Auth
+deactivate Restaurant 
+
+alt session_obj is None OR role not in ["Guest", "Member"]
+    Restaurant --> Guest : return "Unauthorized"
+else Authorized
+    Restaurant -> Order : check_customer(current_customer)
+    activate Order
+    
+    alt self.__customer != current_customer
+        Order --> Guest : raise ValueError("Wrong Customer")
+        ' deactivate ord
+    else validation successful
+        Order --> Restaurant : return Order
+        deactivate Order
+        
+        ' Deactivate the check_order_customer internal call
+        deactivate Restaurant
     alt order not found
         Order --> Restaurant : return false
         deactivate Order
@@ -134,6 +161,7 @@ else else
         Restaurant --> Guest : return order
         deactivate Guest
         deactivate Restaurant
+    end
     end
 end
 
