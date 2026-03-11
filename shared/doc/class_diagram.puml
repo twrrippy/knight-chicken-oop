@@ -117,7 +117,7 @@ Guest--|>Customer
 class Customer {
 }
 class Guest {
-    + __Guest_count: int
+    - Guest_count: int
     - id : str
 }
 class Member{
