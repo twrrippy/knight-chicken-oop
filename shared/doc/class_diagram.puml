@@ -40,7 +40,7 @@ class Restaurant{
     + check_order_customer(order_id: str, token: str, allowed_roles: List[str]) : Order
     + create_general_order(customer: Customer)
     + add_menu(menu: MenuItem)
-    + check_queue() : int
+    + {property} check_queue() : int
     + add_stock(item: Item, quantity: int)
     + get_queue(queue_order: int) : Order | False
     + count_stock_item(item_name: str, status: ItemStatus) : int
@@ -67,14 +67,13 @@ class Restaurant{
     + create_delivery_order(customer: 'User', provider_name: str, distance: float)
     + update_delivery_status(order_id: str, new_status: DeliveryStatus, _internal: bool = False)
     + check_and_issue_reward(order: Order)
-    + get_payment_method(method_name: str) : PaymentMethod
     + booking_room(member_id: str, room_id: str, hours: int, pay_method: str, start_time: datetime, payment_details: Dict)
     + is_slot_available(room: Room, start: datetime, hours: int) : bool
     + auto_check_no_show()
     + check_in_booking(order_id: str, booking_id: str, coupon_code: str, pay_method: str, payment_details: Dict)
     + check_out_booking(booking_id: str)
     + cancel_booking(booking_id: str)
-    + mark_room_cleaning(room_id: str)
+    + mark_room_as_cleaning(room_id: str)
     + login(username: str, password: str) : Session
     + logout(token: str) : bool
     + add_guest_session() : Session
@@ -91,19 +90,26 @@ class Restaurant{
     + process_pay_deposit(deposit: float, method_name: str, payment_details: Dict) : bool
     + process_order_payment(order_id: str, coupon_code: Optional[str], method_name: str, payment_details: Dict) : bool
     + preview_order_bill(order_id: str, coupon_code: Optional[str]) : dict
-    + simulate_delivery(order_id: str)
+    + {async} simulate_delivery(order_id: str)
+    + {property} count_order() : int
+
 }
 Customer --|> User
 Staff --|> User
-class User{
-    - id : string
-    - name : string
-    - phoneNumber : string
-    - username : string
-    - password : string
+abstract class User{
+    - id : str
+    - name : str
+    - phone_number : str
+    - username : str
+    - password : str
+    + {property} id() : str
+    + {property} name() : str
+    + {property} phone_number() : str
+    + {property} username() : str
     + is_valid_phone_number(phone_number: str) : bool
     + check_username(username)
     + check_identity(username, password)
+    + __eq__(other) : bool
 }
 Restaurant o-- Member
 Member--|>Customer
@@ -111,14 +117,16 @@ Guest--|>Customer
 class Customer {
 }
 class Guest {
-    + Guest_count: int
-    - id : string
+    - Guest_count: int
+    - id : str
 }
 class Member{
     - coupon_list : list[Coupon]
-    - receipt_list : list[Recipt]
+    - receipt_list : list[Receipt]
     - tier : MemberTier
     - points : int
+    + {property} tier() : MemberTier
+    + {property} points() : int
     + add_receipt(receipt: Receipt)
     + add_coupon(coupon: Coupon)
     + add_points(points: int)
@@ -130,6 +138,7 @@ class Member{
 Restaurant o-- Staff
 class Staff{
     - is_admin: bool
+    + {property} is_admin() : bool
 }
 
 Restaurant o-- Order
@@ -147,8 +156,8 @@ SingleMenuItem <-- Food
 Food --o SetMenuItem
 
 class Order{
-    + Order_count: int
-    - id:  string
+    + __OrderId_count: int
+    - id:  str
     - customer : Customer
     - order_item_list : list of OrderItem
     - order_item_id_counter : int
@@ -160,7 +169,18 @@ class Order{
     - subtotal : float
     - discount : float
     - final_price : float
-    + add_order_item(menu: MenuItem, quantity: int)
+    + {property} subtotal() : float
+    + {property} discount() : float
+    + {property} booking() : Optional[Booking]
+    + {property} delivery() : Optional[Delivery]
+    + {property} order_type() : OrderType
+    + {property} id() : str
+    + {property} total_payable_amount() : float
+    + {property} coupon_used() : Optional[Coupon]
+    + {property} order_item() : list
+    + {property} customer() : Customer
+    + {property} status() : OrderStatus
+    + add_order_item(menu_name: str, quantity: int)
     + is_valid_order_item_id(order_item_id: int) : bool
     + remove_order_item(order_item_id: int)
     + search_order_item_from_id(order_item_id: int) : OrderItem
@@ -185,6 +205,11 @@ class OrderItem{
     - menu_item : MenuItem
     - quantity : int
     - status : OrderItemStatus
+    + {property} id() : str
+    + {property} menu_item() : MenuItem
+    + {property} quantity() : int
+    + {property} price() : float
+    + {property} status() : OrderStatus
     + is_valid_quantity(quantity: int) : bool
     + custom_menu(item_name: str, quantity: int)
     + order_item_reserve()
@@ -199,16 +224,20 @@ abstract class MenuItem{
     - name : str
     - price : float
     - cooking_time : datetime
-    - menu_item_status : MenuItemStatus
-    + update_status(MenuItemStatus)
+    + {property} name() : str
+    + {property} price() : float
+    + {property} cooking_time() : datetime
+    + {static} is_valid_price(price: float) : bool
+    + {static} is_valid_cooking_time(cooking_time: datetime) : bool
     + all_ingredient()
     + calculate_price()
-    + update_price()
+    + update_price(original_menu: MenuItem)
     + to_dict_order()
     + to_dict_menu()
 }
 class SingleMenuItem{
     - recipe : list of Ingredient
+    + {property} all_ingredient() : list of Ingredient
     + find_ingredient_in_recipe(name)
     + find_ingredient_in_recipe_from_name(item_name: str)
     + calculate_price(original_menu: MenuItem)
@@ -216,18 +245,26 @@ class SingleMenuItem{
 }
 class SetMenuItem{
     - items : list of Food
+    + {property} all_ingredient() : list of Ingredient
     + find_ingredient_in_recipe(item: Item)
     + calculate_price(original_menu: MenuItem)
 }
 class Food{
     - item : SingleMenuItem
     - quantity : int
+    + {property} item() : SingleMenuItem
+    + {property} quantity() : int
+    + {property} get_ingredient_per_unit() : list
 }
 class Ingredient{
     - item : Item
     - quantity : int
     - type : IngredientType
-    + is_valid_quantity(quantity: int) : bool
+    + {static} is_valid_quantity(quantity: int) : bool
+    + {property} item() : Item
+    + {property} quantity() : int
+    + {property} type() : IngredientType
+    + {property} ingredient_to_dict() : dict
     + modify(quantity: int)
     + custom(quantity: int)
 }
@@ -235,7 +272,11 @@ class Item{
     - name : string
     - price : float
     - status : ItemStatus
-    + is_valid_price(price: float) : bool
+    + {static} is_valid_price(price: float) : bool
+    + {property} name() : str
+    + {property} price() : float
+    + {property} status() : ItemStatus
+    + __eq__(other) : bool
 }
 
 
@@ -253,6 +294,11 @@ class Room{
     + mark_room_cleaning()
     + mark_room_in_use()
     + mark_room_available()
+    + {property} price_per_hour() : float
+    + {property} id() : str
+    + {property} status() : RoomStatus
+    + {property} type() : RoomType
+    + {property} capacity() : int
 }
 Restaurant o-- Room
 Restaurant o-- Booking
@@ -271,11 +317,22 @@ class Booking{
     + mark_checked_in()
     + mark_cancelled()
     + get_details() : dict
+    + {property} full_price() : float
+    + {property} deposit() : float
+    + {property} amount_due() : float
+    + {property} id() : str
+    + {property} member() : Member
+    + {property} room() : Room
+    + {property} time_slot() : TimeSlot
+    + {property} status() BookingStatus
 }
 class TimeSlot{
     - start_time : datetime
     - end_time : datetime
     - hours : int
+    + {property} start_time() : datetime
+    + {property} end_time() : datetime
+    + {property} hours() : int
 }
 abstract class Coupon{
     - id : str
@@ -285,6 +342,11 @@ abstract class Coupon{
     - max_usege : int
     - used_count : int
     + {abstract} apply_coupon(base_price: float) : float
+    + {property} minimum_price() : float
+    + {property} status() : CouponStatus
+    + {property} code() : str
+    + {property} max_usage() : int
+    + {property} used_count() : int
     + is_applicable(base_price: float) : bool
     + is_available() : bool
     + consume()
@@ -306,6 +368,13 @@ class Delivery{
     - status : DeliveryStatus
     - tracking_id : Optional[str]
     - rider_name : Optional[str]
+    + {property} tracking_id() : str
+    + {property} rider_name() : str
+    + {property} id() : str
+    + {property} provider() : DeliveryProvider
+    + {property} distance() : float
+    + {property} status() : DeliveryStatus
+    + {property} fee() : float
     + request_rider()
     + mark_in_transit()
     + mark_delivered()
@@ -331,6 +400,7 @@ abstract class DeliveryProvider{
     - price_per_km : float
     + request_rider(delivery: Delivery) : Tuple[bool, str]
     + {abstract} calculate_fee(distance_km: float) : float
+    + {property} platform_name() : PlatformName
 }
 
 GrabDeliveryProvider --|> DeliveryProvider
@@ -375,6 +445,10 @@ class Receipt{
     - method : PaymentMethod
     - timestamp : datetime
     + generate() : dict
+    + {property} id() : str
+    + {property} order() : Order
+    + {property} method() : PaymentMethod
+    + {property} timestamp() : datetime
 }
 
 Session --o AuthManager
@@ -386,6 +460,9 @@ class Session{
     - is_active : bool
     + invalidate()
     + check_token(token: str) : bool
+    + {property} is_active() : bool
+    + {property} user_id() : str
+    + {property} token() : str
 }
 class AuthManager{
     - sessions : list of Session
