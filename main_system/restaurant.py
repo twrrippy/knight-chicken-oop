@@ -1345,6 +1345,6 @@ class Restaurant:
             self.update_delivery_status(order_id, DeliveryStatus.DELIVERED, _internal=True)
             
         except Exception as e:
-            print(f"Failed to auto-transition delivery {order_id}: {e}")
+            return f"Failed to auto-transition delivery {order_id}: {e}"
     
 restaurant = Restaurant()
