@@ -1,59 +1,96 @@
 @startuml
 actor Customer
-participant "Restaurant" as Restaurant
-participant "MenuItem" as MenuItem
-participant "Ingredient" as Ingredient
-participant "Item" as Item
+participant "Restaurant" as R
+participant "MenuItem" as MI
+participant "Ingredient" as ING
+participant "Item" as ITM
 
-Customer -> Restaurant : get_menu()
-activate Restaurant
+activate Customer
+Customer -> R : get_menu()
+activate R
 
-loop for each m in __menu
-    Restaurant -> MenuItem : to_dict_menu()
-    activate MenuItem
+R -> R : menu = []
+
+loop For each m in __menu
+    R -> MI : to_dict_menu()
+    activate MI
     
-    MenuItem -> MenuItem : get all_ingredient
+    MI -> MI : current_status = MenuItemStatus.AVAILABLE
+    MI -> MI : custom = []
     
-    loop for each ing in all_ingredient
-        MenuItem -> Ingredient : get item
-        activate Ingredient
+    MI -> MI : get all_ingredient
+    activate MI
+    MI --> MI : return ingredients_list
+    deactivate MI
+    
+    loop For each ing in ingredients_list
+        MI -> ING : get item
+        activate ING
+        ING -> ITM : get name
+        activate ITM
+        ITM --> ING : return name
+        deactivate ITM
+        ING --> MI : return item
+        deactivate ING
         
-        Ingredient -> Item : get name
-        activate Item
-        Item --> Ingredient : return name
-        deactivate Item
+        MI -> R : count_stock_item(item.name, ItemStatus.AVAILABLE)
+        activate R
         
-        Ingredient --> MenuItem : return item.name
-        deactivate Ingredient
-        
-        MenuItem -> Restaurant : count_stock_item(item.name, ItemStatus.AVAILABLE)
-        activate Restaurant
-        Restaurant --> MenuItem : return stock_count
-        deactivate Restaurant
-        
-        alt stock_count < ing.quantity
-            MenuItem -> MenuItem : status = UNAVAILABLE
-            Break loop if out of stock
-        else stock_count >= ing.quantity
-            MenuItem -> Ingredient : get type
-            activate Ingredient
-            Ingredient --> MenuItem : return type
-            deactivate Ingredient
+        R -> R : count_stock = 0
+        loop For find in __stock
+            R -> ITM : get name & status
+            activate ITM
+            ITM --> R : return name & status
+            deactivate ITM
             
-            opt type == CUSTOMIZABLE
-                MenuItem -> Ingredient : get ingredient_to_dict
-                activate Ingredient
-                Ingredient --> MenuItem : return dict_data
-                deactivate Ingredient
+            opt find.name == item_name AND find.status == status
+                R -> R : count_stock += 1
+            end
+        end
+        R --> MI : return count_stock
+        deactivate R
+        
+        MI -> ING : get quantity
+        activate ING
+        ING --> MI : return quantity
+        deactivate ING
+        
+        alt count_stock < ing.quantity
+            MI -> MI : current_status = MenuItemStatus.UNAVAILABLE
+            break count_stock < ing.quantity
+            end
+        else count_stock >= ing.quantity
+            MI -> ING : get type
+            activate ING
+            ING --> MI : return type
+            deactivate ING
+            
+            opt type == IngredientType.CUSTOMIZABLE
+                MI -> ING : get ingredient_to_dict
+                activate ING
+                
+                ING -> ITM : get name
+                activate ITM
+                ITM --> ING : return name
+                deactivate ITM
+                
+                ING --> MI : return {"name": name, "quantity": quantity}
+                deactivate ING
+                
+                MI -> MI : custom.append(dict_data)
             end
         end
     end
     
-    MenuItem --> Restaurant : return dict (name, price, status, customizable)
-    deactivate MenuItem
+    MI -> MI : get name & price
+    MI --> R : return {"name": name, "customizable": custom, "price": price, "status": current_status}
+    deactivate MI
+    
+    R -> R : menu.append(dict_menu)
 end
 
-Restaurant --> Customer : return {"menu": menu_list}
-deactivate Restaurant
+R --> Customer : return {"menu": menu}
+deactivate R
+deactivate Customer
 
 @enduml
