@@ -17,7 +17,7 @@ pip install -r requirements.txt
 ## Run Server
 
 ```
-uvicorn main:app --reload --port 8000
+uvicorn project:app --reload --port 8000
 ```
 
 ### Backend
