@@ -1,0 +1,62 @@
+@startuml SequenceDiagram
+skinparam maxmessagesize 150
+
+actor "Customer" as Client
+participant Restaurant
+participant AuthManager
+participant Session
+participant Order
+
+Client -> Restaurant : delete_item_in_order(order_id, item_id, token)
+activate Restaurant
+
+alt successful execution
+    == Authentication ==
+    Restaurant -> Restaurant : check_order_customer(order id, token, ["guest", "member"])
+    activate Restaurant
+    alt session_obj is None OR role not in ["guest", "member"] OR current_customer != order's customer
+        Restaurant --> Client : raise PermissionError("Invalid token or missing permission or wrong customer")
+        deactivate Restaurant
+    else Authorized
+        == Retrieve Order ==
+        Restaurant -> Restaurant : remove_item_in_order(order_id, item_id)
+        activate Restaurant
+        
+        Restaurant -> Restaurant : get_order_by_id(order_id)
+        activate Restaurant
+        loop for order in __order_list
+            alt order.id == order_id
+                Restaurant --> Restaurant : return target_order
+            end
+        end
+        alt order not found
+            Restaurant --> Client : raise ValueError("Order not found")
+            deactivate Restaurant
+        else order found
+            == Remove Item from Order ==
+            Restaurant -> Order : remove_item(item_id)
+            activate Order
+            
+            loop for item in self.__items
+                alt item.id == item_id
+                    Order -> Order : self.__items.remove(item)
+                    Order -> Order : calculate_total()
+                    Order --> Restaurant : return True
+                end
+            end
+            
+            opt item not found
+                Order --> Client : raise ValueError("Item not found in order")
+                deactivate Order
+            end
+            
+            Restaurant --> Restaurant : return True
+            deactivate Restaurant
+            
+            == Response Formatting ==
+            Restaurant --> Client : return "Item deleted successfully"
+            deactivate Restaurant
+        end
+    end
+
+@enduml

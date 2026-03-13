@@ -1,0 +1,50 @@
+@startuml SequenceDiagram
+skinparam maxmessagesize 300
+
+actor Customer
+participant Restaurant
+participant Room
+
+Customer -> Restaurant : clean_room(token, room_id)
+activate Restaurant
+
+== Authentication ==
+Restaurant -> Restaurant : verify_token_and_role(token, [ADMIN, STAFF])
+activate Restaurant
+
+alt session_obj is None OR role not in allowed_roles
+    Restaurant --x Customer : return "Unable to proceed: Invalid token or missing permission"
+    deactivate Restaurant
+else Authorized
+    
+    == Retrieve Room ==
+    Restaurant -> Restaurant : get_room(room_id)
+    activate Restaurant
+    Restaurant --> Restaurant : return target_room
+    deactivate Restaurant
+    
+    == Cleaning Execution ==
+    alt target_room.status != RoomStatus.CLEANING
+        Restaurant --x Customer : return "Unable to proceed: Room is not currently being cleaned."
+    else Update Allowed
+        Restaurant -> Room : status = RoomStatus.AVAILABLE
+        activate Room
+        activate Restaurant
+        Room --> Restaurant : updated
+        deactivate Room
+        deactivate Restaurant
+        
+        == Response Formatting ==
+        Restaurant -> Room : room_to_dict()
+        activate Restaurant
+        activate Room
+        Room --> Restaurant : room_details_dict
+        deactivate Room
+        deactivate Restaurant
+        
+        Restaurant --> Customer : return room_details_dict
+        deactivate Restaurant
+    end
+end
+
+@enduml

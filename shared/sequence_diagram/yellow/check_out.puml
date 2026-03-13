@@ -1,0 +1,61 @@
+@startuml SequenceDiagram
+skinparam maxmessagesize 150
+
+actor Customer
+participant Restaurant
+participant Booking
+participant Room
+
+Customer -> Restaurant : checkout_booking(token, booking_id)
+activate Restaurant
+
+== Authentication ==
+Restaurant -> Restaurant : verify_token_and_role(token, [ADMIN, STAFF])
+activate Restaurant
+
+alt session_obj is None OR role not in allowed_roles
+    Restaurant --x Customer : return "Unable to proceed: Invalid token or missing permission"
+    deactivate Restaurant
+else Authorized
+    
+    == Retrieve Booking ==
+    Restaurant -> Restaurant : get_booking(booking_id)
+    activate Restaurant
+    Restaurant --> Restaurant : return booking
+    deactivate Restaurant
+    
+    == Checkout Execution ==
+    Restaurant -> Booking : check_out()
+    activate Booking
+    activate Restaurant
+    
+    alt self.__status != BookingStatus.CHECKED_IN
+        Booking --x Customer : raise ValueError("Booking is not in CHECKED_IN status.")
+    else Checkout Allowed
+        Booking -> Booking : self.__status = BookingStatus.COMPLETED
+        
+        opt self.__room is not None
+            Booking -> Room : status = RoomStatus.CLEANING
+            activate Room
+            Room --> Booking : updated
+            deactivate Room
+        end
+        
+        Booking --> Restaurant : return True
+        deactivate Booking
+        deactivate Restaurant
+        
+        == Response Formatting ==
+        Restaurant -> Booking : get_details()
+        activate Booking
+        activate Restaurant
+        Booking --> Restaurant : booking_details_dict
+        deactivate Booking
+        deactivate Restaurant
+        
+        Restaurant --> Customer : return booking_details_dict
+        deactivate Restaurant
+    end
+end
+
+@enduml

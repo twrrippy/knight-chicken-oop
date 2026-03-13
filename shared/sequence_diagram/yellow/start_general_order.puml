@@ -1,0 +1,91 @@
+@startuml SequenceDiagram
+skinparam maxmessagesize 150
+
+actor Client
+participant Restaurant
+participant AuthManager
+participant Session
+participant Order
+
+Client -> Restaurant : start_general_order(token)
+activate Restaurant
+
+alt successful execution
+    == Authentication ==
+    Restaurant -> Restaurant : verify_token_and_role(token, ["guest", "member"])
+    activate Restaurant
+    Restaurant -> AuthManager : get_session(token)
+    activate AuthManager
+    
+    loop for s in self.__sessions
+        AuthManager -> Session : check_token(token)
+        activate Session
+        Session --> AuthManager : True / False
+        deactivate Session
+
+        alt token matched
+            AuthManager -> Session : is_active
+            activate Session
+            Session --> AuthManager : True / False
+            deactivate Session
+        end
+    end
+    
+    AuthManager --> Restaurant : session_obj / None
+    deactivate AuthManager
+    
+    alt session_obj is None OR role not in ["guest", "member"]
+        Restaurant --> Client : raise PermissionError("Invalid token or missing permission")
+        deactivate Restaurant
+    else Authorized
+        
+        == Customer Identification ==
+        Restaurant -> Restaurant : check_customer(session.user_id)
+        activate Restaurant
+        
+        loop every member in __member_list
+            alt member.id == session.user_id
+                Restaurant --> Restaurant : return member
+            end
+        end
+        
+        loop every guest in __guest_list
+            alt guest.id == session.user_id
+                Restaurant --> Restaurant : return guest
+            end
+        end
+        
+        alt customer not found
+            Restaurant --> Client : raise ValueError("Customer not found")
+            deactivate Restaurant
+        else customer found
+            
+            
+            == Order Creation ==
+            Restaurant -> Restaurant : create_general_order(current_customer)
+            activate Restaurant
+            
+            Restaurant -> Order : <<create>>(current_customer, OrderType.GENERAL)
+            activate Order
+            Order --> Restaurant : new_order
+            deactivate Order
+            
+            Restaurant -> Restaurant : self.__order_list.append(new_order)
+            
+            Restaurant --> Restaurant : return new_order
+            deactivate Restaurant
+            
+            == Response Formatting ==
+            Restaurant -> Order : order_to_dict()
+            activate Order
+            Order --> Restaurant : order_dict
+            deactivate Order
+            
+            Restaurant --> Client : return "Success", order_dict
+            deactivate Restaurant
+        end
+    end
+
+deactivate Restaurant
+
+@enduml

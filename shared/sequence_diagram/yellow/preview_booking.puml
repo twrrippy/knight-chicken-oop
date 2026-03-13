@@ -1,0 +1,61 @@
+@startuml SequenceDiagram
+skinparam maxmessagesize 150
+
+actor Customer
+participant Restaurant
+participant Booking
+participant Member
+participant TimeSlot
+
+Customer -> Restaurant : preview_booking(token, booking_id)
+activate Restaurant
+
+== Authentication ==
+Restaurant -> Restaurant : verify_token_and_role(token, [ADMIN, STAFF, MEMBER])
+activate Restaurant
+
+alt session_obj is None OR role not in allowed_roles
+    Restaurant --x Customer : return "Unable to proceed: Invalid token or missing permission"
+    deactivate Restaurant
+else Authorized
+    
+    == Retrieve Booking ==
+    Restaurant -> Restaurant : get_booking(booking_id)
+    activate Restaurant
+    loop for b in self.__booking_list
+        alt b.id == booking_id
+            Restaurant --> Restaurant : return b
+        end
+    end
+    opt Booking Not Found
+        Restaurant --x Customer : return "Unable to proceed: Booking Not Found"
+    end
+    deactivate Restaurant
+    
+    == Formulate Booking Details ==
+    Restaurant -> Booking : get_details()
+    activate Booking
+    
+    Booking -> Booking : calculate full_price
+    activate Booking
+    Booking -> Member : get_member_discount(base_price)
+    activate Member
+    Member --> Booking : discount_amount
+    deactivate Member
+    Booking --> Booking : calculate deposit & amount_due
+    deactivate Booking
+    
+    Booking -> TimeSlot : get start_time.strftime(...)
+    activate TimeSlot
+    TimeSlot --> Booking : formatted_time
+    deactivate TimeSlot
+    
+    Booking --> Restaurant : booking_details_dict
+    deactivate Booking
+    
+    == Response Formatting ==
+    Restaurant --> Customer : return booking_details_dict
+    deactivate Restaurant
+end
+
+@enduml
