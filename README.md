@@ -21,7 +21,7 @@ uvicorn project:app --reload --port 8000
 ```
 
 ### Backend
-- FastAPI
+- MCP Server
 
 ## Warning!!
 1. Don't edit branch 'main'
