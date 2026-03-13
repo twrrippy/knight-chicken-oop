@@ -215,3 +215,5 @@ build/
 #other
 .DS_Store
 .vscode/settings.json
+
+out/

@@ -1,5 +1,6 @@
 @startuml ClassDiagram
 skinparam Linetype ortho
+skinparam dpi 600
 
 class Restaurant{
     - menu: List[MenuItem]
