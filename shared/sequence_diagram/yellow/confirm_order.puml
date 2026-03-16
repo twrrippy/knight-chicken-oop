@@ -1,0 +1,59 @@
+@startuml SequenceDiagram
+skinparam maxmessagesize 150
+
+actor "Customer" as Client
+participant Restaurant
+participant AuthManager
+participant Session
+participant Order
+participant OrderItem
+participant MenuItem
+participant StockItem
+
+Client -> Restaurant : confirm_order(order_id, request, token)
+activate Restaurant
+
+alt successful execution
+    == Authentication ==
+    Restaurant -> Restaurant : check_order_customer(order id, token, ["guest", "member"])
+    activate Restaurant
+    alt session_obj is None OR role not in ["guest", "member"] OR current_customer != order's customer
+        Restaurant --> Client : raise PermissionError("Invalid token or missing permission or wrong customer")
+        deactivate Restaurant
+    else Authorized
+    
+        == Retrieve Order & Validate ==
+        Restaurant -> Restaurant : confirm_order(order_id)
+        activate Restaurant
+        
+        Restaurant -> Restaurant : get_order_by_id(order_id)
+        activate Restaurant
+        loop for order in __order_list
+            alt order.id == order_id
+                Restaurant --> Restaurant : return target_order
+            end
+        end
+
+        alt order not found OR order.status != OrderStatus.NONE
+            Restaurant --> Client : raise ValueError("Order already confirmed or cannot be confirmed.")
+            deactivate Restaurant
+        else valid order
+            Restaurant -> Order : status = OrderStatus.CONFIRMED
+            activate Order
+            Order --> Restaurant : return True
+            deactivate Restaurant
+            deactivate Order
+
+            == Response Formatting ==
+            Restaurant -> Order : order_to_dict()
+            activate Restaurant
+            activate Order
+            Order --> Restaurant : order_dict
+            deactivate Order
+            deactivate Restaurant
+            
+            Restaurant --> Client : return "Order confirmed", order_dict
+            deactivate Restaurant
+        end
+    end
+@enduml

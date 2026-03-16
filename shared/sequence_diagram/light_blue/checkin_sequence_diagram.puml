@@ -1,0 +1,152 @@
+@startuml
+skinparam style strictuml
+skinparam sequenceMessageAlignment center
+scale 1000 width
+skinparam maxMessageSize 250
+
+' --- Participants ระดับเดียวกันด้านบน ---
+actor "Staff/Admin" as S
+participant "Restaurant" as R << (C,#ADD1B2) >>
+participant "AuthManager" as Auth << (C,#ADD1B2) >>
+participant "Session" as SS << (C,#ADD1B2) >>
+participant "Booking" as B << (C,#ADD1B2) >>
+participant "Room" as RM << (C,#ADD1B2) >>
+participant "Order" as O << (C,#ADD1B2) >>
+participant "Coupon" as CP << (C,#ADD1B2) >>
+participant "PaymentMethod" as PM << (C,#ADD1B2) >>
+participant "Receipt" as RCT << (C,#ADD1B2) >>
+participant "Member" as M << (C,#ADD1B2) >>
+
+
+S -> R : check_in_booking(token, order_id, booking_id, coupon_code, pay_method, details)
+activate R
+
+    == 1. Security Check (AuthManager) ==
+    R -> R : verify_token_and_role(token, ["staff", "admin"])
+    R -> Auth : get_session(token)
+    activate Auth
+        
+        loop for s in self.__sessions
+            Auth -> SS : check_token(token)
+            activate SS
+            SS --> Auth : True / False
+            
+            alt token matched
+                Auth -> SS : is_active
+                SS --> Auth : True / False
+                deactivate SS
+            end
+        end
+        
+        Auth --> R : session_obj / None
+    deactivate Auth
+    
+    alt session_obj is None OR role not in ["staff", "admin"]
+        R --X S : raise HTTPException(401, "Unauthorized")
+    end
+
+    == 2. Booking Validation (Loop & States) ==
+    loop for each booking in self.__booking_list
+        R -> B : check_id(booking_id)
+        activate B
+        B --> R : booking_obj / None
+        deactivate B
+    end
+    
+    alt booking_obj is None
+        R --X S : raise LookupError("Booking not found")
+    end
+
+    R -> B : status
+    activate B
+    B --> R : current_status
+    deactivate B
+    
+    alt current_status == CANCELLED
+        R --X S : raise ValueError("Booking is cancelled")
+    else current_status == CHECKED_IN
+        R --X S : raise ValueError("Booking already checked in")
+    else status != DEPOSIT_PAID OR start_time > now
+        R --X S : raise ValueError("Booking not ready")
+    end
+
+    == 3. Order Match ==
+    R -> R : order = get_order(order_id)
+    loop for each order in self.__order_list
+        R -> O : check_id(order_id)
+        activate O
+        O --> R : order_obj / None
+        deactivate O
+    end
+    
+    alt order_obj is None
+        R --X S : raise LookupError("Order not found")
+    end
+    R -> O : order.get_customer()
+    activate O
+    O --> R : order_customer
+    deactivate O
+    R -> B : booking.get_member()   
+    activate B
+    B --> R : booking_member
+    deactivate B
+    
+    alt order_customer != booking_member
+        R --X S : raise LookupError("Member mismatch")
+    end
+
+    == 4. Deep Payment Process (process_order_payment) ==
+    R -> O : add_booking(booking_obj)
+    
+    R -> R : process_order_payment(order_id, coupon_code, pay_method, details)
+    activate R #LightBlue
+        R -> O : execute_payment(method_name, details, coupon_code)
+        activate O
+            
+            alt coupon_code provided
+                O -> CP : apply_coupon(total_price)
+                CP --> O : discount_amount
+                O -> CP : consume()
+            end
+            
+            O -> PM : pay(final_amount, details)
+            activate PM
+                PM --> O : success, note
+            deactivate PM
+            
+            alt success is True
+                O -> RCT  : create(payment_data)
+                activate RCT
+                RCT --> O : receipt_obj
+                deactivate RCT
+                O --> R : add_receipt(receipt_data)
+            else success is False
+                R --X S : raise ValueError("Payment failed: " + note)
+            end
+        deactivate O
+    deactivate R
+
+    == 5. Status & Reward Update ==
+    R -> B : mark_checked_in()
+    note right of B : BookingStatus -> CHECKED_IN
+    activate B
+        B -> RM : mark_room_in_use()
+        note right of RM : RoomStatus -> IN_USE
+    deactivate B
+
+    alt customer is Member
+        R -> M : check_and_issue_member_tier()
+        activate M
+        M --> R : new_tier / None
+        deactivate M
+    end
+
+    R -> RCT : generate()
+    activate RCT
+    RCT --> R : receipt_data
+    deactivate RCT
+
+    R --> S : return success_dict (receipt_data, room_id, member_name)
+
+deactivate R
+@enduml

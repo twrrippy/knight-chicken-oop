@@ -211,3 +211,7 @@ dist/
 build/
 *.egg-info/
 .dist/
+
+#other
+.DS_Store
+.vscode/settings.json

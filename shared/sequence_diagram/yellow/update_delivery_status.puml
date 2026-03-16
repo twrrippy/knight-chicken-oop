@@ -1,0 +1,100 @@
+@startuml SequenceDiagram
+skinparam maxmessagesize 150
+
+actor Customer
+participant Restaurant
+participant Order
+participant Delivery
+participant DeliveryProvider
+
+Customer -> Restaurant : update_delivery_status(token, order_id, new_status)
+activate Restaurant
+
+== Tool Level Validation ==
+alt new_status != DeliveryStatus.CANCELED
+    Restaurant --x Customer : return "Unable to proceed: Manual update is restricted to 'Canceled' only..."
+else valid status
+    
+    == Authentication ==
+    Restaurant -> Restaurant : verify_token_and_role(token, [ADMIN, STAFF])
+    activate Restaurant
+    alt session_obj is None OR role not in ["admin", "staff"]
+        Restaurant --x Customer : return "Unable to proceed: Invalid token or missing permission"
+        deactivate Restaurant
+    else Authorized
+        
+        == Retrieve Order ==
+        Restaurant -> Restaurant : get_order(order_id)
+        activate Restaurant
+        Restaurant --> Restaurant : return order
+        deactivate Restaurant
+        
+        == Execution Check ==
+        alt not order.delivery
+            Restaurant --x Customer : return "Unable to proceed: Order is not a delivery order"
+        else not _internal AND new_status != CANCELED
+            Restaurant --x Customer : return "Unable to proceed: Manual update to ... is not allowed."
+        else Execution Allowed
+            
+            == Status Processing Branches ==
+            alt new_status == DRIVER_ASSIGNED
+                Restaurant -> Delivery : request_rider()
+                activate Delivery
+                Delivery -> DeliveryProvider : request_rider(self)
+                activate DeliveryProvider
+                DeliveryProvider --> Delivery : success, rider_name, tracking_id
+                deactivate DeliveryProvider
+                alt success
+                    Delivery -> Delivery : self.__status = DRIVER_ASSIGNED
+                else request failed
+                    Delivery --x Customer : raise ValueError("Rider Request Failed")
+                end
+                deactivate Delivery
+                
+            else new_status == IN_TRANSIT
+                Restaurant -> Delivery : mark_in_transit()
+                activate Delivery
+                Delivery --> Restaurant : updated
+                deactivate Delivery
+                
+            else new_status == DELIVERED
+                Restaurant -> Delivery : mark_delivered()
+                activate Delivery
+                Delivery --> Restaurant : updated
+                deactivate Delivery
+                Restaurant -> Order : self.status = OrderStatus.SERVED
+                activate  Order
+                Order --> Restaurant : return True
+                deactivate  Order
+                
+            else new_status == CANCELED
+                Restaurant -> Delivery : mark_canceled()
+                activate Delivery
+                Delivery --> Restaurant : updated
+                deactivate Delivery
+                Restaurant -> Order : self.status = OrderStatus.CANCELED
+                activate  Order
+                Order --> Restaurant : return True
+                deactivate  Order
+                
+            else new_status == PAID
+                Restaurant -> Delivery : mark_as_paid()
+                activate Delivery
+                Delivery --> Restaurant : updated
+                deactivate Delivery
+            end
+            
+            == Response Formatting ==
+            Restaurant -> Delivery : get_details()
+            activate Delivery
+            Delivery --> Restaurant : delivery_details_dict
+            deactivate Delivery
+            
+            Restaurant --> Customer : return { message, order_id, delivery_details }
+            deactivate Restaurant
+        end
+    end
+end
+
+
+@enduml

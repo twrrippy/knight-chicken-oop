@@ -1,0 +1,76 @@
+@startuml SequenceDiagram
+skinparam maxmessagesize 200
+
+actor Customer
+participant Restaurant
+participant Order
+participant OrderItem
+participant StockItem
+
+Customer -> Restaurant : void_order(token, order_id)
+activate Restaurant
+
+== Authentication ==
+Restaurant -> Restaurant : verify_token_and_role(token, [ADMIN, STAFF])
+activate Restaurant
+
+alt session_obj is None OR role not in allowed_roles
+    Restaurant --x Customer : return "Unable to proceed: Invalid token or missing permission"
+    deactivate Restaurant
+else Authorized
+    
+    == Retrieve Order ==
+    Restaurant -> Restaurant : get_order_by_id(order_id)
+    activate Restaurant
+    Restaurant --> Restaurant : return target_order
+    deactivate Restaurant
+    
+    == Void Execution ==
+    Restaurant -> Order : void_order(restaurant.stock)
+    activate Order
+    activate Restaurant
+    
+    alt self.status not in [PENDING, RESERVED]
+        Order --x Customer : raise ValueError("Order cannot be voided at this stage.")
+    else Void Allowed
+        
+        loop for item in self.__order_item_list
+            alt item.status == OrderItemStatus.RESERVED
+                loop for ingredient in item.menu_item.recipe
+                    Order -> StockItem : stock_reverse(total_required)
+                    activate StockItem
+                    
+                    alt total_required < 0 OR reserved_quantity < total_required
+                        StockItem --x Customer : raise ValueError("Invalid quantity or item")
+                    else Reversal Successful
+                        StockItem --> Order : updated
+                        deactivate StockItem
+                    end
+                end
+            end
+            
+            Order -> OrderItem : status = OrderItemStatus.CANCELED
+            activate OrderItem
+            OrderItem --> Order : updated
+            deactivate OrderItem
+        end
+        
+        Order -> Order : self.status = OrderStatus.CANCELED
+        Order --> Restaurant : return True
+        deactivate Order
+        deactivate Restaurant
+        
+        == Response Formatting ==
+        Restaurant -> Order : order_to_dict()
+        activate Restaurant
+        activate Order
+        Order --> Restaurant : order_dict
+        deactivate Restaurant
+        deactivate Order
+        
+        Restaurant --> Customer : return "Order voided successfully", order_dict
+        deactivate Restaurant
+    end
+end
+
+@enduml

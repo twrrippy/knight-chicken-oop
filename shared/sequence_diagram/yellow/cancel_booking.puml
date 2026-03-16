@@ -1,0 +1,66 @@
+@startuml SequenceDiagram
+skinparam maxmessagesize 300
+
+actor Customer
+participant Restaurant
+participant Booking
+participant Room
+
+Customer -> Restaurant : cancel_booking(token, booking_id)
+activate Restaurant
+
+== Authentication ==
+Restaurant -> Restaurant : verify_token_and_role(token, [ADMIN, STAFF, MEMBER])
+activate Restaurant
+
+alt session_obj is None OR role not in allowed_roles
+    Restaurant --x Customer : return "Unable to proceed: Invalid token or missing permission"
+    deactivate Restaurant
+else Authorized
+    
+    == Retrieve Booking ==
+    Restaurant -> Restaurant : get_booking(booking_id)
+    activate Restaurant
+    Restaurant --> Restaurant : return booking
+    deactivate Restaurant
+    
+    == Ownership Validation ==
+    alt role == MEMBER AND session_obj.user != booking.customer
+        Restaurant --x Customer : return "Unable to proceed: You can only cancel your own booking."
+    else Validation Passed
+        
+        == Cancel Execution ==
+        Restaurant -> Booking : cancel_booking()
+        activate Booking
+        activate Restaurant
+        
+        alt self.__status in [CHECKED_IN, COMPLETED, CANCELED]
+            Booking --x Customer : raise ValueError("Booking cannot be canceled at this stage.")
+        else Cancellation Allowed
+            Booking -> Booking : self.__status = BookingStatus.CANCELED
+            
+            Booking -> Room : status = RoomStatus.AVAILABLE
+            activate Room
+            Room --> Booking : updated
+            deactivate Room
+            
+            Booking --> Restaurant : return True
+            deactivate Booking
+            deactivate Restaurant
+            
+            == Response Formatting ==
+            Restaurant -> Booking : get_details()
+            activate Booking
+            activate Restaurant
+            Booking --> Restaurant : booking_details_dict
+            deactivate Booking
+            deactivate Restaurant
+            
+            Restaurant --> Customer : return booking_details_dict
+            deactivate Restaurant
+        end
+    end
+end
+
+
+@enduml

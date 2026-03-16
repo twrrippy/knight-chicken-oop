@@ -1,0 +1,92 @@
+@startuml KnightChickenUseCaseDiagram
+left to right direction
+skinparam packageStyle rectangle
+
+' กำหนด Actor (มากกว่า 3 ตัว และมี Actor ภายนอก)
+actor "Customer" as cust
+actor "Guest" as guest
+actor "Member" as member
+actor "Staff" as staff
+' actor "Delivery Platform" as delivery
+
+' Generalization (เงื่อนไขบังคับ 1 จุด)
+guest -up-|> cust
+member -up-|> cust
+
+rectangle "Knight Chicken Fast Food System" {
+    
+    ' Use Case สีฟ้าอ่อน (ธุรกรรมที่ซับซ้อน นำไปเขียน Sequence Diagram)
+    ' Use Case สีเหลืองอ่อน (ทั่วไป ไม่ต้องเขียน Sequence Diagram)
+
+    ' Order Flow
+    usecase "Start Order" as UC_StartOrder #LightYellow
+    ' usecase "Start General Order" as UC_StartGenaralOrder #LightYellow
+    ' usecase "Start Delivery Order" as UC_StartGenaralOrder #LightYellow
+
+    usecase "Add Order Item" as UC_AddItem #LightYellow
+    usecase "Custom Item" as UC_Customize #LightBlue
+    ' usecase "Remove Item" as UC_Remove #LightYellow
+    usecase "Reserve Stock" as UC_Reserve #LightBlue
+    usecase "Confirm Order" as UC_Confirm #LightYellow
+    
+    usecase "Preview Order Bill" as UC_PreviewBill #LightYellow
+    usecase "Process Order Payment" as UC_Payment #LightBlue
+
+    usecase "Process Kitchen Cooking\n(Consume Stock)" as UC_Cook #LightBlue
+    usecase "Serve" as UC_Serve #LightYellow
+
+    'Booking
+    usecase "Pay Deposit" as UC_PayDeposit #LightBlue
+    usecase "Book Room" as UC_BookRoom #LightBlue
+    usecase "Check In" as UC_CheckIn #LightBlue
+    usecase "Check Out" as UC_CheckOut #LightYellow
+
+    'Etc
+    usecase "Login" as UC_Login #LightYellow
+    usecase "Guest Login" as UC_LoginGuest #LightYellow
+    usecase "Get Menu" as UC_Menu #LightBlue
+    usecase "Check Room Availability" as UC_CheckRoom #LightYellow
+    usecase "Check Queue & Stock" as UC_CheckStock #LightYellow
+    usecase "Restock" as UC_Restock #LightYellow
+
+    usecase "Update Delivery Status" as UC_DeliveryStatus #LightBlue
+
+    ' --- การเชื่อมโยง Actor กับ Use Case ---
+    cust --> UC_Menu
+    cust --> UC_StartOrder
+    cust --> UC_AddItem
+    cust --> UC_Reserve
+    cust --> UC_Confirm
+    cust --> UC_Customize
+    cust --> UC_Login
+    cust --> UC_PreviewBill
+    cust --> UC_Payment
+
+    staff --> UC_Menu
+    staff --> UC_Login
+    staff --> UC_BookRoom
+    staff --> UC_Payment
+    staff --> UC_Cook
+    staff --> UC_CheckRoom
+    staff --> UC_CheckStock
+    staff --> UC_PreviewBill
+    staff --> UC_Login
+
+    staff --> UC_DeliveryStatus
+
+    ' --- การเชื่อมโยง Include / Extend ---
+    ' UC_BookRoom .> UC_PayDeposit : <<include>>
+    ' UC_Payment .> UC_PreviewBill : <<include>>
+    ' UC_Customize .> UC_AddItem : <<extend>>
+    UC_StartOrder .> UC_Login : <<include>>
+    UC_AddItem .> UC_StartOrder : <<include>>
+    UC_AddItem .> UC_Customize : <<extend>>
+    UC_AddItem .> UC_Reserve : <<extend>>
+    UC_Confirm .> UC_Reserve : <<include>>
+    UC_Payment .> UC_Confirm : <<include>>
+    UC_Cook .> UC_Payment : <<include>>
+    UC_Serve .> UC_Cook : <<include>>
+
+}
+
+@enduml

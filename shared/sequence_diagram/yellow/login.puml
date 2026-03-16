@@ -1,0 +1,68 @@
+@startuml SequenceDiagram
+skinparam maxmessagesize 150
+
+actor "Member / Staff" as Client
+participant Restaurant
+participant Member
+participant Staff
+participant AuthManager
+participant Session
+
+Client -> Restaurant : login(username, password)
+activate Restaurant
+
+alt successful execution
+    Restaurant -> Restaurant : login(username, password)
+    activate Restaurant
+
+    loop every m in __member_list
+        Restaurant -> Member : check_identity(username, password)
+        activate Member
+        Member --> Restaurant : return bool
+        deactivate Member
+    end
+
+    loop every s in __staff_list
+        Restaurant -> Staff : check_identity(username, password)
+        activate Staff
+        Staff --> Restaurant : return bool
+        deactivate Staff
+    end
+
+    alt member found
+        Restaurant -> AuthManager : create_session(member.id)
+        activate AuthManager
+    else staff found
+        Restaurant -> AuthManager : create_session(staff.id)
+    else neither found
+        Restaurant -> Client : raise PermissionError("Invalid username or password")
+    end
+    
+    opt session creation triggered (member or staff found)
+        AuthManager -> AuthManager : revoke_staff_sessions(user_id)
+        
+        create Session
+        AuthManager -> Session : <<create>>(user_id)
+        activate Session
+        Session --> AuthManager : new_session
+        deactivate Session
+        
+        AuthManager -> AuthManager : self.__sessions.append(new_session)
+        AuthManager --> Restaurant : return session
+        deactivate AuthManager
+    end
+
+    Restaurant --> Restaurant : return session
+    deactivate Restaurant
+
+    Restaurant -> Session : get token (session.token)
+    activate Session
+    Session --> Restaurant : return token
+    deactivate Session
+
+    Restaurant --> Client : return {"access_token": token, "token_type": "bearer"}
+
+    deactivate Restaurant
+end
+
+@enduml

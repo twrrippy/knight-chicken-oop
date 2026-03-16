@@ -1,0 +1,58 @@
+@startuml SequenceDiagram
+skinparam maxmessagesize 259
+
+actor Customer
+participant Restaurant
+participant Item
+
+Customer -> Restaurant : restock(token, item_id, amount)
+activate Restaurant
+
+== Authentication ==
+Restaurant -> Restaurant : verify_token_and_role(token, [ADMIN, STAFF])
+activate Restaurant
+
+alt session_obj is None OR role not in allowed_roles
+    Restaurant --x Customer : return "Unable to proceed: Invalid token or missing permission"
+    deactivate Restaurant
+else Authorized
+    
+    == Retrieve Stock Item ==
+    Restaurant -> Restaurant : get_stock_item(item_id)
+    activate Restaurant
+    loop for item in self.__stock
+        alt item.id == item_id
+            Restaurant --> Restaurant : return target_item
+        end
+    end
+    opt Item Not Found
+        Restaurant --x Customer : return "Unable to proceed: Item Not Found"
+        deactivate Restaurant
+    end
+    
+    == Restock Execution ==
+    alt amount <= 0
+        Restaurant --x Customer : return "Unable to proceed: Restock amount must be greater than zero."
+    else Valid Amount
+        Restaurant -> Item : add_stock(amount)
+        activate Restaurant
+        activate Item
+        Item -> Item : self.quantity += amount
+        Item --> Restaurant : updated
+        deactivate Item
+        deactivate Restaurant
+        
+        == Response Formatting ==
+        Restaurant -> Item : to_dict()
+        activate Item
+        activate Restaurant
+        Item --> Restaurant : item_dict
+        deactivate Item
+        deactivate Restaurant
+        
+        Restaurant --> Customer : return "Restock successful", item_dict
+        deactivate Restaurant
+    end
+end
+
+@enduml

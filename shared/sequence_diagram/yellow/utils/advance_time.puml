@@ -1,0 +1,46 @@
+@startuml SequenceDiagram
+skinparam maxmessagesize 200
+
+actor "Customer" as Client
+participant "MCP Tool" as Tool
+participant SimulationClock
+participant Restaurant
+
+Client -> Tool : advance_time(minutes)
+activate Tool
+
+== Calculate New Time ==
+Tool -> SimulationClock : get_time()
+activate SimulationClock
+SimulationClock --> Tool : return current_time
+deactivate SimulationClock
+
+Tool -> Tool : new_time = current_time + timedelta(minutes=minutes)
+
+== Update Time & Trigger Checks ==
+Tool -> SimulationClock : set_time(new_time)
+activate SimulationClock
+
+SimulationClock -> SimulationClock : cls._current_time = new_time
+
+' Triggers time-dependent checks imported from main_system
+SimulationClock -> Restaurant : auto_check_no_show()
+activate Restaurant
+Restaurant --> SimulationClock : completed
+deactivate Restaurant
+
+SimulationClock --> Tool : completed
+deactivate SimulationClock
+
+== Format Response ==
+Tool -> SimulationClock : get_time()
+activate SimulationClock
+SimulationClock --> Tool : return updated_time
+deactivate SimulationClock
+
+Tool -> Tool : strftime("%Y-%m-%d %H:%M:%S")
+
+Tool --> Client : return {"current_simulation_time": formatted_time}
+deactivate Tool
+
+@enduml

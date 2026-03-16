@@ -1,0 +1,128 @@
+@startuml preview_order_bill_sequence
+skinparam style strictuml
+skinparam sequenceMessageAlignment center
+
+actor "Customer"
+participant "Restaurant" 
+participant "Order"
+participant "Member"
+participant "OrderItem"
+participant "Booking"
+participant "Delivery"
+participant "Coupon"
+
+Customer -> Restaurant : preview_order_bill(token, order_id, coupon_code)
+activate Restaurant
+
+    == Authentication ==
+
+    Restaurant -> Restaurant : check_order_customer(order_id, token, allowed_roles=[MEMBER, GUEST])
+    alt Unauthorized User 
+      Restaurant --X Customer : [Error] Unauthorized User
+    end
+
+    == Preview Bill Process ==
+
+    loop for order in order_list
+      Restaurant -> Restaurant : search_order_from_id(order_id)
+    end
+    
+    Restaurant -> Order: get_status
+    activate Order
+    Order --> Restaurant : status
+    deactivate Order
+    
+    alt if status is PAID:
+      Restaurant --X Customer : [Error] Order Already Paid
+    end
+
+    Restaurant -> Order : pre_calculate_totals(coupon_code)
+    activate Order
+
+      alt if coupon_code is provided:
+        alt if Customer is Member:
+          Order -> Member: get_coupon_by_code(coupon_code)
+          activate Member
+            loop for coupon in coupon_list
+              alt if coupon_code == coupon.code:
+                Member --> Order : coupon_obj
+              else
+                Member --X Order : Coupon Not Found
+                Order --X Restaurant : Coupon Not Found
+                Restaurant --X Customer : [Error] Coupon Not Found
+              end
+            end
+          deactivate Member
+        else
+          Order --X Restaurant : Only members can use coupons
+          Restaurant --X Customer : [Error] Only members can use coupons
+        end
+      end
+
+      loop for each item in order_item_list
+          Order -> OrderItem : get_price()
+          activate OrderItem
+          OrderItem --> Order : price
+          deactivate OrderItem
+          Order -> Order: subtotal += item_price
+      end
+
+      alt if order has Booking:
+        Order -> Booking: get_full_price()
+        activate Booking
+          Booking --> Order: full_price
+        deactivate Booking
+        
+        Order -> Booking: get_deposit()
+        activate Booking
+          Booking --> Order: deposit_price
+        deactivate Booking
+        Order -> Order: subtotal += full_price
+      end
+
+      alt if order has Delivery:
+        Order -> Delivery: get_fee()
+        activate Delivery
+          Delivery --> Order: fee
+        deactivate Delivery
+        Order -> Order: subtotal += fee
+      end
+
+      alt if coupon_obj exists:
+        Order -> Coupon: is_available()
+        activate Coupon
+          alt if Not Available:
+            Coupon --X Order: False
+            Order --X Restaurant: [Error] Coupon Not Available
+            Restaurant --X Customer: [Error] Coupon Not Available
+          else
+            Coupon --> Order: True
+          end
+        deactivate Coupon
+        
+        Order -> Coupon: apply_coupon(subtotal)
+        activate Coupon
+          Coupon -> Coupon: is_applicable(base_price)
+          Coupon --> Order: coupon_discount 
+        deactivate Coupon
+      end
+
+      alt if Customer is Member:
+        Order -> Member: get_tier_discount(subtotal)
+        activate Member
+          Member --> Order: tier_discount
+        deactivate Member
+      end
+
+      Order -> Order: discount = min(tier_discount + coupon_discount, subtotal)
+      Order -> Order: deposit = booking.deposit if booking else 0.0
+      Order -> Order: final_price = subtotal - discount - deposit
+
+      Order --> Restaurant: info
+    deactivate Order
+    
+    Restaurant -> Restaurant : generate_bill_data(info)
+    Restaurant --> Customer : bill_data
+
+deactivate Restaurant
+@enduml

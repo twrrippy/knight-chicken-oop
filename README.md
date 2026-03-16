@@ -17,16 +17,16 @@ pip install -r requirements.txt
 ## Run Server
 
 ```
-uvicorn app:app --reload --port 8000
+uvicorn project:app --reload --port 8000
 ```
 
 ### Backend
-- FastAPI
+- MCP Server
 
 ## Warning!!
 1. Don't edit branch 'main'
-2. Create new branch from dev to start edit
-3. Don't merge to main
+2. Create new branch from 'dev' to start edit
+3. Don't merge to 'main'
 4. Don't push unnecessary file (use .gitignore to ignore file) 
 5. make sure in your branch during edit
 

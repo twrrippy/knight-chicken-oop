@@ -1,0 +1,47 @@
+@startuml SequenceDiagram
+skinparam maxmessagesize 200
+
+actor "Member / Staff" as Client
+participant Restaurant
+participant AuthManager
+participant Session
+
+Client -> Restaurant : logout(token)
+activate Restaurant
+
+alt successful execution
+
+    Restaurant -> AuthManager : get_session(token)
+    activate AuthManager
+
+    loop every s in __sessions
+        AuthManager -> Session : check_token(token) and s.is_active
+        activate Session
+        Session --> AuthManager : return bool
+        deactivate Session
+    end
+
+    AuthManager --> Restaurant : return session (or None)
+    deactivate AuthManager
+
+    alt session found
+        Restaurant -> Session : invalidate()
+        activate Session
+        Session -> Session : self.__is_active = False
+        Session --> Restaurant : return
+        deactivate Session
+        
+        Restaurant --> Client : return "Logged out successfully"
+        
+    else session not found
+        Restaurant --> Client : return "Unable to proceed: Invalid Token"
+        deactivate Restaurant
+    end
+
+    
+
+end
+
+
+
+@enduml

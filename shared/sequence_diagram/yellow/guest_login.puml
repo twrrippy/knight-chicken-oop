@@ -1,0 +1,56 @@
+@startuml SequenceDiagram
+skinparam maxmessagesize 750
+
+actor "Guest" as Client
+participant Restaurant
+participant Guest
+participant AuthManager
+participant Session
+
+Client -> Restaurant : guest_login()
+activate Restaurant
+
+alt successful execution
+    Restaurant -> Restaurant : add_guest_session()
+    activate Restaurant
+    
+    ' create Guest
+    Restaurant -> Guest : <<create>>
+    activate Guest
+    Guest --> Restaurant : new_guest
+    deactivate Guest
+    
+    Restaurant -> AuthManager : create_session(new_guest.id)
+    activate AuthManager
+    
+    AuthManager -> AuthManager : revoke_staff_sessions(new_guest.id)
+    
+    ' create Session
+    AuthManager -> Session : <<create>>(new_guest.id)
+    activate Session
+    Session --> AuthManager : new_session
+    deactivate Session
+    
+    AuthManager -> AuthManager : self.__sessions.append(new_session)
+    
+    AuthManager --> Restaurant : return session
+    deactivate AuthManager
+    
+    Restaurant --> Restaurant : return session
+    deactivate Restaurant
+    
+    Restaurant -> Session : get token (session.token)
+    activate Session
+    Session --> Restaurant : return token
+    deactivate Session
+
+    Restaurant --> Client : return {"access_token": token, "token_type": "bearer"}
+
+else Exception as e
+    Restaurant --> Client : return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
+    deactivate Restaurant
+end
+
+
+
+@enduml

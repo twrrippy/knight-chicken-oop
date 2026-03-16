@@ -1,18 +1,40 @@
-from fastapi import APIRouter
-from shared.utils.response import success_response_status, error_response_status
+from typing import Annotated
+from pydantic import Field
+from main_system.utils.mcp_core import mcp
+from main_system.restaurant import restaurant
+from main_system.utils.enum import UserRole
 
-router = APIRouter(prefix="/kitchen", tags=["kitchen"])
-
-# Example endpoint for kitchen status
-@router.get("/status")
-def get_kitchen_status():
+@mcp.tool
+async def cook_order(
+    token: Annotated[str, Field(
+        description="Staff access token (obtained via the 'login' tool)"
+    )],
+    order_id: Annotated[str, Field(
+        description="Order ID to start cooking (Format: ORD-xxx)"
+    )]
+):
     """
-    Endpoint to get the current status of the kitchen.
+    Start cooking a specific order. Changes the order status to COOKING in the kitchen. 
     """
-    # Placeholder logic for kitchen status
-    kitchen_status = {
-        "status": "operational",
-        "active_orders": 5,
-        "pending_orders": 2
-    }
-    return success_response_status(status=200, payload=kitchen_status)
+    try:
+        restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
+        return restaurant.cook_order(order_id)
+    except Exception as e:
+        return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
+   
+@mcp.tool
+async def view_kitchen_queue(
+    token: Annotated[str, Field(
+        description="Staff access token (obtained via the 'login' tool)"
+    )]
+):
+    """
+    View the kitchen queue (orders that are ready to be cooked).
+    """
+    try:
+        restaurant.verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
+        return restaurant.display_kitchen_queue()
+    except Exception as e:
+        return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
+    
+    

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "default-server": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "telnwza/knight-chicken-mcp:v1"]
+    }
+  }
+}

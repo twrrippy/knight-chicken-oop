@@ -1,0 +1,567 @@
+@startuml ClassDiagram
+skinparam Linetype ortho
+
+class Restaurant{
+    - menu: List[MenuItem]
+    - stock: List[Item]
+    - receipt_list: List[Receipt]
+    - coupon_list: List[Coupon]
+    - member_list: List[Member]
+    - staff_list: List[Staff]
+    - booking_list: List[Booking]
+    - order_list: List[Order]  
+    - payment_method: List[PaymentMethod]
+    - room_list: List[Room]
+    - delivery_providers: List[DeliveryProvider]
+    - auth_manager : AuthManager
+    - member_counter: int
+    - staff_counter: int
+    - booking_counter: int
+    + add_delivery_provider(provider: DeliveryProvider)
+    + get_delivery_provider(provider_name: str) : DeliveryProvider
+    + add_room(room: Room)
+    + get_room(room_id: str) : Room
+    + add_booking(booking: Booking)
+    + get_booking(booking_id: str) : Booking
+    + add_order(order: Order)
+    + get_order(order_id: str) : Order
+    + add_payment_method(method: PaymentMethod)
+    + get_payment_method(method_name: str) : PaymentMethod
+    + add_receipts(receipt: Receipt)
+    + get_receipts_by_order_id(order_id: str) : Receipt
+    + add_member(member: Member)
+    + get_member_by_id(member_id: str) : Member
+    + add_coupon(coupon: Coupon)
+    + get_coupon(code: str) : Coupon
+    + add_staff(staff: Staff)
+    + get_staff(id: str) : Staff
+    + get_user_by_id(id: str) : User
+    + verify_token_and_role(token: str, allowed_roles: List[str]) : User
+    + check_order_customer(order_id: str, token: str, allowed_roles: List[str]) : Order
+    + create_general_order(customer: Customer)
+    + add_menu(menu: MenuItem)
+    + {property} check_queue() : int
+    + add_stock(item: Item, quantity: int)
+    + get_queue(queue_order: int) : Order | False
+    + count_stock_item(item_name: str, status: ItemStatus) : int
+    + check_stock_item(item_name: str) : dict
+    + all_stock() : dict
+    + get_menu() : dict
+    + search_menu_item_from_name(name: str) : MenuItem
+    + search_order_from_id(order_id: str) : Order
+    + reserve(order: Order)
+    + stock_reserve(item_name: str, quantity: int) -> bool
+    + stock_reverse(item_name: str, quantity: int)
+    + add_item_in_order(order: Order, menu: str, quantity: int)
+    + remove_item_in_order(order: Order, order_item_id: str)
+    + custom_item_in_order(order: Order, order_item_id: int, item_name: str, quantity: int)
+    + find_ingredient_in_stock(item_name: str) : int
+    + find_item_in_reserved(item_name: str) : int
+    + consume_reserved_ingredient(item_name: str, quantity: int) -> bool
+    + get_kitchen_queue()
+    + display_kitchen_queue()
+    + confirm(order:Order)
+    + void_order_from_id(order_id: str)
+    + serve_order(order_id: str)
+    + cook_order(order_id: str)
+    + create_delivery_order(customer: 'User', provider_name: str, distance: float)
+    + update_delivery_status(order_id: str, new_status: DeliveryStatus, _internal: bool = False)
+    + check_and_issue_reward(order: Order)
+    + booking_room(member_id: str, room_id: str, hours: int, pay_method: str, start_time: datetime, payment_details: Dict)
+    + is_slot_available(room: Room, start: datetime, hours: int) : bool
+    + auto_check_no_show()
+    + check_in_booking(order_id: str, booking_id: str, coupon_code: str, pay_method: str, payment_details: Dict)
+    + check_out_booking(booking_id: str)
+    + cancel_booking(booking_id: str)
+    + mark_room_as_cleaning(room_id: str)
+    + login(username: str, password: str) : Session
+    + logout(token: str) : bool
+    + add_guest_session() : Session
+    + register_member(username: str, password: str, name: str, phone: str) : Member
+    + register_staff(username: str, password: str, name: str, phone: str) : Staff
+    + get_all_members() : List[Member]
+    + get_all_staff() : List[Staff]
+    + get_all_rooms() : List[Room]
+    + get_all_receipts() : List[Receipt]
+    + get_all_orders() : List[Order]
+    + get_all_bookings() : List[Booking]
+    + get_all_coupons() : List[Coupon]
+    + preview_booking_details(booking_id: str) : dict
+    + process_pay_deposit(deposit: float, method_name: str, payment_details: Dict) : bool
+    + process_order_payment(order_id: str, coupon_code: Optional[str], method_name: str, payment_details: Dict) : bool
+    + preview_order_bill(order_id: str, coupon_code: Optional[str]) : dict
+    + {async} simulate_delivery(order_id: str)
+    + {property} count_order() : int
+
+}
+Customer --|> User
+Staff --|> User
+abstract class User{
+    - id : str
+    - name : str
+    - phone_number : str
+    - username : str
+    - password : str
+    + {property} id() : str
+    + {property} name() : str
+    + {property} phone_number() : str
+    + {property} username() : str
+    + is_valid_phone_number(phone_number: str) : bool
+    + check_username(username)
+    + check_identity(username, password)
+    + __eq__(other) : bool
+}
+Restaurant o-- Member
+Member--|>Customer
+Guest--|>Customer
+class Customer {
+}
+class Guest {
+    - Guest_count: int
+    - id : str
+}
+class Member{
+    - coupon_list : list[Coupon]
+    - receipt_list : list[Receipt]
+    - tier : MemberTier
+    - points : int
+    + {property} tier() : MemberTier
+    + {property} points() : int
+    + add_receipt(receipt: Receipt)
+    + add_coupon(coupon: Coupon)
+    + add_points(points: int)
+    + check_and_issue_member_tier()
+    + get_coupon_by_code(code: str) : Coupon
+    + get_member_discount(base_price: float) : float
+}
+
+Restaurant o-- Staff
+class Staff{
+    - is_admin: bool
+    + {property} is_admin() : bool
+}
+
+Restaurant o-- Order
+Restaurant o-- MenuItem
+Order *-- OrderItem
+Order --> Booking
+Order --> Customer
+OrderItem --> MenuItem
+Ingredient --> Item
+Item --o Restaurant
+SingleMenuItem --|> MenuItem
+SingleMenuItem o-- Ingredient
+SetMenuItem --|> MenuItem
+SingleMenuItem <-- Food
+Food --o SetMenuItem
+
+class Order{
+    + __OrderId_count: int
+    - id:  str
+    - customer : Customer
+    - order_item_list : list of OrderItem
+    - order_item_id_counter : int
+    - status: OrderStatus
+    - status_start : datetime
+    - coupon_used : Optional[Coupon]
+    - booking : Optional[Booking]
+    - delivery : Optional[Delivery]
+    - subtotal : float
+    - discount : float
+    - final_price : float
+    + {property} subtotal() : float
+    + {property} discount() : float
+    + {property} booking() : Optional[Booking]
+    + {property} delivery() : Optional[Delivery]
+    + {property} order_type() : OrderType
+    + {property} id() : str
+    + {property} total_payable_amount() : float
+    + {property} coupon_used() : Optional[Coupon]
+    + {property} order_item() : list
+    + {property} customer() : Customer
+    + {property} status() : OrderStatus
+    + add_order_item(menu_name: str, quantity: int)
+    + is_valid_order_item_id(order_item_id: int) : bool
+    + remove_order_item(order_item_id: int)
+    + search_order_item_from_id(order_item_id: int) : OrderItem
+    + custom(order_item_id: int, item_name: str, quantity: int)
+    + add_booking(booking: Booking)
+    + add_delivery(delivery: Delivery)
+    + update_price()
+    + check_customer(customer: Customer)
+    + order_reserve()
+    + order_confirm()
+    + order_item_dict_list() : list
+    + order_to_dict() : dict
+    + cook(): bool
+    + serve(): Order
+    + pre_calculate_totals(coupon_code: Optional[str])
+    + calculate_totals(coupon_code: Optional[str])
+    + execute_payment(method: PaymentMethod, payment_details: Dict, coupon_code: Optional[str]) : Receipt
+    + void_order()
+}
+class OrderItem{
+    - id : int 
+    - menu_item : MenuItem
+    - quantity : int
+    - status : OrderItemStatus
+    + {property} id() : str
+    + {property} menu_item() : MenuItem
+    + {property} quantity() : int
+    + {property} price() : float
+    + {property} status() : OrderStatus
+    + is_valid_quantity(quantity: int) : bool
+    + custom_menu(item_name: str, quantity: int)
+    + order_item_reserve()
+    + order_item_reverse(ingredient: Ingredient)
+    + order_item_to_dict() : dict
+    + get_details() : dict
+    + process_cooking() : bool
+    + cancel_reservation()
+}
+
+abstract class MenuItem{
+    - name : str
+    - price : float
+    - cooking_time : datetime
+    + {property} name() : str
+    + {property} price() : float
+    + {property} cooking_time() : datetime
+    + {static} is_valid_price(price: float) : bool
+    + {static} is_valid_cooking_time(cooking_time: datetime) : bool
+    + all_ingredient()
+    + calculate_price()
+    + update_price(original_menu: MenuItem)
+    + to_dict_order()
+    + to_dict_menu()
+}
+class SingleMenuItem{
+    - recipe : list of Ingredient
+    + {property} all_ingredient() : list of Ingredient
+    + find_ingredient_in_recipe(name)
+    + find_ingredient_in_recipe_from_name(item_name: str)
+    + calculate_price(original_menu: MenuItem)
+    + custom_ingredient(item_name: str, quantity: int)
+}
+class SetMenuItem{
+    - items : list of Food
+    + {property} all_ingredient() : list of Ingredient
+    + find_ingredient_in_recipe(item: Item)
+    + calculate_price(original_menu: MenuItem)
+}
+class Food{
+    - item : SingleMenuItem
+    - quantity : int
+    + {property} item() : SingleMenuItem
+    + {property} quantity() : int
+    + {property} get_ingredient_per_unit() : list
+}
+class Ingredient{
+    - item : Item
+    - quantity : int
+    - type : IngredientType
+    + {static} is_valid_quantity(quantity: int) : bool
+    + {property} item() : Item
+    + {property} quantity() : int
+    + {property} type() : IngredientType
+    + {property} ingredient_to_dict() : dict
+    + modify(quantity: int)
+    + custom(quantity: int)
+}
+class Item{
+    - name : string
+    - price : float
+    - status : ItemStatus
+    + {static} is_valid_price(price: float) : bool
+    + {property} name() : str
+    + {property} price() : float
+    + {property} status() : ItemStatus
+    + __eq__(other) : bool
+}
+
+
+
+FixedAmountCoupon --|> Coupon
+PercentCoupon --|> Coupon
+Coupon --o Member
+
+class Room{
+    - room_id : str
+    - room_type : RoomType
+    - status : RoomStatus
+    - price_per_hour : float
+    - capacity : int
+    + mark_room_cleaning()
+    + mark_room_in_use()
+    + mark_room_available()
+    + {property} price_per_hour() : float
+    + {property} id() : str
+    + {property} status() : RoomStatus
+    + {property} type() : RoomType
+    + {property} capacity() : int
+}
+Restaurant o-- Room
+Restaurant o-- Booking
+Booking --> Member
+Booking --> Room
+Booking *-- TimeSlot
+class Booking{
+    - id : str
+    - member : Member
+    - room : Room
+    - time_slot : TimeSlot
+    - status : BookingStatus
+    + mark_deposit_paid()
+    + mark_as_paid()
+    + mark_completed()
+    + mark_checked_in()
+    + mark_cancelled()
+    + get_details() : dict
+    + {property} full_price() : float
+    + {property} deposit() : float
+    + {property} amount_due() : float
+    + {property} id() : str
+    + {property} member() : Member
+    + {property} room() : Room
+    + {property} time_slot() : TimeSlot
+    + {property} status() BookingStatus
+}
+class TimeSlot{
+    - start_time : datetime
+    - end_time : datetime
+    - hours : int
+    + {property} start_time() : datetime
+    + {property} end_time() : datetime
+    + {property} hours() : int
+}
+abstract class Coupon{
+    - id : str
+    - code : str
+    - minimum_price : float
+    - status : CouponStatus
+    - max_usege : int
+    - used_count : int
+    + {abstract} apply_coupon(base_price: float) : float
+    + {property} minimum_price() : float
+    + {property} status() : CouponStatus
+    + {property} code() : str
+    + {property} max_usage() : int
+    + {property} used_count() : int
+    + is_applicable(base_price: float) : bool
+    + is_available() : bool
+    + consume()
+}
+class PercentCoupon{
+    - percent : int
+    + apply_coupon(base_price: float)
+}
+class FixedAmountCoupon{
+    - amount : float
+    + apply_coupon(base_price: float)
+}
+
+Delivery <-- Order
+class Delivery{
+    - delivery_id : str
+    - provider : DeliveryProvider
+    - distance : float
+    - status : DeliveryStatus
+    - tracking_id : Optional[str]
+    - rider_name : Optional[str]
+    + {property} tracking_id() : str
+    + {property} rider_name() : str
+    + {property} id() : str
+    + {property} provider() : DeliveryProvider
+    + {property} distance() : float
+    + {property} status() : DeliveryStatus
+    + {property} fee() : float
+    + request_rider()
+    + mark_in_transit()
+    + mark_delivered()
+    + mark_as_paid()
+    + mark_canceled()
+    + get_details() : dict
+}
+PaymentMethod <-- Restaurant
+abstract class PaymentMethod{
+    - id : str
+    - name : str
+    + {abstract} name()
+    + {abstract} pay(amount: float, kwargs) : Tuple<bool, str>
+}
+
+
+DeliveryProvider --o Restaurant
+
+abstract class DeliveryProvider{
+    - platform_name : str
+    - riders_name : list of rider_name
+    - minimum_fee : float
+    - price_per_km : float
+    + request_rider(delivery: Delivery) : Tuple[bool, str]
+    + {abstract} calculate_fee(distance_km: float) : float
+    + {property} platform_name() : PlatformName
+}
+
+GrabDeliveryProvider --|> DeliveryProvider
+class GrabDeliveryProvider{
+
+}
+
+LineManDeliveryProvider --|> DeliveryProvider
+class LineManDeliveryProvider{
+
+}
+
+ShopeeFoodDeliveryProvider --|> DeliveryProvider
+class ShopeeFoodDeliveryProvider{
+
+}
+
+
+QRCode --|> PaymentMethod
+class QRCode{
+
+}
+
+Cash --|> PaymentMethod
+class Cash{
+    
+}
+
+CreditCard --|> PaymentMethod
+class CreditCard{
+    
+}
+
+Restaurant o-- Receipt
+Member o-- Receipt
+PaymentMethod <-- Receipt
+Customer <-- Receipt
+Order <-- Receipt
+class Receipt{
+    - id : str
+    - order : Order
+    - method : PaymentMethod
+    - timestamp : datetime
+    + generate() : dict
+    + {property} id() : str
+    + {property} order() : Order
+    + {property} method() : PaymentMethod
+    + {property} timestamp() : datetime
+}
+
+Session --o AuthManager
+Restaurant --> AuthManager
+class Session{
+    - token : str
+    - user_id : str
+    - login_time : datetime
+    - is_active : bool
+    + invalidate()
+    + check_token(token: str) : bool
+    + {property} is_active() : bool
+    + {property} user_id() : str
+    + {property} token() : str
+}
+class AuthManager{
+    - sessions : list of Session
+    + create_session(user_id: str) : Session
+    + get_session(token: str) : Session | None
+    + revoke_staff_sessions(user_id: str)
+}
+
+package "Enums" {
+    enum OrderType {
+        GENERAL
+        DELIVERY
+        EVENT
+    }
+    enum OrderStatus {
+        PENDING
+        RESERVED
+        CONFIRMED
+        PAID
+        COOKING
+        READY
+        SERVED
+        CANCELED
+    }
+    enum OrderItemStatus{
+        PENDING
+        ADDED
+        RESERVED
+        OUT_OF_STOCK
+        COOKING
+        READY
+        SERVED
+        CANCELED
+    }
+    enum MenuItemStatus{
+        AVAILABLE
+        UNAVAILABLE
+    }
+    enum IngredientType{
+        STRICT
+        CUSTOMIZABLE
+    }
+    enum BookingStatus {
+        PENDING
+        DEPOSIT_PAID
+        PAID
+        CHECKED_IN
+        COMPLETED
+        CANCELED
+    }
+    enum RoomStatus {
+        AVAILABLE
+        IN_USE
+        CLEANING
+    }
+    enum RoomType {
+        VIP
+        STANDARD
+        HALL
+    }
+    enum MemberTier {
+        GENERAL
+        BRONZE
+        SILVER
+        GOLD
+    }
+    enum CouponStatus {
+        AVAILABLE
+        NOT_AVAILABLE
+    }
+    enum DeliveryStatus{
+        PENDING
+        PAID
+        DRIVER_ASSIGNED
+        IN_TRANSIT
+        DELIVERED
+        CANCELED
+    }
+    enum UserRole {
+        ADMIN
+        STAFF
+        MEMBER
+        GUEST
+    }
+    enum PlatformName{
+        GRAB
+        LINE_MAN
+        SHOPEE_FOOD
+    }
+    enum TransactionStatus{
+        PENDING
+        FAILED
+        SUCCESS
+    }
+    enum ItemStatus{
+        AVAILABLE
+        RESERVED
+    }
+
+}
+
+@enduml

@@ -1,0 +1,73 @@
+@startuml SequenceDiagram
+skinparam maxmessagesize 200
+
+actor "Customer" as  Client
+participant Restaurant
+
+Client -> Restaurant : check_stock_all(token)
+activate Restaurant
+
+== Authentication ==
+Restaurant -> Restaurant : verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
+activate Restaurant
+
+alt session is invalid or role lacks permission
+    Restaurant --x Client : return "Unable to proceed: {exception_detail}"
+else Authorized
+    Restaurant --> Restaurant : return staff
+    deactivate Restaurant
+    
+    == Retrieve and Compile Stock ==
+    Restaurant -> Restaurant : all_stock()
+    activate Restaurant
+    
+    ' Build unique item name list
+    loop for item in self.__stock
+        Restaurant -> Restaurant : check if item.name in item_name_list
+        alt name not found
+            Restaurant -> Restaurant : item_name_list.append(item.name)
+        end
+    end
+    
+    ' Build detailed stock list
+    loop for name in item_name_list
+        Restaurant -> Restaurant : check_stock_item(name)
+        activate Restaurant
+        
+        ' Count Available Items
+        Restaurant -> Restaurant : count_stock_item(name, ItemStatus.AVAILABLE)
+        activate Restaurant
+        loop for find in self.__stock
+            alt find.name == item_name AND find.status == AVAILABLE
+                Restaurant -> Restaurant : count_stock += 1
+            end
+        end
+        Restaurant --> Restaurant : return item_available
+        deactivate Restaurant
+        
+        ' Count Reserved Items
+        Restaurant -> Restaurant : count_stock_item(name, ItemStatus.RESERVED)
+        activate Restaurant
+        loop for find in self.__stock
+            alt find.name == item_name AND find.status == RESERVED
+                Restaurant -> Restaurant : count_stock += 1
+            end
+        end
+        Restaurant --> Restaurant : return item_reserved
+        deactivate Restaurant
+        
+        Restaurant --> Restaurant : return {"Item": name, "Available": item_available, "Reserved": item_reserved}
+        deactivate Restaurant
+        
+        Restaurant -> Restaurant : item_list.append({"Item": name, "Available": item_available, "Reserved": item_reserved})
+    end
+    
+    Restaurant --> Restaurant : return item_list
+    deactivate Restaurant
+    
+    == Formatting Response ==
+    Restaurant --> Client : return {"Stock": item_list}
+end
+
+deactivate Restaurant
+@enduml

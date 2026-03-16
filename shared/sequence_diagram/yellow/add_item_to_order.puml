@@ -1,0 +1,70 @@
+@startuml SequenceDiagram
+skinparam maxmessagesize 150
+
+actor "Customer" as Client
+participant Restaurant
+participant AuthManager
+participant Session
+participant Order
+participant MenuItem
+participant OrderItem
+
+Client -> Restaurant : add_item_to_order(order_id, request, token)
+activate Restaurant
+
+alt successful execution
+   == Authentication ==
+    Restaurant -> Restaurant : check_order_customer(order id, token, ["guest", "member"])
+    activate Restaurant
+    alt session_obj is None OR role not in ["guest", "member"] OR current_customer != order's customer
+        Restaurant --> Client : raise PermissionError("Invalid token or missing permission or wrong customer")
+        deactivate Restaurant
+    else Authorized
+        
+        == Retrieve Entities ==
+        Restaurant -> Restaurant : get_order_by_id(order_id)
+        activate Restaurant
+        loop for order in __order_list
+            alt order.id == order_id
+                Restaurant --> Restaurant : return target_order
+            end
+        end
+        deactivate Restaurant
+
+        Restaurant -> Restaurant : get_menu_item(request.menu_id)
+        activate Restaurant
+        loop for menu in __menu
+            alt menu.id == request.menu_id
+                Restaurant --> Restaurant : return menu_item
+            end
+        end
+        deactivate Restaurant
+
+        == Add Item to Order ==
+        Restaurant -> Order : add_item(menu_item, request.quantity, request.customization)
+        activate Order
+        activate Restaurant
+        
+        Order -> OrderItem : <<create>>(menu_item, quantity, customization)
+        activate OrderItem
+        OrderItem --> Order : new_order_item
+        deactivate OrderItem
+        
+        Order -> Order : self.__items.append(new_order_item)
+        Order -> Order : calculate_total()
+        
+        Order --> Restaurant : return True
+        deactivate Order
+        deactivate Restaurant
+        
+        == Response Formatting ==
+        Restaurant -> Order : order_to_dict()
+        activate Order
+        Order --> Restaurant : order_dict
+        deactivate Order
+        
+        Restaurant --> Client : return "Item added successfully", order_dict
+        deactivate Restaurant
+    end
+
+@enduml

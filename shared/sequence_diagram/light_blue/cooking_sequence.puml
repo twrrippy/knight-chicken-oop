@@ -1,0 +1,152 @@
+@startuml
+actor Staff
+participant "Restaurant" as R
+participant "Order" as O
+participant "OrderItem" as OI
+participant "MenuItem" as MI
+participant "Ingredient" as ING
+participant "Item" as ITM
+
+activate Staff
+Staff -> R: cook_order(order_id)
+activate R
+
+R -> R: search_order_from_id(order_id)
+alt order not found
+    R --> Staff: raise ValueError("Order NOT FOUND")
+else order found
+    R -> O: cook()
+    activate O
+    
+    ' เช็คสถานะ Order
+    O -> O: get status
+    alt status not in [RESERVED, PAID]
+        O --> R: return False
+    else status is valid
+        O -> O: set status = OrderStatus.COOKING
+        
+        ' วนลูปทุกเมนูใน Order
+        loop For each OrderItem in __order_item_list
+            
+            O -> OI: get status
+            activate OI
+            OI --> O: return status
+            deactivate OI
+            
+            opt OrderItem.status == OrderItemStatus.RESERVED
+                O -> OI: process_cooking()
+                activate OI
+                
+                ' เช็คสถานะ OrderItem อีกรอบในฟังก์ชัน process_cooking
+                OI -> OI: get status
+                
+                alt status != OrderItemStatus.RESERVED
+                    OI --> O: return False
+                else status == OrderItemStatus.RESERVED
+                    OI -> OI: set status = OrderItemStatus.COOKING
+                    
+                    ' ดึง List วัตถุดิบจากเมนู
+                    OI -> MI: get all_ingredient
+                    activate MI
+                    MI --> OI: return ingredients (List<Ingredient>)
+                    deactivate MI
+                    
+                    ' วนลูปตัดวัตถุดิบทีละอย่าง
+                    loop For each ing in ingredients
+                        ' 1. ดึงชื่อ Item
+                        OI -> ING: get item
+                        activate ING
+                        ING -> ITM: get name
+                        activate ITM
+                        ITM --> ING: return name
+                        deactivate ITM
+                        ING --> OI: return item
+                        deactivate ING
+                        
+                        ' 2. ดึงจำนวนต่อหน่วย (ing.quantity) 
+                        
+                        OI -> ING: get quantity
+                        activate ING
+                        ING --> OI: return quantity
+                        deactivate ING
+                        
+                        ' 3. ดึงจำนวนออเดอร์ (oi.quantity) และคำนวณยอดรวม
+                        OI -> OI: get quantity (self.__quantity)
+                        OI -> OI: calculate total_qty = ing.quantity * OrderItem.quantity
+                        
+                        ' 4. หักสต๊อกผ่าน Restaurant
+                        OI -> R: consume_reserved_ingredient(item.name, total_qty)
+                        activate R
+                        
+                        ' 4.1 เช็คว่ามีของที่จองไว้พอไหม
+                        R -> R: find_item_in_reserved(item.name)
+                        activate R
+                        loop For item in __stock
+                            R -> ITM: get name & status
+                            activate ITM
+                            ITM --> R: return data
+                            deactivate ITM
+                        end
+                        R --> R: return reserved_count
+                        deactivate R
+                        
+                        alt reserved_count < total_qty
+                            R --> OI: return False
+                        else sufficient reserved items
+                            ' 4.2 วนลูปถอยหลังเพื่อหักสต๊อก (pop)
+                            loop For i in range(len(__stock)-1, -1, -1)
+                                R -> ITM: get name
+                                activate ITM
+                                ITM --> R: return name
+                                deactivate ITM
+                                
+                                R -> ITM: get status
+                                activate ITM
+                                ITM --> R: return status
+                                deactivate ITM
+                                
+                                opt name == item.name AND status == ItemStatus.RESERVED
+                                    R -> R: __stock.pop(i)  
+                                    R -> R: count += 1
+                                    
+                                    
+                                    break count == total_qty
+                                        ' ออกจากลูปทันที
+                                    end
+                                end
+                            end
+                            R --> OI: return True
+                        end
+                        deactivate R
+                    end
+                    
+                    ' เปลี่ยนสถานะ OrderItem เป็นทำเสร็จแล้ว
+                    OI -> OI: set status = OrderItemStatus.READY
+                    OI --> O: return True
+                end
+                deactivate OI
+            end
+        end
+        
+        ' ถ้าทุกเมนูทำเสร็จหมด (all_done == True)
+        alt all items successfully cooked
+            O -> O: set status = OrderStatus.READY
+        end
+        
+        O --> R: return True/False (success flag)
+    end
+    deactivate O
+    
+    ' หลังจาก cook() เสร็จสิ้นใน Restaurant
+    alt success == True
+        opt order.delivery exists
+            R -> R: asyncio.create_task(simulate_delivery(order_id))
+        end
+        R --> Staff: return {"message": "Cooking finished...", "status": order.status}
+    else success == False
+        R --> Staff: raise ValueError("Cannot cook order...")
+    end
+end
+deactivate R
+deactivate Staff
+@enduml
