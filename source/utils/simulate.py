@@ -1,5 +1,5 @@
 from datetime import datetime,timedelta
-import main_system.restaurant
+import source.restaurant
 
 class SimulationClock:
     """Control Over System Time for Testing Purposes"""
@@ -7,7 +7,7 @@ class SimulationClock:
 
     @classmethod
     def set_time(cls, new_time: datetime):
-        from main_system.restaurant import restaurant
+        from source.restaurant import restaurant
         cls._current_time = new_time
         # Trigger time-dependent checks
         restaurant.auto_check_no_show()

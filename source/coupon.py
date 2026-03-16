@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from main_system.utils.enum import CouponStatus
+from source.utils.enum import CouponStatus
 
 class Coupon(ABC):
     def __init__(self, id, code, minimum_price, max_usage: int = 1) -> None:

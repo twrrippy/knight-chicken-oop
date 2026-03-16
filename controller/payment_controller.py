@@ -1,8 +1,8 @@
 from typing import Optional, Dict, Any, Annotated
 from pydantic import Field
-from main_system.restaurant import restaurant
-from main_system.utils.enum import UserRole
-from main_system.utils.mcp_core import mcp
+from source.restaurant import restaurant
+from source.utils.enum import UserRole
+from source.utils.mcp_core import mcp
 
 @mcp.tool
 async def confirm_order_pay(

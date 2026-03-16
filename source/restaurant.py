@@ -1,17 +1,17 @@
 from __future__ import annotations
-from main_system.authentication import AuthManager
-from main_system.ingredient import Item, Ingredient
-from main_system.external_platform.delivery_provider import DeliveryProvider, Delivery
-from main_system.external_platform.payment_method import PaymentMethod
-from main_system.utils.simulate import SimulationClock
-from main_system.coupon import Coupon, FixedAmountCoupon, PercentCoupon
-from main_system.utils.enum import BookingStatus, UserRole
-from main_system.booking import Room, TimeSlot, Booking
+from source.authentication import AuthManager
+from source.ingredient import Item, Ingredient
+from source.external_platform.delivery_provider import DeliveryProvider, Delivery
+from source.external_platform.payment_method import PaymentMethod
+from source.utils.simulate import SimulationClock
+from source.coupon import Coupon, FixedAmountCoupon, PercentCoupon
+from source.utils.enum import BookingStatus, UserRole
+from source.booking import Room, TimeSlot, Booking
 from typing import Optional, List, Dict, Any
 
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
-from main_system.utils.enum import MemberTier, MenuItemStatus, ItemStatus, IngredientType, OrderStatus, OrderType, OrderItemStatus, DeliveryStatus
+from source.utils.enum import MemberTier, MenuItemStatus, ItemStatus, IngredientType, OrderStatus, OrderType, OrderItemStatus, DeliveryStatus
 from pydantic import BaseModel
 import uuid
 import random

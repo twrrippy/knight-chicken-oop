@@ -1,9 +1,9 @@
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Dict, Any
-from main_system.utils.enum import RoomStatus, RoomType, BookingStatus
+from source.utils.enum import RoomStatus, RoomType, BookingStatus
 
 if TYPE_CHECKING:
-    from main_system.restaurant import Member
+    from source.restaurant import Member
     
 class TimeSlot:
     def __init__(self, start_time: datetime, hours: int):

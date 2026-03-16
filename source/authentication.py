@@ -1,6 +1,6 @@
 from typing import Optional
 import uuid
-from main_system.utils.simulate import SimulationClock
+from source.utils.simulate import SimulationClock
 
 class Session:
     def __init__(self, user_id):

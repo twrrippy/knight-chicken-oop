@@ -1,6 +1,6 @@
 from datetime import timedelta
-from main_system.utils.mcp_core import mcp
-from main_system.utils.simulate import SimulationClock
+from source.utils.mcp_core import mcp
+from source.utils.simulate import SimulationClock
 
 @mcp.tool()
 async def advance_time(

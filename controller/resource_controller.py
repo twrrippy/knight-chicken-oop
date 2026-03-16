@@ -1,9 +1,9 @@
-from main_system.restaurant import restaurant
-from main_system.ingredient import Item
-from main_system.utils.enum import UserRole
+from source.restaurant import restaurant
+from source.ingredient import Item
+from source.utils.enum import UserRole
 from typing import Annotated
 from pydantic import Field
-from main_system.utils.mcp_core import mcp
+from source.utils.mcp_core import mcp
 
 """
 Resource Controller Module

@@ -1,7 +1,7 @@
 from typing import Annotated
 from pydantic import Field
-from main_system.utils.mcp_core import mcp
-from main_system.restaurant import restaurant
+from source.utils.mcp_core import mcp
+from source.restaurant import restaurant
 
 @mcp.tool
 async def login(
