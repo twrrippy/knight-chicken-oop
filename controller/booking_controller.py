@@ -56,11 +56,13 @@ async def book_room(
         description='Payment method. Only supports "qrcode", "creditcard", or "cash"'
     )],
     payment_details: Annotated[Dict[str, Any], Field(
-        description='Additional required information depending on payment method: For qrcode, specify {"account_number": "xxx"}. For creditcard, specify {"card_number": "...", "cvv": "..."}. For cash, specify {"cash_received": xxx}.'
+        description='Additional required information depending on payment method: For qrcode, specify {"account_number": "xxx"}. ' \
+        'For creditcard, specify {"card_number": "...", "cvv": "..."}. For cash, specify {"cash_received": xxx}.'
     )] = {}
 ):
     """
-    Book a room and process the required 50% deposit payment. Do not calculate discounts yourself; the system handles it. Ask the user for room choice and payment details before calling.
+    Book a room and process the required 50% deposit payment. Do not calculate discounts yourself; the system handles it. 
+    Ask the user for room choice and payment details before calling.
     """
     try:
         restaurant.verify_token_and_role(token, allowed_roles=[UserRole.STAFF, UserRole.ADMIN])

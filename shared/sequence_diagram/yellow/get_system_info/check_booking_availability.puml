@@ -1,0 +1,81 @@
+@startuml SequenceDiagram
+skinparam maxmessagesize 150
+
+actor Client
+participant Tool
+participant Restaurant
+participant AuthManager
+participant Session
+
+Client -> Tool : check_booking_availability(token, room_id, start_time, hours)
+activate Tool
+
+alt try
+    == Authentication ==
+    Tool -> Restaurant : verify_token_and_role(token, [UserRole.ADMIN, UserRole.STAFF])
+    activate Restaurant
+    Restaurant -> AuthManager : get_session(token)
+    activate AuthManager
+    
+    loop for s in self.__sessions
+        AuthManager -> Session : check_token(token)
+        activate Session
+        Session --> AuthManager : True / False
+        deactivate Session
+
+        alt token matched
+            AuthManager -> Session : is_active
+            activate Session
+            Session --> AuthManager : True / False
+            deactivate Session
+        end
+    end
+    
+    AuthManager --> Restaurant : session_obj / None
+    deactivate AuthManager
+    
+    alt session_obj is None OR role not in ["admin", "staff"]
+        Restaurant --> Tool : raise PermissionError("Invalid token or missing permission")
+    else Authorized
+        Restaurant --> Tool : return staff
+    end
+    deactivate Restaurant
+    
+    == Retrieve Room ==
+    Tool -> Restaurant : get_room(room_id)
+    activate Restaurant
+    loop for r in self.__room_list
+        alt r.id == room_id
+            Restaurant --> Tool : return r
+        end
+    end
+    Restaurant --> Tool : raise LookupError("Room Not Found")
+    deactivate Restaurant
+    
+    == Check Availability ==
+    Tool -> Restaurant : is_slot_avaliable(room, start_time, hours)
+    activate Restaurant
+    Restaurant -> Restaurant : end = start + timedelta(hours=hours)
+    
+    loop for b in self.__booking_list
+        alt b.room.id == room.id
+            alt b.status not in [BookingStatus.CANCELLED, BookingStatus.COMPLETED]
+                alt start < b.time_slot.end_time and end > b.time_slot.start_time
+                    Restaurant --> Tool : return False
+                end
+            end
+        end
+    end
+    Restaurant --> Tool : return True
+    deactivate Restaurant
+    
+    == Success Response ==
+    Tool --> Client : return {"room_id": room_id, "is_available": is_available, "start_time": ..., "deposit_required": ...}
+
+else Exception caught (Exception as e)
+    Tool --> Client : return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
+end
+
+deactivate Tool
+
+@enduml

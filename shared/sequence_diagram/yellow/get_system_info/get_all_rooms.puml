@@ -1,0 +1,34 @@
+@startuml SequenceDiagram
+skinparam maxmessagesize 150
+
+actor Customer
+participant Restaurant
+participant Room
+
+Customer -> Restaurant : get_all_rooms(token)
+activate Restaurant
+
+== Authentication ==
+Restaurant -> Restaurant : verify_token_and_role(token, allowed_roles)
+activate Restaurant
+
+alt session_obj is None OR role not in allowed_roles
+    Restaurant --x Customer : return "Unable to proceed: Invalid token or missing permission"
+    deactivate Restaurant
+else Authorized
+
+    == Retrieve & Format Rooms ==
+    loop for room in self.__room_list
+        Restaurant -> Room : room_to_dict()
+        activate Room
+        Room --> Restaurant : room_dict
+        deactivate Room
+    end
+
+    == Response Formatting ==
+    Restaurant --> Customer : return list of room_dict
+    deactivate Restaurant
+end
+
+
+@enduml

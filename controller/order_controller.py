@@ -127,8 +127,6 @@ async def custom_item_in_order(
         return restaurant.custom_item_in_order(order=current_order, order_item_id=order_item_id, item_name=item_name, quantity=quantity)
     except Exception as e:
         return f"Unable to proceed: {getattr(e, 'detail', str(e))}"
-    return current_order.order_to_dict()
-    
 
 @mcp.tool
 
